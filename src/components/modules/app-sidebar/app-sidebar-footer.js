@@ -1,0 +1,17 @@
+
+
+import { SidebarFooter } from "@/components/ui/sidebar";
+import { NavUser } from "@/components/nav-user";
+import { Settings } from "lucide-react";
+import { NoCollapsibleButton } from "./app-sidebar";
+
+export default function AppSidebarFooter({ data,...props }) {
+  return (
+    <SidebarFooter className={'bg-white pb-8 flex-col flex gap-6'} >
+      <NoCollapsibleButton className={``} url={'/admin/'} title={'My Models'} icon={Settings} active={false} name={'Settings'}/>
+      <NavUser user={data} />
+    </SidebarFooter>
+  )
+}
+
+
