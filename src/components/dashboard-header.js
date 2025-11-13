@@ -1,4 +1,4 @@
-// "use client";
+"use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {  Breadcrumb,  BreadcrumbList,  BreadcrumbItem,  BreadcrumbSeparator,  BreadcrumbLink,  BreadcrumbPage,
@@ -42,7 +42,7 @@ export default function Header({children}) {
             ) : (
               breadcrumbSegments.map((segment, i) => {
                 const href =
-                  "/user/" +
+                  "/admin/" +
                   segments[1] + // dynamic user ID
                   "/" +
                   breadcrumbSegments.slice(0, i + 1).join("/");

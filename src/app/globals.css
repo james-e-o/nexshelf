@@ -56,6 +56,7 @@
 @theme inline {
   --color-core: var(--core);
   --color-army: var(--army);
+  --color-armylight: var(--armylight);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
@@ -98,6 +99,7 @@
 :root {
   --core:oklch(51.017% 0.26191 276.948);
   --army:oklch(60.579% 0.10553 119.921);
+  --armylight:oklch(96.681% 0.01991 116.095);
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);

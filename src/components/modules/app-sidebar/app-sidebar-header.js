@@ -12,7 +12,7 @@ export function AppSidebarHeader({...props }) {
             <div className="flex pt-0 md:pt-0 size-8 justify-center">
                 <Image className="dark:invert w-7/8 scale-75 " src="/logo.png" alt="logo" width={200} height={200} priority />
             </div>
-            <p className="font-Madetommy text-xl font-extrabold">{open?'NEXSHELF':''}</p>
+            <p className="font-Madetommy text-army text-xl font-extrabold">{open?'NEXSHELF':''}</p>
         </div>
     </SidebarHeader>
   )

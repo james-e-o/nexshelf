@@ -76,43 +76,38 @@ export default function AdminUserPage() {
                     toast("Failed to create company",);
                     setIsLoading(false);
                 } else {
-                    console.log("Company created:", info);
                     toast("Company created successfully!");
+                    const { data: companies, error: companyError } = await supabase.from('companies').select('id, name, slug').eq('owner', data.profile.id)
+                    if (companyError) {
+                        toast('Unable to refresh data')           
+                        setIsLoading(false)
+                    } else {setData(prev => ({...prev,companies, }))}
                     setIsLoading(false);
-                        setFormData({
-                        name: "",
-                        type: "",
-                        email: "",
-                        phone: "",
-                        country: "",
-                        industry: "",
-                        currency: "",
-                        taxId: "",
-                        });
+                    router.push(`/admin/${params.u}`)
                 }
             };
 
-              useEffect(() => {
+            useEffect(() => {
                 if (!formData.name.trim()) {
-                setNameExists(null)
-                return
+                    setNameExists(null)
+                    return
                 }
 
                 const timer = setTimeout(async () => {
-                setCheckingName(true)
-                const { data: existingCompany, error } = await supabase
-                    .from("companies")
-                    .select("id")
-                    .eq("name", formData.name.trim())
-                    .maybeSingle()
+                    setCheckingName(true)
+                    const { data: existingCompany, error } = await supabase
+                        .from("companies")
+                        .select("id")
+                        .ilike("name", formData.name.trim()) // case-insensitive match
+                        .maybeSingle()
 
-                if (error) {
-                    console.error("Error checking company name:", error)
-                    setNameExists(null)
-                } else {
-                    setNameExists(!!existingCompany)
-                }
-                setCheckingName(false)
+                    if (error) {
+                        console.error("Error checking company name:", error)
+                        setNameExists(null)
+                    } else {
+                        setNameExists(!!existingCompany)
+                    }
+                    setCheckingName(false)
                 }, 800)
 
                 return () => clearTimeout(timer)
@@ -120,10 +115,11 @@ export default function AdminUserPage() {
 
 
 
+
   return (
 
     <SidebarProvider   className={'relative'}>
-      <AppSidebar data={data.profile} />
+      <AppSidebar />
       <SidebarInset className={' overflow-hidden h-svh static'}>
 
         <div className="flex mb-0.5 h-full overflow-hidden flex-col gap-4">
@@ -173,6 +169,17 @@ export default function AdminUserPage() {
                                     Company Name{requiredFields.includes("name") ? (
                                             <><span className="text-red-500 ml-1">*</span></>
                                         ) : (       '')}
+                                        <FieldDescription className="ml-1 text-gray-500 text-[10px]">
+                                            {checkingName ? (
+                                                <span className="flex items-center">
+                                                <Spinner className="mr-1 size-3" /> Checking name...
+                                                </span>
+                                            ) : nameExists === true ? (
+                                                <span className="text-red-500">Name already in use</span>
+                                            ) : nameExists === false ? (
+                                                <span className="text-green-500">Name is available</span>
+                                            ) : null}
+                                            </FieldDescription>
                                     </FieldLabel>
                                     <Input type="text" name="name" placeholder="Company Name" value={formData.name} onChange={handleChange}  className={cn(
                                     "w-full text-xs border p-2 rounded-lg transition-colors",
@@ -182,7 +189,6 @@ export default function AdminUserPage() {
                                         ? "border-green-500 focus-visible:ring-green-400"
                                         : ""
                                     )} />
-                                    <FieldDescription className="text-xs ml-1" />
                                 </Field>
 
                                 <Field>
@@ -195,6 +201,7 @@ export default function AdminUserPage() {
                                     <option value="">Select Company Type</option>
                                     <option value="product">Product-based</option>
                                     <option value="service">Service-based</option>
+                                    <option value="project">Project-based</option>
                                     </select>
                                     <FieldDescription className="text-xs ml-1" />
                                 </Field>

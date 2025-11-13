@@ -10,22 +10,25 @@ import {SidebarInset,SidebarProvider,SidebarTrigger,} from "@/components/ui/side
 import { useParams, useRouter } from 'next/navigation'
 import Header from '@/components/dashboard-header'
 import { Button } from '@/components/ui/button'
+import { FileSearch, Factory} from 'lucide-react'
+import Link from 'next/link'
 
 export default function AdminUserPage() {
 
     const router = useRouter()
     const params = useParams()
     const {data,setData} = useContext(DataContext)
+    // const companies = [...data?.companies]
 
 
   return (
 
-    <SidebarProvider   className={'relative'}>
-      <AppSidebar data={data.profile} />
+    <SidebarProvider   className={'relative '}>
+      <AppSidebar />
       <SidebarInset className={' overflow-hidden h-svh static'}>
 
         <div className="flex mb-0.5 h-full overflow-hidden flex-col gap-4">
-         <div className='flex-col  border-b-8 overflow-hidden h-full flex'>
+         <div className='flex-col  border-b-1 overflow-hidden h-full flex'>
            <div className='h-12'>
              <Header >
                <div className="flex">
@@ -39,10 +42,30 @@ export default function AdminUserPage() {
                </div>
              </Header>
            </div>
-           <div className='md:px-5 flex-col overflow-y-hidden flex-grow p-0.5 flex px-3'>
-  
-             <h1 className="text-xl font-semibold">Welcome, {data.profile&&data.profile.username}</h1>
-             <h2 className="mt-2 text-lg font-medium">Recent Sales</h2>
+           <div className='flex-col overflow-y-hidden flex-grow  flex'>
+              <div className='md:px-4 pt-2 md:pt-4 p-0.5 px-1 h-full overflow-y-auto'>
+                {data&&!data.companies?.length?(
+                  <div className=' bg-neutral-50 rounded-2xl px-5 py-7 text-center'>
+                    <div className="flex flex-col items-center gap-4">
+                      {/* Icon with subtle animation */}
+                      <div className="p-4 rounded-full bg-white">
+                        <Factory className="size-5 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-medium text-muted-foreground">
+                          No Companies yet created
+                        </h3>
+                      </div>
+                      <Link href={`/admin/${params.u}/new-company`}><Button className='mt-2 h-8 hover:bg-core/90 text-xs bg-core'>Create Company</Button></Link>
+                    </div>
+                  </div>
+                ):(
+                  <div>
+                    <h1 className="text-xl font-semibold">Welcome, {data.profile&&data.profile.username}</h1>
+                    <h2 className="mt-2 text-lg font-medium">Recent Sales</h2>
+                  </div>
+                )}
+              </div>
               
            </div>       
          </div>
