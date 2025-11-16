@@ -3,13 +3,16 @@ import { useState,useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus,X, ChevronDown,Users,ArrowLeft, Shield, ClipboardList,Pencil, PlusCircle } from "lucide-react";
+import { useParams } from "next/navigation";
+import { Plus,X, UserPlus,ChevronDown,Users,ArrowLeft, Shield, ClipboardList,Pencil, PlusCircle } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"; // Your custom tab system
 import { motion, AnimatePresence } from "framer-motion"; 
+import Link from 'next/link'
 
 export default function StaffManagementPage() {
 
-   
+   const params = useParams()
+   const {u, companySlug} = params
 
 
   return (
@@ -19,11 +22,11 @@ export default function StaffManagementPage() {
         <h1 className="text-base font-semibold text-gray-800">Staff Management</h1>
 
         <div className="flex items-center gap-2 mt-4 md:mt-0">
-          <button
-            className="bg-army hover:bg-army/90 text-white text-xs px-3 py-2 rounded-md flex items-center gap-1"
-          >
-            <Plus className="h-3.5 w-3.5" /> Add New Staff
-          </button>
+            <Link href={`/admin/${u}/company/${companySlug}/staff/new`}>
+                <Button className="bg-army hover:bg-army/90 text-white text-xs h-7 px-3 py-2 rounded-md flex items-center gap-1">
+                    <UserPlus className="h-3.5 w-3.5" /> Add New Staff
+                </Button>
+            </Link>
         </div>
       </div>
 

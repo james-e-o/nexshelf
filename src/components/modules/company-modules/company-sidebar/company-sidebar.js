@@ -12,7 +12,7 @@ import { useParams } from "next/navigation";
 
 
 import { useIsMobile } from "@/hooks/use-mobile";
-// import AppSidebarContent from "./app-sidebar-content";
+import CompanySidebarContent from "./company-sidebar-content";
 import CompanySidebarFooter from "./company-sidebar-footer";
 import { AppSidebarHeader } from "../../app-sidebar/app-sidebar-header";
 
@@ -25,7 +25,7 @@ export function AppSidebar({ profile,companies,...props }) {
   return (
     <Sidebar  className={''} collapsible="icon" {...props}>
       <AppSidebarHeader/>
-      {/* <AppSidebarFooter profile={data.profile}/>  */}
+      <CompanySidebarContent />
       <CompanySidebarFooter params={params} profile={data.profile}/>
       <SidebarRail />
     </Sidebar>

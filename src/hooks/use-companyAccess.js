@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState,useContext } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { supabase } from "../../config/supabaseClient"
+import { CompanyInfo } from "@/app/admin/[u]/company/[companySlug]/layout"
 import { toast } from "sonner"
 
 export default function useCompanyAccess() {
@@ -10,6 +11,7 @@ export default function useCompanyAccess() {
   const params = useParams()
   const [company, setCompany] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
+  const {info, setInfo} = useContext(CompanyInfo)
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -40,22 +42,7 @@ export default function useCompanyAccess() {
         // ✅ Step 3: Check if user is the owner
         if (companyData.owner === user.id) {
           setCompany(companyData)
-          setIsLoading(false)
-          return
-        }
-
-        // ✅ Step 4: (Optional) Check if user is a staff
-        // You can prepare this for later:
-        const { data: staffData } = await supabase
-          .from("company_staff")
-          .select("id, company_id, user_id, role")
-          .eq("company_id", companyData.id)
-          .eq("user_id", user.id)
-          .maybeSingle()
-
-        if (staffData) {
-          // Authorized staff
-          setCompany(companyData)
+           setInfo({...companyData})
           setIsLoading(false)
           return
         }

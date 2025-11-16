@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Pencil, Check, X, Plus } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { DropdownMenu,DropdownMenuContent,DropdownMenuItem,DropdownMenuCheckboxItem,DropdownMenuTrigger,DropdownMenuLabel,DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -41,12 +42,69 @@ export default function FiscalTaxSettings() {
 
       <Tabs defaultValue="currency">
 
-        <TabsList className="flex border-b mb-6">
+        {/* <TabsList className="flex border-b mb-6">
           <TabsTrigger value="currency" className="px-4 py-2 text-xs cursor-pointer">Currency Settings</TabsTrigger>
           <TabsTrigger value="tax" className="px-4 py-2 text-xs cursor-pointer">Tax Settings</TabsTrigger>
           <TabsTrigger value="fiscal" className="px-4 py-2 text-xs cursor-pointer">Fiscal Year</TabsTrigger>
           <TabsTrigger value="financial" className="px-4 py-2 text-xs cursor-pointer">Financial Settings</TabsTrigger>
+          </TabsList> */}
+           <>
+      {/* Mobile version — dropdown style */}
+        <div className="block md:hidden mb-4">
+      <DropdownMenu className=''>
+            <DropdownMenuTrigger><Button variant={'outline'} className={`h-7 text-xs`} >Select Fiscal settings</Button></DropdownMenuTrigger>
+            <DropdownMenuContent>
+                <TabsList className="flex flex-col border h-fit rounded-md overflow-hidden w-fit">
+                    <DropdownMenuItem>
+                        <TabsTrigger value="currency" className="w-full text-left text-xs px-3 py-1.5">Currency Settings</TabsTrigger>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                        <TabsTrigger value="tax" className="w-full text-left text-xs px-3 py-1.5">Tax Settings</TabsTrigger>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                        <TabsTrigger value="fiscal" className="w-full text-left text-xs px-3 py-1.5">Fiscal Year</TabsTrigger>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                        <TabsTrigger value="financial" className="w-full text-left text-xs px-3 py-1.5">Financial Settings</TabsTrigger>
+                    </DropdownMenuItem>
+                </TabsList>
+                
+                <DropdownMenuSeparator />
+            </DropdownMenuContent>
+        </DropdownMenu>
+        
+      </div>
+
+      {/* Desktop version — horizontal tab bar */}
+      <div className="hidden md:flex border-b mb-6">
+        <TabsList className="flex gap-1">
+          <TabsTrigger
+            value="currency"
+            className="px-4 py-2 text-xs cursor-pointer data-[state=active]:border-b-2 data-[state=active]:border-core"
+          >
+            Currency Settings
+          </TabsTrigger>
+          <TabsTrigger
+            value="tax"
+            className="px-4 py-2 text-xs cursor-pointer data-[state=active]:border-b-2 data-[state=active]:border-core"
+          >
+            Tax Settings
+          </TabsTrigger>
+          <TabsTrigger
+            value="fiscal"
+            className="px-4 py-2 text-xs cursor-pointer data-[state=active]:border-b-2 data-[state=active]:border-core"
+          >
+            Fiscal Year
+          </TabsTrigger>
+          <TabsTrigger
+            value="financial"
+            className="px-4 py-2 text-xs cursor-pointer data-[state=active]:border-b-2 data-[state=active]:border-core"
+          >
+            Financial Settings
+          </TabsTrigger>
         </TabsList>
+      </div>
+    </>
 
         {/* ------------------ CURRENCY SETTINGS ------------------ */}
         <TabsContent value="currency">

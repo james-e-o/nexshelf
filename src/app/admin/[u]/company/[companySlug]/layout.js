@@ -1,4 +1,7 @@
+'use client'
+import { createContext,useState } from "react"
 
+export const CompanyInfo = createContext()
 
 import { AppSidebar } from "@/components/modules/company-modules/company-sidebar/company-sidebar";
 import {SidebarInset,SidebarProvider,SidebarTrigger,} from "@/components/ui/sidebar"
@@ -8,7 +11,10 @@ import { Bell } from "lucide-react";
 import CompanyHeader from "@/components/modules/company-modules/company-dashboard-header";
 
 export default function CompanyLayout( {children}) {
+    const [info, setInfo] = useState({})
   return (
+
+    <CompanyInfo.Provider value={{info,setInfo}}>
      <SidebarProvider   className={'relative'}>
         <AppSidebar />
         <SidebarInset className={' overflow-hidden h-svh static'}>
@@ -40,5 +46,6 @@ export default function CompanyLayout( {children}) {
 
         </SidebarInset>
      </SidebarProvider>
+     </CompanyInfo.Provider>
   );
 }

@@ -17,22 +17,16 @@ export default function CompanySettingsPage() {
       route: "company-info",
     },
     {
-      title: "Staff Management",
-      description: "Manage staff accounts, roles, and permissions.",
-      icon: <Users className="w-5 h-5 text-gray-600" />,
-      route: "staff",
-    },
-    {
       title: "Fiscal & Tax Settings",
       description: "Manage tax details, fiscal year, and default tax rate.",
       icon: <DollarSign className="w-5 h-5 text-gray-600" />,
       route: "fiscal-tax",
     },
     {
-      title: "Currency & Country",
+      title: "Country & Region",
       description: "Change default currency, country, and timezone.",
       icon: <Globe className="w-5 h-5 text-gray-600" />,
-      route: "currency-country",
+      route: "country-region",
     },
     {
       title: "Security & Ownership",
