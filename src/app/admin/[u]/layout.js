@@ -6,12 +6,30 @@ import { supabase } from "../../../../config/supabaseClient"
 import { toast } from "sonner"
 
 export const DataContext = createContext()
+export const RefreshContext = createContext()
 
 const PageLayout = ({ children }) => {
   const params = useParams()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
   const [data, setData] = useState({ profile: null, companies: null })
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+      const loginTime = Number(localStorage.getItem("login_timestamp"));
+
+      const now = Date.now();
+      const ONE_DAY = 24 * 60 * 60 * 1000;
+
+      // Rule 1: 24 hours passed → logout
+      if (now - loginTime > ONE_DAY) {
+        supabase.auth.signOut();
+        localStorage.setItem("login_timestamp:",'');
+        router.push("/accounts/login");
+        return;
+      }
+  }, []);
+
 
   useEffect(() => {
     async function ValidateUser() {
@@ -49,34 +67,6 @@ const PageLayout = ({ children }) => {
         // ✅ Set profile first
         setData(prev => ({ ...prev, profile }))
 
-        // ✅ Now fetch companies for this user
-        const { data: companies, error: companyError } = await supabase
-          .from('companies')
-          .select('id, name, slug')
-          .eq('owner', userID)
-
-        if (companyError) {
-          console.error('Company fetch error:', companyError)
-          alert('Unable to load your companies. Please try again later.')
-          setData(prev => ({ ...prev, companies: [] }))
-          setIsLoading(false)
-          return
-        }
-
-        if (!companies || companies.length === 0) {
-          toast('No companies found for this account.')
-          setData(prev => ({ ...prev, companies: [] }))
-          setIsLoading(false)
-          return
-        }
-
-        // ✅ Save both profile and companies together
-        setData(prev => ({
-          ...prev,
-          profile,
-          companies,
-        }))
-
         } catch (err) {
             console.error('Unexpected error:', err)
             alert('Something went wrong while loading your account. Please log in again.')
@@ -88,46 +78,10 @@ const PageLayout = ({ children }) => {
     }
 
     ValidateUser()
-
-      const channel = supabase
-      .channel('companies-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'companies' },
-        (payload) => {
-          console.log('Realtime update:', payload)
-
-          // You can refetch or manually adjust state:
-          if (payload.eventType === 'INSERT') {
-            setData(prev => ({
-              ...prev,
-              companies: [...prev.companies, payload.new],
-            }))
-          } else if (payload.eventType === 'UPDATE') {
-            setData(prev => ({
-              ...prev,
-              companies: prev.companies.map(c =>
-                c.id === payload.new.id ? payload.new : c
-              ),
-            }))
-          } else if (payload.eventType === 'DELETE') {
-            setData(prev => ({
-              ...prev,
-              companies: prev.companies.filter(c => c.id !== payload.old.id),
-            }))
-          }
-        }
-      )
-      .subscribe()
-
-    // cleanup when component unmounts
-    return () => {
-      supabase.removeChannel(channel)
-    }
   }, [params.u, router])
 
   // Prevent showing dashboard if either profile or companies not ready
-  if (isLoading || !data.profile || !data.companies) {
+  if (isLoading || !data.profile) {
     return (
       <div className='overflow-hidden flex justify-center items-center h-full'>
         <Spinner className='size-8 text-core' spinning={true} />
@@ -137,9 +91,11 @@ const PageLayout = ({ children }) => {
 
   // ✅ Fully authorized and data loaded
   return (
+     <RefreshContext.Provider value={{ refreshKey, setRefreshKey }}>
     <DataContext.Provider value={{ data, setData }}>
       {children}
     </DataContext.Provider>
+    </RefreshContext.Provider>
   )
 }
 

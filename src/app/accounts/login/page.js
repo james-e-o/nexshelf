@@ -102,6 +102,15 @@ export default function LoginPage() {
         }
       }, []);
 
+      supabase.auth.onAuthStateChange((event, session) => {
+        if (event === "SIGNED_IN") {
+          console.log(true,event)
+          localStorage.setItem("login_timestamp", Date.now().toString());
+          localStorage.setItem("refresh_count", "0");
+        }
+      });
+
+
 
   return (
     <Dialog setDialogOpen={setDialogOpen} dialogOpen={dialogOpen}>

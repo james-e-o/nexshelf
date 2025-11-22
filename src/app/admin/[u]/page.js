@@ -12,12 +12,42 @@ import Header from '@/components/dashboard-header'
 import { Button } from '@/components/ui/button'
 import { FileSearch, Factory} from 'lucide-react'
 import Link from 'next/link'
+import { toast } from 'sonner'
 
 export default function AdminUserPage() {
 
     const router = useRouter()
     const params = useParams()
     const {data,setData} = useContext(DataContext)
+
+    useEffect(()=>{
+      async function fetchCompany(){
+        const { data: companies, error: companyError } = await supabase
+                  .from('companies')
+                  .select('id, name, slug')
+                  .eq('owner', data.profile.id)
+        
+                if (companyError) {
+                  console.error('Company fetch error:', companyError)
+                  alert('Unable to load your companies. Please try again later.')
+                  setData(prev => ({ ...prev, companies: [] }))
+                  return
+                }
+        
+                if (!companies || companies.length === 0) {
+                  toast('No companies found for this account.')
+                  setData(prev => ({ ...prev, companies: [] }))
+                  return
+                }
+        
+                // ✅ Save both profile and companies together
+                setData(prev => ({
+                  ...prev,
+                  companies,
+                }))
+          }
+          fetchCompany()
+    },[])
     // const companies = [...data?.companies]
 
 

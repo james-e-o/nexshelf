@@ -3,12 +3,12 @@ import { useState,useContext } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CompanyInfo } from "../../layout";
+import { CompanyInfoContext } from "@/components/contexts/company-context";
 import { toast } from "sonner";
 
 export default function StaffOnboarding({ companyId, companyName, companyLogo }) {
   const [loading, setLoading] = useState(false);
-  const {info,setInfo} = useContext(CompanyInfo)
+  const {info,setInfo} = useContext(CompanyInfoContext)
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -37,6 +37,7 @@ export default function StaffOnboarding({ companyId, companyName, companyLogo })
       toast("Invite sent!");
     } else {
       toast("Error: " + data.message);
+      console.log(data)
     }
   }
 

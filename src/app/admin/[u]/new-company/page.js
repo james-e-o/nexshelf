@@ -48,44 +48,136 @@ export default function AdminUserPage() {
 
             const isFormValid = requiredFields.every((field) => formData[field].trim() !== "") && !nameExists // ✅ also require unique name
 
+            // const handleSubmit = async () => {
+            //     if (!isFormValid) {
+            //     toast("Please fill in all required fields before submitting.");
+            //     return;
+            //     }
+                
+            //     setIsLoading(true);
+            //     const { info, error } = await supabase
+            //         .from("companies")
+            //         .insert([
+            //         {
+            //             name: formData.name,
+            //             owner:data.profile.id,
+            //             type: formData.type,
+            //             email: formData.email,
+            //             phone: formData.phone,
+            //             country: formData.country,
+            //             industry: formData.industry,
+            //             currency: formData.currency,
+            //             taxId: formData.taxId,
+            //         },
+            //         ]);
+
+            //     if (error) {
+            //         console.log("Error inserting company:", error);
+            //         toast("Failed to create company",);
+            //         setIsLoading(false);
+            //     } else {
+            //         toast("Company created successfully!");
+            //         const { data: companies, error: companyError } = await supabase.from('companies').select('id, name, slug').eq('owner', data.profile.id)
+            //         if (companyError) {
+            //             toast('Unable to refresh data')           
+            //             setIsLoading(false)
+            //         } else {setData(prev => ({...prev,companies, }))}
+            //         setIsLoading(false);
+            //         router.push(`/admin/${params.u}`)
+            //     }
+            // };
+
             const handleSubmit = async () => {
-                if (!isFormValid) {
+            if (!isFormValid) {
                 toast("Please fill in all required fields before submitting.");
                 return;
-                }
-                
-                setIsLoading(true);
-                const { info, error } = await supabase
-                    .from("companies")
-                    .insert([
-                    {
-                        name: formData.name,
-                        owner:data.profile.id,
-                        type: formData.type,
-                        email: formData.email,
-                        phone: formData.phone,
-                        country: formData.country,
-                        industry: formData.industry,
-                        currency: formData.currency,
-                        taxId: formData.taxId,
-                    },
-                    ]);
+            }
 
-                if (error) {
-                    console.log("Error inserting company:", error);
-                    toast("Failed to create company",);
-                    setIsLoading(false);
-                } else {
+            setIsLoading(true);
+
+            // 1️⃣ Create the company
+            const { data: insertedCompany, error: companyError } = await supabase
+                .from("companies")
+                .insert([
+                {
+                    name: formData.name,
+                    owner: data.profile.id,
+                    type: formData.type,
+                    email: formData.email,
+                    phone: formData.phone,
+                    country: formData.country,
+                    industry: formData.industry,
+                    currency: formData.currency,
+                    taxId: formData.taxId,
+                },
+                ])
+                .select()
+                .single();
+
+            if (companyError) {
+                toast("Failed to create company");
+                console.log("Error inserting company:", companyError);
+                setIsLoading(false);
+                return;
+            } else {
+                    console.log(insertedCompany)
+
+                    // 🟦 At this point, insertedCompany.id exists
+                    const companyType = insertedCompany.type;
+                    const companyName = insertedCompany.name;
+                    const companyId = insertedCompany.id;
+                    console.log(companyType,companyId)
+
+                    // 2️⃣ Fetch all modules that match this company's default types
+                    const { data: defaultModules, error: modulesError } = await supabase
+                    .from("modules")
+                    .select("key, defaulttypes")
+                    .contains("defaulttypes", [companyType]);
+
+                    if (modulesError) {
+                        console.log("Error fetching default modules:", modulesError);
+                        toast("Company created, but failed to assign default modules.");
+                    } else {
+                        // 3️⃣ Insert default modules into company_modules
+                        console.log(defaultModules)
+                        const moduleRows = defaultModules.map((mod) => ({
+                            company: companyId,
+                            company_name: companyName,
+                            mod_key: mod.key,
+                            active: true,
+                        }));
+
+                        const { error: addModuleError } = await supabase
+                        .from("company_modules")
+                        .insert(moduleRows);
+
+                        if (addModuleError) {
+                        console.log("Error adding company modules:", addModuleError);
+                        toast("Company created, but failed to add modules.");
+                        }
+                    }
+
+                    // 4️⃣ Update state & redirect
                     toast("Company created successfully!");
-                    const { data: companies, error: companyError } = await supabase.from('companies').select('id, name, slug').eq('owner', data.profile.id)
-                    if (companyError) {
-                        toast('Unable to refresh data')           
-                        setIsLoading(false)
-                    } else {setData(prev => ({...prev,companies, }))}
-                    setIsLoading(false);
-                    router.push(`/admin/${params.u}`)
-                }
+
+                    const { data: companies, error: reloadError } = await supabase
+                        .from("companies")
+                        .select("id, name, slug")
+                        .eq("owner", data.profile.id);
+
+                    if (reloadError) {
+                        toast("Unable to refresh data");
+                    } else {
+                        setData((prev) => ({ ...prev, companies }));
+                    }
+            }
+
+            
+
+            setIsLoading(false);
+            router.push(`/admin/${params.u}`);
             };
+
 
             useEffect(() => {
                 if (!formData.name.trim()) {

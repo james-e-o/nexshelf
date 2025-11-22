@@ -1,8 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState,useContext } from "react";
 import { Button } from "@/components/ui/button";
-import {Shield,UserCog,KeyRound,Trash2,Edit3,Save,X,Mail} from "lucide-react";
+import { Input } from "@/components/ui/input";
+import TransferOwnershipForm from "@/lib/transfer-form";
+import {AlertDialog,AlertDialogAction,AlertDialogCancel,AlertDialogContent,AlertDialogDescription,AlertDialogFooter,AlertDialogHeader,AlertDialogTitle,AlertDialogTrigger,} from "@/components/ui/alert-dialog"
+import {Shield,UserCog,KeyRound,Trash2,Edit3,Save,X,Mail, RotateCcwKey} from "lucide-react";
+import { CompanyInfoContext } from "../../layout";
+import { useRouter, useParams } from "next/navigation";
+import { Spinner } from "@/components/ui/spinner";
+import { supabase } from "../../../../../../../../config/supabaseClient";
+import { toast } from "sonner";
+
 
 export default function SecurityOwnershipSettings() {
   const [data, setData] = useState({
@@ -11,14 +20,23 @@ export default function SecurityOwnershipSettings() {
     recoveryEmail: "support@nexshelf.com",
   });
 
+  const {info,setInfo} = useContext(CompanyInfoContext)
+  const router = useRouter()
+  const params = useParams()
+
+  const {u, companySlug} = params
+
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState(data);
   const [loading, setLoading] = useState(false);
-
+  const [isLoading, setIsLoading] = useState(false);
+  const [confirmText,setConfirmText] = useState('')
+  const [initiateTransfer,setInitiateTransfer] = useState(false)
+  
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
-
+  
   const handleSave = async () => {
     setLoading(true);
 
@@ -34,8 +52,35 @@ export default function SecurityOwnershipSettings() {
     setEditMode(false);
   };
 
+  async function onDelete (){
+    setIsLoading(true)
+    
+    const { data, error } = await supabase
+        .from("companies")
+        .delete()
+        .eq("id", info.id)
+        .select();
+
+      if (error) {
+        console.error("Delete failed:", error.message);
+        toast("Unable to delete company.");
+        setIsLoading(false)
+        return; // show error toast or message
+      }
+
+      // If we reach here, deletion worked
+      console.log("Company deleted:", data);
+      toast("Company deleted.");
+      router.push(`/admin//${u}`); // or wherever you want
+      
+      setIsLoading(false)
+  }
+  // console.log(info.id)
+  const isMatch = confirmText.trim() === info.name;
+
   return (
-    <div className="min-h-screen pt-2 font-WixMid text-xs">
+    <AlertDialog>
+    <div className="min-h-screen pt-2 font-WixMade text-xs">
       <div className="bg-white rounded-sm p-6">
 
         {/* Header */}
@@ -49,9 +94,9 @@ export default function SecurityOwnershipSettings() {
 
           {!editMode ? (
             <Button
-              onClick={() => setEditMode(true)}
+            onClick={() => setEditMode(true)}
               className="flex items-center gap-1 px-2 py-1 h-7 text-xs font-medium bg-core text-white rounded-sm hover:bg-core/90 cursor-pointer transition"
-            >
+              >
               <Edit3 className="w-3 h-3" />
               Edit
             </Button>
@@ -149,21 +194,75 @@ export default function SecurityOwnershipSettings() {
           </div>
 
           {/* Danger Zone */}
+          <div className="py-4 my-4">
+            <p className="text-army text-xs font-medium flex items-center gap-1 mb-2">
+              <RotateCcwKey className="w-3 h-3 text-army" />
+              Transfer Company Ownership
+            </p>
+
+            
+              <Button  onClick={()=>setInitiateTransfer(true)} className="bg-army text-white text-xs h-7 px-3 rounded-sm hover:bg-army/90 cursor-pointer">
+                Initiate Transfer
+              </Button>
+
+               <div className={initiateTransfer?"grid grid-rows-[1fr] transition-collapse":"grid grid-rows-[0fr] transition-collapse"}>
+                    <div className="overflow-hidden">
+                     <TransferOwnershipForm cancel={()=>setInitiateTransfer(false)}/>
+                    </div>
+                </div>
+            
+          </div>
           <div className="py-4">
             <p className="text-red-600 text-xs font-medium flex items-center gap-1 mb-2">
               <Trash2 className="w-3 h-3 text-red-600" />
               Danger Zone
             </p>
 
-            <Button
-              className="bg-red-600 text-white text-xs h-7 px-3 rounded-sm hover:bg-red-600/90 cursor-pointer"
-            >
-              Delete Company Permanently
-            </Button>
+            <AlertDialogTrigger asChild>
+              <Button className="bg-red-600 text-white text-xs h-7 px-3 rounded-sm hover:bg-red-600/90 cursor-pointer">
+                Delete Company Permanently
+              </Button>
+            </AlertDialogTrigger>
           </div>
-
         </div>
       </div>
     </div>
+
+
+    <AlertDialogContent className={'text-xs '}>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="text-red-600 text-sm">
+            Delete Company Permanently
+          </AlertDialogTitle>
+
+          <AlertDialogDescription  className={'text-xs text-neutral-800'}>
+            This action cannot be undone. This will permanently delete the company
+            <strong> "{info&&info.name}"</strong> and remove all its associated data.
+            <br /><br />
+            Please type **{info&&info.name}** below to confirm:
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+
+        <div className="py-4">
+          <Input
+            placeholder={`Type "${info&&info.name}" to confirm`}
+            value={confirmText}
+            onChange={(e) => {setConfirmText(e.target.value)}}
+          />
+        </div>
+
+        <AlertDialogFooter>
+          <AlertDialogCancel className={'h-7 text-xs'}>Cancel</AlertDialogCancel>
+
+          <Button
+            disabled={!isMatch || isLoading}
+            className="bg-red-600 text-xs h-7 text-white hover:bg-red-700"
+            onClick={() => {
+              if (onDelete) onDelete();
+            }}>{isLoading&&<Spinner spinning={isLoading}/>}Delete Permanently
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+  </AlertDialog>
   );
 }

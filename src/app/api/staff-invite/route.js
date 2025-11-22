@@ -8,7 +8,7 @@ export async function POST(req) {
     const companyLogo ='../../../../public/logo.png'
 
   const response = await resend.emails.send({
-    from: `${companyName} via Nexshelf <onwuasoanyajames@gmail.com>`,
+    from: `onwuasoanyajames@gmail.com`,
     to: email,
     subject: `${companyName} has invited you to join their company`,
     html: `

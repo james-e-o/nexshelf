@@ -17,16 +17,22 @@ export default function CompanySettingsPage() {
       route: "company-info",
     },
     {
+      title: "Modules Settings",
+      description: "Manage business modules, eg Sales, Inventory, etc.",
+      icon: <Users className="w-5 h-5 text-gray-600" />,
+      route: "modules",
+    },
+    {
       title: "Fiscal & Tax Settings",
-      description: "Manage tax details, fiscal year, and default tax rate.",
+      description: "Manage tax details, fiscal year,  and default  tax rate.",
       icon: <DollarSign className="w-5 h-5 text-gray-600" />,
       route: "fiscal-tax",
     },
     {
-      title: "Country & Region",
+      title: "Currency & Country",
       description: "Change default currency, country, and timezone.",
       icon: <Globe className="w-5 h-5 text-gray-600" />,
-      route: "country-region",
+      route: "currency-country",
     },
     {
       title: "Security & Ownership",
@@ -51,7 +57,7 @@ export default function CompanySettingsPage() {
             <Button
               key={index}
               onClick={() => router.push(`/admin/${u}/company/${companySlug}/settings/${section.route}`)}
-              className="flex items-start gap-4 p-5 rounded-lg h-fit border bg-white hover:bg-neutral-50 hover:shadow-xs transition-all text-left"
+              className="flex items-start gap-4 p-5 rounded-lg h-fit border bg-white hover:bg-armylight hover:shadow-xs transition-all text-left"
             >
               <div className="mt-1">{section.icon}</div>
               <div>

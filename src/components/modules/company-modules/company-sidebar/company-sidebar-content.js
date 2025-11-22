@@ -8,16 +8,15 @@ import Link from "next/link";
 import { useParams } from "next/navigation";    
 import { CollapsibleButton,NoCollapsibleButton } from "./company-sidebar";
 
-export default function CompanySidebarContent({ profile,companies}) {
+export default function CompanySidebarContent({ company}) {
    const params = useParams()   
 
  const companyModules = [
-  { title: "Sales", slug: "sales" },
-  { title: "Products", slug: "products" },
-  { title: "Inventory", slug: "inventory" },
-  { title: "Orders", slug: "orders" },
-  { title: "Customers", slug: "customers" },
-  { title: "Analytics", slug: "analytics" },
+        { title: "Orders", slug: "orders" },
+        { title: "Customers", slug: "customers" },
+        { title: "Sales", slug: "sales" },
+        { title: "Products", slug: "products" },
+        { title: "Inventory", slug: "inventory" },
 ];
 
 
