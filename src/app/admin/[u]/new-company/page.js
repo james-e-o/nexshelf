@@ -131,7 +131,7 @@ export default function AdminUserPage() {
                     // 2️⃣ Fetch all modules that match this company's default types
                     const { data: defaultModules, error: modulesError } = await supabase
                     .from("modules")
-                    .select("key, defaulttypes")
+                    .select("key, defaulttypes,name")
                     .contains("defaulttypes", [companyType]);
 
                     if (modulesError) {
@@ -144,6 +144,7 @@ export default function AdminUserPage() {
                             company: companyId,
                             company_name: companyName,
                             mod_key: mod.key,
+                            name: mod.name,
                             active: true,
                         }));
 

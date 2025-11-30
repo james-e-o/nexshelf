@@ -8,30 +8,21 @@ import Link from "next/link";
 import { useParams } from "next/navigation";    
 import { CollapsibleButton,NoCollapsibleButton } from "./company-sidebar";
 
-export default function CompanySidebarContent({ company}) {
+export default function CompanySidebarContent({modules, company}) {
    const params = useParams()   
-
- const companyModules = [
-        { title: "Orders", slug: "orders" },
-        { title: "Customers", slug: "customers" },
-        { title: "Sales", slug: "sales" },
-        { title: "Products", slug: "products" },
-        { title: "Inventory", slug: "inventory" },
-];
-
 
     return (
     <SidebarContent className={'bg-[white] text-zinc-100'} >
         <SidebarGroup>
             <SidebarMenu>
                 <NoCollapsibleButton className={`capitalize`} url={`/admin/${params.u}/company/${params.companySlug}`} title={'Dashboard'} icon={LayoutDashboard} active={false} name={`${params.companySlug} Dashboard`}/>
-                {/* {companies&&companies.length>0&&( */}
+                {modules&&modules.length>0&&(
                     <CollapsibleButton caps={'capitalize'} sidebarOpen={true} className={``} title={'Business Modules'} icon={Group} 
-                        items={companyModules.map((module) => ({ title: module.title, url: `/admin/${params.u}/company/${params.companySlug}/${module.slug}`}))}
+                    items={modules.map((module) => ({ title: module.title, url: `/admin/${params.u}/company/${params.companySlug}/${module.slug}`}))}
                         sidebarCollapse={false}
                     />
-                {/* )} */}
-                <NoCollapsibleButton className={``} url={`/admin/${params.u}`} title={'Reports'} icon={Files} active={false} name={'Company Reports'}/>
+                )}
+                <NoCollapsibleButton className={``} url={`/admin/${params.u}/company/${params.companySlug}/accounting`} title={'Accounting'} icon={Files} active={false} name={'Accounting'}/>
                
             </SidebarMenu> 
         </SidebarGroup>

@@ -81,7 +81,7 @@ const PageLayout = ({ children }) => {
   }, [params.u, router])
 
   // Prevent showing dashboard if either profile or companies not ready
-  if (isLoading || !data.profile) {
+  if (isLoading || !data.profile ) {
     return (
       <div className='overflow-hidden flex justify-center items-center h-full'>
         <Spinner className='size-8 text-core' spinning={true} />

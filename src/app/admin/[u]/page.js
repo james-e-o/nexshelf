@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState,useContext } from 'react'
+import { useEffect, useState,useContext } from 'react'       
 import { supabase } from '../../../../config/supabaseClient'
 import { Spinner } from '@/components/ui/spinner'
 import { Bell } from 'lucide-react'
@@ -13,6 +13,8 @@ import { Button } from '@/components/ui/button'
 import { FileSearch, Factory} from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
+import { AlertCircleIcon, CheckCircle2Icon, PopcornIcon } from "lucide-react"
+import {  Alert,  AlertDescription,  AlertTitle,} from "@/components/ui/alert"
 
 export default function AdminUserPage() {
 
@@ -29,7 +31,7 @@ export default function AdminUserPage() {
         
                 if (companyError) {
                   console.error('Company fetch error:', companyError)
-                  alert('Unable to load your companies. Please try again later.')
+                  toast('Unable to load your companies. Please try again later.')
                   setData(prev => ({ ...prev, companies: [] }))
                   return
                 }
@@ -74,10 +76,16 @@ export default function AdminUserPage() {
            </div>
            <div className='flex-col overflow-y-hidden flex-grow  flex'>
               <div className='md:px-4 pt-2 md:pt-4 p-0.5 px-1 h-full overflow-y-auto'>
-                {data&&!data.companies?.length?(
+                
+                  <div>
+                    <h1 className="text-xl font-semibold">Welcome, {data.profile&&data.profile.username}</h1>
+                    {/* <h2 className="mt-2 text-lg font-medium">Recent Sales</h2> */}
+                  </div>
+                  <div className='mt-4'>
+                     {data&&!data.companies?.length?
                   <div className=' bg-neutral-50 rounded-2xl px-5 py-7 text-center'>
                     <div className="flex flex-col items-center gap-4">
-                      {/* Icon with subtle animation */}
+                      
                       <div className="p-4 rounded-full bg-white">
                         <Factory className="size-5 text-muted-foreground" />
                       </div>
@@ -88,13 +96,9 @@ export default function AdminUserPage() {
                       </div>
                       <Link href={`/admin/${params.u}/new-company`}><Button className='mt-2 h-8 hover:bg-core/90 text-xs bg-core'>Create Company</Button></Link>
                     </div>
+                  </div>:""
+                }
                   </div>
-                ):(
-                  <div>
-                    <h1 className="text-xl font-semibold">Welcome, {data.profile&&data.profile.username}</h1>
-                    <h2 className="mt-2 text-lg font-medium">Recent Sales</h2>
-                  </div>
-                )}
               </div>
               
            </div>       
