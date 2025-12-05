@@ -19,6 +19,7 @@ import {  Alert,  AlertDescription,  AlertTitle,} from "@/components/ui/alert"
 export default function AdminUserPage() {
 
     const router = useRouter()
+    const [isLoading, setIsLoading] = useState(true)
     const params = useParams()
     const {data,setData} = useContext(DataContext)
 
@@ -47,6 +48,7 @@ export default function AdminUserPage() {
                   ...prev,
                   companies,
                 }))
+                setIsLoading(false)
           }
           fetchCompany()
     },[])
@@ -82,22 +84,27 @@ export default function AdminUserPage() {
                     {/* <h2 className="mt-2 text-lg font-medium">Recent Sales</h2> */}
                   </div>
                   <div className='mt-4'>
-                     {data&&!data.companies?.length?
-                  <div className=' bg-neutral-50 rounded-2xl px-5 py-7 text-center'>
-                    <div className="flex flex-col items-center gap-4">
-                      
-                      <div className="p-4 rounded-full bg-white">
-                        <Factory className="size-5 text-muted-foreground" />
+                     {isLoading?
+                      <div className='overflow-hidden flex justify-start items-center h-full'>
+                        Loading data<Spinner className='size-4 ml-2 text-core' spinning={true} />
                       </div>
-                      <div>
-                        <h3 className="text-sm font-medium text-muted-foreground">
-                          No Companies yet created
-                        </h3>
-                      </div>
-                      <Link href={`/admin/${params.u}/new-company`}><Button className='mt-2 h-8 hover:bg-core/90 text-xs bg-core'>Create Company</Button></Link>
-                    </div>
-                  </div>:""
-                }
+                      :
+                     data && data.profile &&!data.companies?.length && data.profile?
+                      <div className=' bg-neutral-50 rounded-2xl px-5 py-7 text-center'>
+                        <div className="flex flex-col items-center gap-4">
+                          
+                          <div className="p-4 rounded-full bg-white">
+                            <Factory className="size-5 text-muted-foreground" />
+                          </div>
+                          <div>
+                            <h3 className="text-sm font-medium text-muted-foreground">
+                              No Companies yet created
+                            </h3>
+                          </div>
+                          <Link href={`/admin/${params.u}/new-company`}><Button className='mt-2 h-8 hover:bg-core/90 text-xs bg-core'>Create Company</Button></Link>
+                        </div>
+                      </div>:""
+                      }
                   </div>
               </div>
               

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import { useReactTable, getCoreRowModel, flexRender } from "@tanstack/react-table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs,TabsTrigger,TabsList,TabsContent } from "@/components/ui/tabs"
@@ -16,11 +16,34 @@ import {Popover,PopoverContent,PopoverTrigger,} from "@/components/ui/popover"
 import { X ,Check, ChevronsUpDown, GripIcon, GripHorizontalIcon, ArrowRight, Upload} from "lucide-react"
 import { useParams } from "next/navigation"
 import AddImage from "@/components/add-image";
+import { supabase } from "../../../../../../../../config/supabaseClient";
 
 const CreateProductPage = () => {
     const [activeTab, setActiveTab] = useState("details");
     const params = useParams(); 
     const { u, companySlug } = params;
+
+    // useEffect(() => {
+    //    async function listDeep(prefix) {
+    //       const { data } = await supabase.storage.from("products").list(prefix);
+  
+    //       const result = [];
+  
+    //       for (const item of data) {
+    //         if (item.name.endsWith("/")) {
+    //           // It's a folder
+    //           const sub = await listDeep(`${prefix}/${item.name}`);
+    //           result.push(...sub);
+    //         } else {
+    //           // It's a file
+    //           result.push(`${prefix}/${item.name}`);
+    //         }
+    //       }
+    //       console.log(result);
+    //       return result;
+    //     }
+    //     listDeep(info.name)
+    // }, []);
  
 
   return (
@@ -37,7 +60,7 @@ const CreateProductPage = () => {
                     <Link href={`/admin/${u}/company/${companySlug}/products`}><Button variant={'ghost'} className="text-neutral-500 h-7 hover:text-black text-xs">✕</Button></Link>
 
                     {/* ESC Badge */}
-                    <div className="px-2 py-[1px] border rounded-sm text-[10px] text-neutral-600">
+                    <div className="px-2 py-px border rounded-sm text-[10px] text-neutral-600">
                     esc
                     </div>
 
@@ -53,7 +76,7 @@ const CreateProductPage = () => {
                             : "text-neutral-600"
                         }`}
                     >
-                        <span className="top-[1px] relative">Details</span>
+                        <span className="top-px relative">Details</span>
                     </Button>
 
                     <span className="text-neutral-300">|</span>
@@ -67,7 +90,7 @@ const CreateProductPage = () => {
                             : "text-neutral-600"
                         }`}
                     >
-                        <span className="top-[1px] relative">Organize</span>
+                        <span className="top-px relative">Organize</span>
                     </Button>
 
                     <span className="text-neutral-300">|</span>
@@ -81,7 +104,7 @@ const CreateProductPage = () => {
                             : "text-neutral-600"
                         }`}
                     >
-                        <span className="top-[1px] relative">Variants</span>
+                        <span className="top-px relative">Variants</span>
                     </Button>
                     </div>
                 </div>
@@ -311,7 +334,7 @@ const CreateProductPage = () => {
 
         </div>
     </div>
-      <AlertDialogContent  className="flex bg-white flex-col gap-0 p-0 overflow-hidden justify-between w-11/12 md:w-[80%] max-w-[90%] md:max-w-[80%] h-5/6 md:h-[87%]  rounded-lg ">
+      <AlertDialogContent  className="flex duration-100 bg-white flex-col gap-0 p-0 overflow-hidden justify-between w-11/12 md:w-[83%] max-w-[90%] md:max-w-[80%] h-5/6 md:h-[87%]  rounded-lg ">
           <AlertDialogHeader>
             <AlertDialogTitle ></AlertDialogTitle>
             <AlertDialogDescription>
@@ -319,11 +342,8 @@ const CreateProductPage = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
 
-          <AddImage />
-          <AlertDialogFooter className={'p-3'}>
-            <AlertDialogCancel className={'h-7 text-xs '} >Cancel</AlertDialogCancel>
-            <AlertDialogAction className={'h-7 text-xs bg-core hover:bg-core/85'} >Continue</AlertDialogAction>
-          </AlertDialogFooter>
+            <AddImage />
+         
         </AlertDialogContent>
     </AlertDialog>
   )

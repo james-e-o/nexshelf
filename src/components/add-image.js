@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState,useContext } from 'react'
 import ImageUploading from 'react-images-uploading';
-import { Plus,XIcon,BriefcaseBusiness,Users, Trash2, File, Image, X, LucideRollerCoaster, RotateCcw, FolderPlusIcon, LayoutGridIcon, FolderCheck, FolderPlus, Check, FolderOpen, Ellipsis, Upload } from 'lucide-react'
+import { Plus,XIcon,BriefcaseBusiness,Users, Trash2, File, ImageIcon, X, LucideRollerCoaster, RotateCcw, FolderPlusIcon, LayoutGridIcon, FolderCheck, FolderPlus, Check, FolderOpen, Ellipsis, Upload } from 'lucide-react'
 import { toast } from 'sonner';
+
 import { uploadImagesToSupabase } from '@/lib/supabaseUpload'
 import { Button } from "@/components/ui/button"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel,AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,} from "@/components/ui/alert-dialog"
@@ -14,38 +15,39 @@ import { CompanyInfoContext } from '@/app/admin/[u]/company/[companySlug]/layout
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input"
 import { supabase } from '../../config/supabaseClient';
+import Image from 'next/image';
 import Link from "next/link"
 import AvatarEditor from "react-avatar-editor";
+import { set } from 'date-fns';
+import { Spinner } from './ui/spinner';
+import EditImage from './edit-image';
 
 
 
 const AddImage = () => {
      const [activeTab, setActiveTab] = useState("files");
+     const [editState,setEditState] = useState(false)
+     const [editInfo,setEditInfo] = useState(null)
+
 
      const [customDialog,setCustomDialog] =useState(false)
      const [newFolderState,setNewFolderState] = useState(false)
      const [newFolderValue,setNewFolderValue] = useState('')
      const [displayGrid,setDisplayGrid] = useState(false)
    
+     const [isLoading,setIsLoading] = useState(true)
      const [selectedFiles,setSelectedFiles] = useState([])
      const [folder,setFolder] = useState('')
      const [selectedFolders,setSelectedFolders] = useState([])
      const [breadCrumbsList,setBreadCrumbsList] = useState([{id:null,name:'All'}])
      const [currentFolder,setCurrentFolder] = useState([])
      const [selectedItems, setSelectedItems] = useState([]);
+     const [clickedFileId, setClickedFileId] = useState(null);
 
       const { info,setInfo,modules } = useContext(CompanyInfoContext)
      
      const [files, setFiles] = useState([
-          { id: 1, name: "baker 1.png",folderId:null,},
-          { id: 2, name: "File 2.png",folderId:null },
-          { id: 3, name: "File 3.png",folderId:null },
-          { id: 4, name: "baker 2.png",folderId:null },
-          { id: 5, name: "baker 3.png",folderId:null },
-          { id: 6, name: "baker 4.png",folderId:null },
-          { id: 7, name: "baker 5.png",folderId:null,},
-          { id: 8, name: "baker 6.png",folderId:null,},
-          { id: 9, name: "baker 7.png",folderId:null,},
+        
      ]);
      
      const [folders, setFolders] = useState([
@@ -90,6 +92,29 @@ const AddImage = () => {
           setSelectedItems(prev=>prev.filter(item=>item!==id)):
           setSelectedItems((prev) => [...prev, id]);
      };
+
+     async function fetchCompanyImages(companyName) {
+        const { data, error } = await supabase
+          .from("images")
+          .select("*")
+          .ilike("path", `${companyName}/%`);  // all images under company folder
+
+        if (error) {
+          console.error("Fetch images error:", error);
+          return [];
+        }
+
+        // Convert DB rows to your UI format
+        return data.map(row => ({
+          id: row.id,
+          name: row.name,
+          url: row.url,
+          folderId: row.folder || null
+        }));
+      }
+
+
+// const files = await listDeep(companyName);
              
      
 
@@ -102,6 +127,14 @@ const AddImage = () => {
      },[files,folders,newFolderState])   
 
      useEffect(()=>{  
+          fetchCompanyImages(info.name).then(imageList=>{
+               setFiles(imageList)
+               setIsLoading(false)
+          }).catch(err=>{
+               toast("Error fetching images:", err)
+               setIsLoading(false)
+               setFiles([])
+          })
          setCurrentFolder(breadCrumbsList[breadCrumbsList.length-1])
      },[breadCrumbsList])
 
@@ -109,8 +142,22 @@ const AddImage = () => {
      <DndProvider backend={HTML5Backend}>
 
           <>
-              
-                    <div  defaultValue='files' className="flex md:flex-row flex-col w-full overflow-hidden flex-grow p-1px my-1 items-start gap-0">
+                  {editState&&editInfo?
+                    (
+                      <EditImage 
+                        editInfo={editInfo} 
+                        setEditState={setEditState} 
+                        setEditInfo={setEditInfo}
+                        onSave={(blob, filename) => {
+                          console.log('Image saved:', filename)
+                          toast('Image edited successfully')
+                        }}
+                      />
+                    )
+                      :
+                    (<>
+                    
+                    <div  defaultValue='files' className="flex md:flex-row flex-col w-full overflow-hidden grow p-1px my-1 items-start gap-0">
                          <div className="flex md:flex-col md:items-center items-start justify-start w-fit md:w-44 bg-white h-fit md:h-full">
                               <div className={`inline-flex  md:flex md:h-full p-3px md:min-w-max md:flex-col w-full justify-start min-w-max bg-white md:items-center mb-2 gap-2 rounded-[3px] md:pb-2 `}>
                                    <Separator className='hidden md:block mb-data-[state=active]:shadow-none1'/>
@@ -125,7 +172,7 @@ const AddImage = () => {
                                         <div className='w-full h-full  md:gap-2 md:justify-end overflow-hidden justify-start flex md:flex-row flex-col'>
                                              <div className={`md:h-full w-full md:overflow-hidden overflow-scroll  rounded-lg px-1 flex flex-col justify-start`}>
                                                   <Input placeholder="Search product..." className="w-full rounded-lg mb-1 h-8"/>
-                                                  <div className='md:flex-grow h-full flex md:overflow-hidden flex-col'>
+                                                  <div className='md:grow h-full flex md:overflow-hidden flex-col'>
                                                        <div className="flex items-center px-2 mt-[3px] justify-between">
                                                             <Breadcrumb>
                                                                  <BreadcrumbList className='flex gap-0 sm:gap-0 md:gap-0'>
@@ -153,15 +200,23 @@ const AddImage = () => {
                                                                  {folders.filter(folder => folder.folderId === currentFolder.id).map(folder => (
                                                                       <Folder key={folder.id} folder={folder} children={{folders:folders.filter(item=>item.folderId==folder.id).length, files:files.filter(item=>item.folderId==folder.id).length}} click={()=>{openFolder(folder),console.log(folder.id)}} moveFile={moveFile} moveFolder={moveFolder} grid={displayGrid}/>
                                                                  ))}
-                                                                 {files.filter(file => file.folderId === currentFolder.id).map(file => (
-                                                                      <Files key={file.id} file={file} moveFile={moveFile} checked={selectedItems&&selectedItems.some(item=>item===file.id)} onCheck={(status)=>{handleToggle(file.id)}} grid={displayGrid}/>
-                                                                 ))}
+                                                                 {isLoading ? (
+                                                                          <Spinner className='size-4 ml-2 text-core' spinning={isLoading} />
+                                                                    )
+                                                                      :
+                                                                    (
+                                                                      files.filter(file => file.folderId === currentFolder.id).map(file => (
+                                                                          <Files key={file.id} file={file} moveFile={moveFile} checked={selectedItems&&selectedItems.some(item=>item===file.id)} onCheck={(status)=>{handleToggle(file.id)}} onFileClick={()=>{setClickedFileId(file.id)}} onCtrlClick={()=>{handleToggle(file.id)}} grid={displayGrid}/>
+                                                                      ))
+                                                                    )
+                                                                 }
+                                
                                                             </div>
                                                        </div>
                                                   </div>
                                              </div>
                                             <div className="w-full md:w-[40%] md:overflow-y-scroll no_scroll md:border-l px-2 border-t md:border-t-0 md:h-full">
-                                              <FileDetailsPanel selectedFile={selectedItems && selectedItems.length > 0 ? selectedItems[0] : null} />
+                                              <FileDetailsPanel selectedFile={clickedFileId ? files.find(f => f.id === clickedFileId) : null} setEditState={setEditState} setEditInfo={setEditInfo} />
                                             </div>
                                         </div>
                                       </div>
@@ -173,6 +228,13 @@ const AddImage = () => {
                               
                          </div>
                     </div>
+                     <AlertDialogFooter className={'p-3'}>
+                                <AlertDialogCancel className={'h-7 text-xs '} >Cancel</AlertDialogCancel>
+                                <AlertDialogAction className={'h-7 text-xs bg-core hover:bg-core/85'} >Continue</AlertDialogAction>
+                              </AlertDialogFooter>
+                    </>) 
+                  }
+              
                                     
           </>
 
@@ -185,41 +247,48 @@ const AddImage = () => {
                     <X />
                   </Button>
                 </div>
-                <div className=" rounded-md flex-grow">
+                <div className=" rounded-md grow">
                   <UploadModalContent
                     onStartUpload={async (list) => {
                       console.log("Starting upload for:", list);
                      toast(`Uploading ${list.length} image(s)...`)
-                      try {
-                        const results = await uploadImagesToSupabase(
-                          list,
-                          {
-                            bucket: "products",
-                            companyName: info.name, // REQUIRED ROOT FOLDER
-                            folder: folder || ""  // e.g. "General/Marketing"
+                     try {
+                          const results = await uploadImagesToSupabase(
+                            list,
+                            {
+                              bucket: "products",
+                              companyName: info.name,
+                              folder: folder || "",
+                              owner: info.id
+                            }
+                          );
+
+                          const success = results.filter(r => !r.error);
+                          const failed = results.filter(r => r.error);
+
+                          if (success.length) {
+                            toast(`Uploaded ${success.length} image(s)`);
+
+                            // 🔥 Fetch from DB and update UI
+                            const imageList = await fetchCompanyImages(info.name);
+                            setFiles(imageList);
                           }
-                        )
 
-                        const success = results.filter(r => !r.error)
-                        const failed = results.filter(r => r.error)
+                          if (failed.length) {
+                            toast(`Failed to upload ${failed.length} image(s)`);
+                            console.log("Upload errors:", failed);
+                          }
 
-                        if (success.length) {
-                          toast(`Uploaded ${success.length} image(s)`)
+                          setCustomDialog(false);
+                          return results;
+
+                        } catch (err) {
+                          console.error(err);
+                          toast.error ? toast.error("Upload failed") : toast("Upload failed");
+                        } finally {
+                          setCustomDialog(false);
                         }
-                        if (failed.length) {
-                          toast(`Failed to upload ${failed.length} image(s)`)
-                          console.error("Upload errors:", failed)
-                        }
 
-                        setCustomDialog(false)
-                        return results
-
-                      } catch (err) {
-                        console.error(err)
-                        toast.error ? toast.error("Upload failed") : toast("Upload failed")
-                      } finally {
-                        setCustomDialog(false)
-                      }
                     
 
                     }}
@@ -267,78 +336,274 @@ export const TrashBox = () => {
           FOLDER: "folder",
      };
    
-     const Files = ({ file, moveFile,grid ,checked,onCheck }) => {
-          const [{ isDragging }, drag] = useDrag(() => ({
-               type: ItemTypes.DOCUMENT,
-               item: { id: file.id,type: ItemTypes.DOCUMENT},
-               collect: (monitor) => ({
-                    isDragging: !!monitor.isDragging(),
-               }),
-          }));
-          return (
-               <div ref={drag} data-drag={isDragging} data-checked={checked} data-grid={grid} className={`border-b relative hover:bg-core_grey2/50 p-1 flex justify-between gap-2 items-center data-[grid=true]:inline-flex data-[grid=true]:flex-col data-[grid=true]:justify-start data-[grid=true]:gap-0 data-[grid=true]:border-none data-[grid=true]:w-fit data-[grid=true]:h-fit data-[drag=true]:border-b-2 data-[drag=true]:border-army data-[drag=true]:opacity-60 data-[checked=true]:bg-core_grey2`} >
-                    <p data-grid={grid} className="inline-flex w-fit items-center justify-start data-[grid=true]:justify-between data-[grid=true]:w-full">
-                         <Checkbox data-grid={grid} checked={checked} onCheckedChange={(status)=>{onCheck(status)}} className={`text-white fill-white border`}/>
-                         <Button  data-grid={grid} variant='ghost' className='p-1 hidden data-[grid=true]:inline hover:bg-gray-200 h-fit w-fit'><Trash2/></Button>
-                    </p>
-                    <div data-grid={grid} className={`inline-flex gap-2 data-[grid=true]:gap-0 items-center flex-grow justify-start data-[grid=true]:flex-col`}>
-                         <File data-drag={isDragging} data-grid={grid} className={`data-[drag=true]:border-army data-[grid=true]:w-12 data-[grid=true]:mt-2 data-[grid=true]:mx-3 data-[grid=true]:h-10`}/>
-                         <p data-grid={grid}  className="flex items-start gap-0 flex-col">                             
-                              <span data-grid={grid} className={`overflow-ellipsis`} >{file.name}</span>
-                         </p>
-                    </div>
-                    <p data-grid={grid} className="inline-flex w-fit items-center justify-end data-[grid=true]:w-full data-[grid=true]:hidden">
-                         <Button data-grid={grid} onClick={()=>{}} variant='icon' className={`p-1 relative min-w-max`}><Trash2  /></Button>
-                    </p>
-               </div>
-          );
-     };
-   
-     const Folder = ({ folder, moveFile,moveFolder,click,grid,checked,onCheck,children}) => {
-          const ref = useRef(null)
-          const [{isOver}, drop] = useDrop(() => ({
-               accept:[ ItemTypes.DOCUMENT,ItemTypes.FOLDER,],
-               drop: (item) =>{ 
-                    if (item.type===ItemTypes.DOCUMENT){
-                         moveFile(item.id, folder.id)
-                    }else if(item.type===ItemTypes.FOLDER&&item.id!==folder.id){
-                         moveFolder(item.id, folder.id)
-                    }
-               },
-               collect: (monitor) => ({
-                    isOver: !!monitor.isOver(),
-               }),
-          }));
+const Files = ({ file, grid, checked, onCheck, onFileClick, onCtrlClick }) => {
+  const [{ isDragging }, drag] = useDrag(() => ({
+    type: ItemTypes.DOCUMENT,
+    item: { id: file.id, type: ItemTypes.DOCUMENT },
+    collect: (monitor) => ({
+      isDragging: !!monitor.isDragging(),
+    }),
+  }));
+
+  const handleClick = (e) => {
+    if (e.ctrlKey || e.metaKey) {
+      onCtrlClick();
+    } else {
+      onFileClick();
+    }
+  };
+
+  return (
+    <div
+      ref={drag}
+      data-drag={isDragging}
+      data-checked={checked}
+      data-grid={grid}
+      onClick={handleClick}
+      className={`
+        border-b relative hover:bg-core_grey2/50 p-1 flex justify-between gap-2 items-center
+        h-fit cursor-pointer
+        data-[drag=true]:border-b-2 data-[drag=true]:border-army data-[drag=true]:opacity-60 
+        data-[checked=true]:bg-core_grey2
+        data-[grid=true]:inline-flex
+        data-[grid=true]:flex-col 
+        data-[grid=true]:justify-start 
+        data-[grid=true]:items-center
+        data-[grid=true]:gap-0 
+        data-[grid=true]:border-none 
+        data-[grid=true]:w-32 
+        data-[grid=true]:h-44    
+      `}
+    >
+
+      {/* ONLY CHECKBOX */}
+      <p
+        data-grid={grid}
+        className="inline-flex w-fit items-center justify-start 
+          data-[grid=true]:justify-between data-[grid=true]:w-full"
+      >
+        <Checkbox
+          data-grid={grid}
+          checked={checked}
+          onCheckedChange={(status) => onCheck(status)}
+          className={`
+            text-white fill-white border scale-90
+            data-[grid=true]:scale-75
+          `}
+        />
+      </p>
+
+      {/* IMAGE + NAME */}
+      <div
+        data-grid={grid}
+        className={`
+          inline-flex gap-2 items-center grow justify-start 
+          data-[grid=true]:flex-col data-[grid=true]:gap-1
+        `}
+      >
+        {/* IMAGE WRAPPER — FIXED HEIGHT, NO CLIPPING */}
+        <div
+          data-grid={grid}
+          className={`
+            data-[grid=true]:h-28      
+            data-[grid=true]:w-full 
+            data-[grid=true]:flex 
+            data-[grid=true]:items-center 
+            data-[grid=true]:justify-center
+            overflow-hidden             
+          `}
+        >
+          <Image
+            src={file.url}
+            alt="file-item"
+            height={80}
+            width={80}
+            data-drag={isDragging}
+            data-grid={grid}
+            className={`
+              data-[drag=true]:border-army
+
           
-          const [{ isDragging }, drag] = useDrag(() => ({
-               type: ItemTypes.FOLDER,
-               item: { id: folder.id,type: ItemTypes.FOLDER},
-               collect: (monitor) => ({
-                    isDragging: !!monitor.isDragging(),
-               }),
-          }));
-          drag(drop(ref))
-          // useEffect(()=>{             
-          // })
-          return (
-          <div ref={ref} data-drag={isDragging} data-grid={grid} className={`border-b relative hover:bg-core_grey2/50 py-1 px-1 flex justify-between gap-2 items-center data-[grid=true]:inline-flex data-[grid=true]:flex-col data-[grid=true]:justify-start data-[grid=true]:gap-0 data-[grid=true]:border-none data-[grid=true]:w-fit  data-[grid=true]:h-fit data-[drag=true]:border-b-2 data-[drag=true]:border-army data-[drag=true]:opacity-60`} >
-               <p data-grid={grid} className="inline-flex w-fit items-center justify-start data-[grid=true]:w-full">
-                    <Checkbox data-grid={grid} checked={checked} onCheckedChange={(status)=>{onCheck(status)}} className={`fill-white text-white border`}/>
-               </p>
-               <div data-grid={grid}  onClick={()=>{click()}} className={`inline-flex gap-2 items-center flex-grow justify-start data-[grid=true]:gap-0 data-[grid=true]:flex-col`}>
-                    <FolderOpen data-drag={isDragging} data-grid={grid} className={`data-[drag=true]:border-army data-[grid=true]:w-12 data-[grid=true]:mt-2 data-[grid=true]:mb-2 data-[grid=true]:mx-3 data-[grid=true]:h-10 `}/>
-                    <p data-grid={grid}  className="flex items-start gap-0 flex-col">
-                         <span data-grid={grid} className={`overflow-ellipsis`} >{folder.name}</span>
-                         <span data-grid={grid} className={'text-gray-500 mt-[1px] text-8px data-[grid=true]:hidden'} >{children.files} files | {children.folders} folders</span>
-                    </p>
-               </div>
-               <p data-grid={grid} className="inline-flex w-fit items-center justify-end data-[grid=true]:w-full data-[grid=true]:hidden">
-                    <Button data-grid={grid}  onClick={()=>{}} variant='icon'  className={`p-1 relative min-w-max `}><Trash2  /></Button>
-               </p>
-          </div>
-          );
-     };
-   
+              object-contain 
+              max-h-full 
+              max-w-full
+
+         
+              data-[grid=true]:w-20 
+              data-[grid=true]:h-auto
+            `}
+          />
+        </div>
+
+        {/* FILE NAME */}
+        <p
+          data-grid={grid}
+          className={`
+            flex overflow-hidden whitespace-nowrap text-xs flex-col items-start text-center
+            gap-0 
+            data-[grid=true]:whitespace-normal
+            data-[grid=true]:leading-tight
+            data-[grid=true]:text-[10px]
+            data-[grid=true]:max-w-24
+            data-[grid=true]:line-clamp-2
+            data-[grid=true]:overflow-hidden
+            data-[grid=true]:text-ellipsis
+          `}
+        >
+          <span>{file.name}</span>
+        </p>
+      </div>
+    </div>
+  );
+};
+
+
+const Folder = ({ folder, moveFile, moveFolder, click, grid, checked, onCheck, children }) => {
+  const ref = useRef(null);
+
+  const [{ isOver }, drop] = useDrop(() => ({
+    accept: [ItemTypes.DOCUMENT, ItemTypes.FOLDER],
+    drop: (item) => {
+      if (item.type === ItemTypes.DOCUMENT) {
+        moveFile(item.id, folder.id);
+      } else if (item.type === ItemTypes.FOLDER && item.id !== folder.id) {
+        moveFolder(item.id, folder.id);
+      }
+    },
+    collect: (monitor) => ({
+      isOver: !!monitor.isOver(),
+    }),
+  }));
+
+  const [{ isDragging }, drag] = useDrag(() => ({
+    type: ItemTypes.FOLDER,
+    item: { id: folder.id, type: ItemTypes.FOLDER },
+    collect: (monitor) => ({
+      isDragging: !!monitor.isDragging(),
+    }),
+  }));
+
+  drag(drop(ref));
+
+  return (
+    <div
+      ref={ref}
+      data-drag={isDragging}
+      data-grid={grid}
+      className={`
+        border-b relative hover:bg-core_grey2/50 py-1 px-1 flex justify-between gap-2 items-center
+        data-[drag=true]:border-b-2 data-[drag=true]:border-army data-[drag=true]:opacity-60
+
+        /* GRID MODE BOX STYLE (MATCH FILES COMPONENT) */
+        data-[grid=true]:inline-flex
+        data-[grid=true]:flex-col
+        data-[grid=true]:justify-start
+        data-[grid=true]:items-center
+        data-[grid=true]:gap-0
+        data-[grid=true]:border-none
+        data-[grid=true]:w-32
+        data-[grid=true]:h-44    /* YOUR REQUESTED GRID HEIGHT */
+      `}
+    >
+      {/* CHECKBOX */}
+      <p
+        data-grid={grid}
+        className="inline-flex w-fit items-center justify-start 
+          data-[grid=true]:w-full"
+      >
+        <Checkbox
+          data-grid={grid}
+          checked={checked}
+          onCheckedChange={(status) => onCheck(status)}
+          className={`
+            fill-white text-white border scale-90
+            data-[grid=true]:scale-75
+          `}
+        />
+      </p>
+
+      {/* FOLDER ICON + NAME */}
+      <div
+        data-grid={grid}
+        onClick={() => click()}
+        className={`
+          inline-flex gap-2 items-center grow justify-start
+          data-[grid=true]:gap-1 
+          data-[grid=true]:flex-col
+        `}
+      >
+        {/* ICON WRAPPER (same logic as image wrapper) */}
+        <div
+          data-grid={grid}
+          className={`
+            data-[grid=true]:h-24
+            data-[grid=true]:w-full
+            data-[grid=true]:flex
+            data-[grid=true]:items-center
+            data-[grid=true]:justify-center
+            overflow-hidden
+          `}
+        >
+          <FolderOpen
+            data-drag={isDragging}
+            data-grid={grid}
+            className={`
+              data-[drag=true]:border-army
+              object-contain
+              max-h-full max-w-full
+              text-army
+              data-[grid=true]:w-16
+              data-[grid=true]:h-auto
+              data-[grid=true]:mt-2 
+              data-[grid=true]:mb-2
+            `}
+          />
+        </div>
+
+        {/* FOLDER NAME + META */}
+        <p
+          data-grid={grid}
+          className="flex items-start gap-0 flex-col"
+        >
+          <span
+            data-grid={grid}
+            className={`
+              overflow-ellipsis
+              data-[grid=true]:text-[10px]
+              data-[grid=true]:leading-tight
+              data-[grid=true]:line-clamp-2
+              data-[grid=true]:max-w-24
+            `}
+          >
+            {folder.name}
+          </span>
+
+          <span
+            data-grid={grid}
+            className="text-gray-500 mt-px text-8px data-[grid=true]:hidden"
+          >
+            {children.files} files | {children.folders} folders
+          </span>
+        </p>
+      </div>
+
+      {/* DELETE BUTTON (hidden in grid) */}
+      <p
+        data-grid={grid}
+        className="inline-flex w-fit items-center justify-end 
+        data-[grid=true]:w-full data-[grid=true]:hidden"
+      >
+        <Button
+          data-grid={grid}
+          variant="icon"
+          className="p-1 relative min-w-max"
+        >
+          <Trash2 />
+        </Button>
+      </p>
+    </div>
+  );
+};
 
   
 
@@ -420,33 +685,45 @@ export const UploadModalContent = ({ onStartUpload, autoUploadThreshold }) => {
 }
 
 // File Details Panel with Actions and Collapsible Sections
-const FileDetailsPanel = ({ selectedFile }) => {
+const FileDetailsPanel = ({ selectedFile, setEditState, setEditInfo }) => {
   const [tagsOpen, setTagsOpen] = useState(false)
   const [fileInfoOpen, setFileInfoOpen] = useState(false)
+
+  const handleEditImage = () => {
+    setEditInfo(selectedFile)
+    setEditState(true)
+  }
 
   return (
     <div className="w-full h-full flex flex-col py-2 text-xs">
       {selectedFile ? (
         <>
+          {/* FILE PREVIEW */}
+          <div className="mb-4 flex justify-center items-center bg-gray-100 rounded-lg p-2 h-40 w-full">
+            <Image
+              src={selectedFile.url}
+              alt={selectedFile.name}
+              height={150}
+              width={150}
+              className="object-contain max-h-full max-w-full"
+            />
+          </div>
+
+          {/* FILE NAME */}
+          <div className="mb-4 px-2">
+            <p className="font-semibold text-sm overflow-wrap">{selectedFile.name}</p>
+          </div>
+
           {/* ACTIONS SECTION */}
           <div className="mb-4">
-            <h3 className="font-semibold mb-2 text-sm">Actions</h3>
+            <h3 className="font-semibold mb-2 text-sm px-2">Actions</h3>
             <div className="flex flex-col gap-2">
-              <Button variant="ghost" className="justify-start text-xs gap-2 hover:bg-gray-100">
+              <Button onClick={handleEditImage} variant="ghost" className="justify-start text-xs gap-2 hover:bg-gray-100">
                 <Check size={16} />
-                <span>Crop & Edit</span>
-              </Button>
-              <Button variant="ghost" className="justify-start text-xs gap-2 hover:bg-gray-100">
-                <RotateCcw size={16} />
-                <span>Adjust</span>
-              </Button>
-              <Button variant="ghost" className="justify-start text-xs gap-2 hover:bg-gray-100">
-                <Plus size={16} />
-                <span>Create a Video</span>
-              </Button>
-              <Button variant="ghost" className="justify-start text-xs gap-2 hover:bg-gray-100">
-                <X size={16} />
-                <span>Cut Out Background</span>
+                <div className="flex flex-col items-start">
+                  <span>Edit Image</span>
+                  <span className="text-gray-500 text-8px">Crop, remove background, adjust</span>
+                </div>
               </Button>
             </div>
           </div>
@@ -478,16 +755,16 @@ const FileDetailsPanel = ({ selectedFile }) => {
             </button>
             {fileInfoOpen && (
               <div className="px-2 py-2 text-xs text-neutral-600 space-y-1">
-                <p><strong>Type:</strong> Unknown</p>
-                <p><strong>Size:</strong> N/A</p>
-                <p><strong>Modified:</strong> N/A</p>
+                <p><strong>Name:</strong> {selectedFile.name}</p>
+                <p><strong>Type:</strong> Image</p>
+                <p><strong>URL:</strong> <span className="truncate block">{selectedFile.url}</span></p>
               </div>
             )}
           </div>
         </>
       ) : (
         <div className="flex justify-center items-center h-full text-neutral-500 text-xs">
-          Select a file to view details
+          Click on a file to view details
         </div>
       )}
     </div>

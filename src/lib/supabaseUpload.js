@@ -1,33 +1,69 @@
-import { supabase } from "../../config/supabaseClient"
+import { supabase } from "../../config/supabaseClient";
 
-export async function uploadImagesToSupabase(files,  { bucket, companyName, folder }) {
-    const results = []
+export async function uploadImagesToSupabase(
+  files,
+  { bucket, companyName, folder, owner }
+) {
+  const results = [];
 
-    for (const item of files) {
-        const fileObj = item.file; // this is the actual File object
+  for (const item of files) {
+    const fileObj = item.file;
 
-        if (!(fileObj instanceof File) || !fileObj.type.startsWith('image/')) {
-            results.push({
-            data: null,
-            error: new Error("Invalid file or not an image"),
-            path: null
-            });
-            continue;
-        }
+    // Validate file
+    if (!(fileObj instanceof File) || !fileObj.type.startsWith("image/")) {
+      results.push({
+        data: null,
+        error: new Error("Invalid file or not an image"),
+        path: null,
+      });
+      continue;
+    }
 
-        let fullPath = `${companyName}/${fileObj.name}`;
-        
-        if (folder && folder.trim() !== "") {
-            fullPath = `${companyName}/${folder}/${fileObj.name}`;
-        }
+    // 🔥 STORAGE PATH (no folder here!)
+    const fullPath = `${companyName}/${fileObj.name}`;
 
-        const { data, error } = await supabase.storage.from(bucket).upload(fullPath, fileObj, {
-            upsert: true
-        });
+    // Upload
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .upload(fullPath, fileObj, { upsert: true });
 
-        results.push({ data, error, path: fullPath });
-        }
+    if (error) {
+      results.push({ data: null, error, path: fullPath });
+      continue;
+    }
 
+    // Public URL
+    const {
+      data: { publicUrl },
+    } =  supabase.storage.from(bucket).getPublicUrl(fullPath);
 
-    return results;
+    console.log(data, publicUrl,fileObj.size)
+
+    // Insert into images table following your exact schema
+    const {data:images,error:imagesError} = await supabase.from("images").insert({
+        id:data.id,
+        owner: owner ,
+        name: fileObj.name,
+        folder: folder || null, // folder is only for UI grouping
+        storage: bucket,
+        url: publicUrl,
+        path: fullPath,
+        size: fileObj.size,
+        mime_type: fileObj.type,
+    });
+
+    if (imagesError) {
+    console.error("DB Insert Error:", imagesError);
+    }
+
+    results.push({
+      data,
+      error: null,
+      url: publicUrl,
+      path: fullPath,
+      folder: folder || null,
+    });
+  }
+
+  return results;
 }
