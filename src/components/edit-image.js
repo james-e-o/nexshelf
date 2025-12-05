@@ -28,6 +28,8 @@ const EditImage = ({ editInfo, setEditState, setEditInfo, onSave }) => {
   const canvasHistoryRef = useRef([]) // stores canvas states for undo/redo during erasing
   const historyIndexRef = useRef(-1)
   const erasingRef = useRef(false)
+  const activeToolRef = useRef('crop') // track active tool without triggering effects
+  const skipRedrawRef = useRef(false) // flag to skip redraw effect when using eraser
   const [replaceImage, setReplaceImage] = useState(false) // checkbox to replace existing image on save
 
   // Crop state
@@ -62,6 +64,10 @@ const EditImage = ({ editInfo, setEditState, setEditInfo, onSave }) => {
 
   // Apply filters to canvas
   useEffect(() => {
+    if (skipRedrawRef.current) {
+      skipRedrawRef.current = false
+      return
+    }
     if (canvasRef.current && originalImage) {
       const canvas = canvasRef.current
       const ctx = canvas.getContext('2d')
@@ -105,32 +111,39 @@ const EditImage = ({ editInfo, setEditState, setEditInfo, onSave }) => {
       setCropDimensionHeight(String(canvas.height))
 
       // Try to fit canvas to viewport (but not when using object eraser to preserve zoom)
-      if (activeTool !== 'object-eraser') {
+      if (activeToolRef.current !== 'object-eraser') {
         setTimeout(() => {
           try {
             fitToViewport()
           } catch (e) {}
         }, 0)
       }
+
+      // Save canvas state to history after filters/transforms are applied (after DOM updates)
+      // Use requestAnimationFrame to ensure canvas is fully rendered
+      requestAnimationFrame(() => {
+        setTimeout(() => pushCanvasHistory(), 0)
+      })
     }
-  }, [originalImage, brightness, contrast, saturation, rotation, activeTool])
+  }, [originalImage, brightness, contrast, saturation, rotation])
 
   const pushCanvasHistory = () => {
     if (!canvasRef.current) return
     try {
-      // remove any redo history beyond current index
-      canvasHistoryRef.current = canvasHistoryRef.current.slice(0, historyIndexRef.current + 1)
-      // save current canvas state
+      // Save snapshot before any operation
       const snapshot = canvasRef.current.toDataURL('image/png')
+      // Remove any redo history beyond current index
+      canvasHistoryRef.current = canvasHistoryRef.current.slice(0, historyIndexRef.current + 1)
+      // Add new snapshot
       canvasHistoryRef.current.push(snapshot)
       historyIndexRef.current = canvasHistoryRef.current.length - 1
     } catch (err) {
-      console.warn('Could not save canvas history (CORS?)', err)
+      console.warn('Could not save canvas history', err)
     }
   }
 
   const handleUndo = () => {
-    if (!canvasRef.current) return
+    if (!canvasRef.current || !canvasHistoryRef.current.length) return
     if (historyIndexRef.current <= 0) {
       toast('Nothing to undo')
       return
@@ -138,19 +151,26 @@ const EditImage = ({ editInfo, setEditState, setEditInfo, onSave }) => {
     historyIndexRef.current -= 1
     const snapshot = canvasHistoryRef.current[historyIndexRef.current]
     if (!snapshot) return
+    
     const img = new window.Image()
+    img.crossOrigin = 'anonymous'
     img.onload = () => {
-      if (!canvasRef.current) return
-      const ctx = canvasRef.current.getContext('2d')
-      ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height)
+      const canvas = canvasRef.current
+      if (!canvas) return
+      const ctx = canvas.getContext('2d')
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
       ctx.drawImage(img, 0, 0)
+    }
+    img.onerror = () => {
+      console.warn('Failed to load undo snapshot')
+      historyIndexRef.current += 1 // revert index on error
     }
     img.src = snapshot
     toast('Undo')
   }
 
   const handleRedo = () => {
-    if (!canvasRef.current) return
+    if (!canvasRef.current || !canvasHistoryRef.current.length) return
     if (historyIndexRef.current >= canvasHistoryRef.current.length - 1) {
       toast('Nothing to redo')
       return
@@ -158,12 +178,19 @@ const EditImage = ({ editInfo, setEditState, setEditInfo, onSave }) => {
     historyIndexRef.current += 1
     const snapshot = canvasHistoryRef.current[historyIndexRef.current]
     if (!snapshot) return
+    
     const img = new window.Image()
+    img.crossOrigin = 'anonymous'
     img.onload = () => {
-      if (!canvasRef.current) return
-      const ctx = canvasRef.current.getContext('2d')
-      ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height)
+      const canvas = canvasRef.current
+      if (!canvas) return
+      const ctx = canvas.getContext('2d')
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
       ctx.drawImage(img, 0, 0)
+    }
+    img.onerror = () => {
+      console.warn('Failed to load redo snapshot')
+      historyIndexRef.current -= 1 // revert index on error
     }
     img.src = snapshot
     toast('Redo')
@@ -464,6 +491,7 @@ const EditImage = ({ editInfo, setEditState, setEditInfo, onSave }) => {
     erasingRef.current = false
     try {
       // update originalImage/editedImage so subsequent ops use the new pixels
+      skipRedrawRef.current = true // prevent the big effect from redrawing over our erased work
       const dataUrl = canvasRef.current.toDataURL('image/png')
       const img = new window.Image()
       img.crossOrigin = 'anonymous'
