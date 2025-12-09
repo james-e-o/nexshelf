@@ -7,8 +7,12 @@ import { Slider } from '@/components/ui/slider'
 import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
 import Image from 'next/image'
+import { supabase } from '../../config/supabaseClient'
 
-const EditImage = ({ editInfo, setEditState, setEditInfo, onSave }) => {
+const EditImage = ({ editInfo, setEditState, setEditInfo, onSave, onDelete , onDuplicate}) => {
+
+
+  
   const canvasRef = useRef(null)
   const canvasContainerRef = useRef(null)
   const centerRef = useRef(null)
@@ -38,6 +42,8 @@ const EditImage = ({ editInfo, setEditState, setEditInfo, onSave }) => {
   const [dragHandle, setDragHandle] = useState(null) // 'move' | 'nw' | 'ne' | 'sw' | 'se'
   const [aspectRatio, setAspectRatio] = useState(null) // null = free, or number width/height
   const draggingRef = useRef(null) // { startX, startY, origRect }
+  const userInteractingCropRef = useRef(false)
+  const suppressAutoZoomTimeoutRef = useRef(null)
   const [cropDimensionWidth, setCropDimensionWidth] = useState('') // manual width input
   const [cropDimensionHeight, setCropDimensionHeight] = useState('') // manual height input
 
@@ -47,16 +53,17 @@ const EditImage = ({ editInfo, setEditState, setEditInfo, onSave }) => {
     const [tempName, setTempName] = useState('') // temp name during edit
 
 
-  // Load image on mount and initialize name
-  useEffect(() => {
-    if (editInfo?.url) {
-      const img = new window.Image()
-      img.crossOrigin = 'anonymous'
-      img.src = editInfo.url
-      img.onload = () => {
-        setOriginalImage(img)
-        setEditedImage(img)
-        // Initialize image name from editInfo
+    // Load image on mount and initialize name
+    useEffect(() => {
+      console.log('EditImage render', editInfo)
+      if (editInfo?.url) {
+        const img = new window.Image()
+        img.crossOrigin = 'anonymous'
+        img.src = editInfo.url
+        img.onload = () => {
+          setOriginalImage(img)
+          setEditedImage(img)
+          // Initialize image name from editInfo
         setImageName(editInfo.name || 'Untitled Image')
       }
     }
@@ -197,23 +204,163 @@ const EditImage = ({ editInfo, setEditState, setEditInfo, onSave }) => {
   }
 
   const handleReset = () => {
-    setBrightness(100)
-    setContrast(100)
-    setSaturation(100)
-    setRotation(0)
-    setZoom(100)
-    toast('Reset to original')
+    ;(async () => {
+      try {
+        // Reset visual controls
+        setBrightness(100)
+        setContrast(100)
+        setSaturation(100)
+        setRotation(0)
+        setZoom(100)
+
+        // Clear history
+        canvasHistoryRef.current = []
+        historyIndexRef.current = -1
+
+        // Reload original image from source URL if available
+        if (editInfo && editInfo.url) {
+          const img = new window.Image()
+          img.crossOrigin = 'anonymous'
+          await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = editInfo.url })
+          setOriginalImage(img)
+          setEditedImage(img)
+          // reset crop to full image
+          setCropRect({ x: 0, y: 0, width: img.width, height: img.height })
+          setCropDimensionWidth(String(img.width))
+          setCropDimensionHeight(String(img.height))
+          setAspectRatio(null)
+          setImageName(editInfo.name || '')
+          // fit viewport to reset zoom (after state updates)
+          setTimeout(() => fitToViewport(), 20)
+          toast('Reverted to original image')
+        } else {
+          toast('Reset controls to defaults')
+        }
+      } catch (err) {
+        console.error('Could not revert to original image', err)
+        toast.error ? toast.error('Failed to revert to original image') : toast('Failed to revert to original image')
+      }
+    })()
   }
 
-  const handleSave = () => {
-    if (canvasRef.current && onSave) {
-      canvasRef.current.toBlob((blob) => {
-        onSave(blob, editInfo.name)
-        setEditState(false)
-        toast('Image saved successfully')
-      }, 'image/png')
+
+async function generateNextNumberedName(companyName, fileName) {
+  // Ensure we always return a value. Preserve file extension if present.
+  const t = toast.loading(`checking if Name already exists...`);
+  try {
+    const { data: images, error } = await supabase
+      .from("images")
+      .select("name")
+      .eq("companyName", companyName);
+
+    if (error) {
+      toast.error("Error checking existing image names", { id: t });
+      // Fallback: append (1) before extension
+      const dot = fileName.lastIndexOf('.')
+      const base = dot > 0 ? fileName.slice(0, dot) : fileName
+      const ext = dot > 0 ? fileName.slice(dot) : ''
+      const fallback = `${base} (1)${ext}`
+      toast.success(`Renamed to "${fallback}"`, { id: t })
+      return fallback
     }
+
+    const existingNames = Array.isArray(images) ? images.map(img => img.name || '') : []
+
+    const dot = fileName.lastIndexOf('.')
+    const base = dot > 0 ? fileName.slice(0, dot) : fileName
+    const ext = dot > 0 ? fileName.slice(dot) : ''
+
+    let n = 1
+    let newName = `${base} (${n})${ext}`
+
+    // Keep incrementing until a unique full name (including extension) is found
+    // Safety cap to avoid infinite loops
+    while (existingNames.includes(newName) && n < 10000) {
+      n++
+      newName = `${base} (${n})${ext}`
+    }
+
+    toast.success(`Renamed to "${newName}"`, { id: t })
+    return newName
+  } catch (err) {
+    console.error('generateNextNumberedName error', err)
+    toast.error('Error generating unique name', { id: t })
+    const dot = fileName.lastIndexOf('.')
+    const base = dot > 0 ? fileName.slice(0, dot) : fileName
+    const ext = dot > 0 ? fileName.slice(dot) : ''
+    return `${base} (1)${ext}`
   }
+}
+
+
+const handleSave = async () => {
+  if (!canvasRef.current) return;
+
+  try {
+    const blob = await new Promise((resolve) =>
+      canvasRef.current.toBlob(resolve, "image/png")
+    );
+
+    if (!blob) {
+      toast.error("Failed to process image");
+      return;
+    }
+
+    const originalName = editInfo.name;
+    const userProvidedName = imageName || originalName;
+    let finalName = userProvidedName;
+
+    // --- CASE 1 ---
+    // Name unchanged + NOT replacing → force rename
+    if (userProvidedName === originalName && !replaceImage) {
+      finalName = await generateNextNumberedName(editInfo.companyName, userProvidedName);
+    }
+
+    // --- CASE 2 ---
+    // Name changed + NOT replacing → check if name exists (ignore extension)
+    else if (userProvidedName !== originalName && !replaceImage) {
+      const exists = await doesImageNameExist(editInfo.companyName, userProvidedName);
+
+      if (exists) {
+        const t = toast.loading(`"${userProvidedName}" already exists — renaming...`);
+        finalName = await generateNextNumberedName(editInfo.companyName, userProvidedName);
+        toast.success(`Renamed to "${finalName}"`, { id: t });
+      }
+    }
+
+    // --- CASE 3 ---
+    // replaceImage === true → keep same name
+
+    // Build the final file
+    const file = new File([blob], finalName, { type: "image/png" });
+
+    // Pass upward
+    if (onSave) {
+      await onSave(file, replaceImage, editInfo);
+    }
+
+    setEditState(false);
+
+  } catch (err) {
+    console.error(err);
+    toast.error(`Save failed: ${err.message}`);
+  }
+};
+
+
+const handleDelete = async () => {
+    if (onDelete) { 
+        await onDelete(editInfo);
+    }
+}
+
+const handleDuplicate = async () => {
+    if (onDuplicate) { 
+        await onDuplicate(editInfo);
+    }
+}
+
+
 
   // Simple background removal using corner sampling + color distance threshold
   const removeBackground = async (threshold = bgThreshold) => {
@@ -362,7 +509,7 @@ const EditImage = ({ editInfo, setEditState, setEditInfo, onSave }) => {
   const handleCropDimensionChange = () => {
     if (!canvasRef.current || !cropRect) return
     const canvas = canvasRef.current
-    const extra = 150 // allow crop to extend beyond image by this many pixels per side
+    const extra = 170 // allow crop to extend beyond image by this many pixels per side
     const maxW = canvas.width + extra * 2
     const maxH = canvas.height + extra * 2
     const w = cropDimensionWidth ? Math.min(parseInt(cropDimensionWidth) || 0, maxW) : cropRect.width
@@ -406,6 +553,12 @@ const EditImage = ({ editInfo, setEditState, setEditInfo, onSave }) => {
       setIsDraggingCrop(true)
       setDragHandle('se')
       draggingRef.current = { startX: x, startY: y, origRect: { x, y, width: 0, height: 0 } }
+      // User has started interacting with crop — suppress automatic adjustments
+      userInteractingCropRef.current = true
+      if (suppressAutoZoomTimeoutRef.current) {
+        clearTimeout(suppressAutoZoomTimeoutRef.current)
+        suppressAutoZoomTimeoutRef.current = null
+      }
       return
     }
     const th = Math.max(8, Math.round(10 * (canvasRef.current.width / canvasRef.current.getBoundingClientRect().width)))
@@ -422,6 +575,8 @@ const EditImage = ({ editInfo, setEditState, setEditInfo, onSave }) => {
         setDragHandle(k)
         setIsDraggingCrop(true)
         draggingRef.current = { startX: x, startY: y, origRect: { ...cropRect } }
+        userInteractingCropRef.current = true
+        if (suppressAutoZoomTimeoutRef.current) { clearTimeout(suppressAutoZoomTimeoutRef.current); suppressAutoZoomTimeoutRef.current = null }
         return
       }
     }
@@ -445,6 +600,8 @@ const EditImage = ({ editInfo, setEditState, setEditInfo, onSave }) => {
       setDragHandle('move')
       setIsDraggingCrop(true)
       draggingRef.current = { startX: x, startY: y, origRect: { ...cropRect } }
+      userInteractingCropRef.current = true
+      if (suppressAutoZoomTimeoutRef.current) { clearTimeout(suppressAutoZoomTimeoutRef.current); suppressAutoZoomTimeoutRef.current = null }
       return
     }
     // else start a new crop
@@ -510,6 +667,7 @@ const EditImage = ({ editInfo, setEditState, setEditInfo, onSave }) => {
     finalizeEraser()
   }
 
+  // mouse move handler for crop overlay
   const onOverlayMouseMove = (e) => {
     if (!isDraggingCrop || !draggingRef.current || !canvasRef.current) return
     e.preventDefault()
@@ -601,6 +759,11 @@ const EditImage = ({ editInfo, setEditState, setEditInfo, onSave }) => {
         const targetH = Math.round(nr.width / aspectRatio)
         nr.height = targetH
       }
+      // When resizing (not moving), keep the crop centered on the canvas
+      if (dragHandle !== 'move') {
+        nr.x = Math.round((cw - nr.width) / 2)
+        nr.y = Math.round((ch - nr.height) / 2)
+      }
       // clamp sizes and positions to allowed extension bounds
       nr.x = Math.round(nr.x)
       nr.y = Math.round(nr.y)
@@ -626,7 +789,8 @@ const EditImage = ({ editInfo, setEditState, setEditInfo, onSave }) => {
         setCropDimensionHeight(String(h))
 
         // If crop is large enough, zoom to show it at full canvas width
-        if (w >= minDim && h >= minDim && canvasRef.current && centerRef.current) {
+        // Only auto-zoom when the user is NOT currently interacting with the crop
+        if (!isDraggingCrop && !userInteractingCropRef.current && w >= minDim && h >= minDim && canvasRef.current && centerRef.current) {
           const canvas = canvasRef.current
           const container = centerRef.current
           const padding = 40
@@ -637,7 +801,9 @@ const EditImage = ({ editInfo, setEditState, setEditInfo, onSave }) => {
           const scaleX = availW / w
           const scaleY = availH / h
           const scale = Math.min(scaleX, scaleY, 1) // cap at 100%
-          setZoom(Math.floor(scale * 100))
+          const newZoom = Math.floor(scale * 100)
+          // Only set zoom if it differs meaningfully to avoid jitter
+          if (Math.abs(newZoom - zoom) > 2) setZoom(newZoom)
         }
       }
     }, [cropRect])
@@ -647,8 +813,15 @@ const EditImage = ({ editInfo, setEditState, setEditInfo, onSave }) => {
     setIsDraggingCrop(false)
     setDragHandle(null)
     draggingRef.current = null
+    // allow auto-zoom again shortly after user finishes interacting
+    if (suppressAutoZoomTimeoutRef.current) clearTimeout(suppressAutoZoomTimeoutRef.current)
+    suppressAutoZoomTimeoutRef.current = setTimeout(() => {
+      userInteractingCropRef.current = false
+      suppressAutoZoomTimeoutRef.current = null
+    }, 300)
   }
 
+  // APPLY CROP
   const applyCrop = async () => {
     if (!canvasRef.current || !cropRect) return
     const src = canvasRef.current
@@ -681,6 +854,7 @@ const EditImage = ({ editInfo, setEditState, setEditInfo, onSave }) => {
     toast('Crop applied - cropped section now fills canvas')
   }
 
+  //RESER CROP
   const resetCrop = () => {
     if (!canvasRef.current) return
     setCropRect({ x: 0, y: 0, width: canvasRef.current.width, height: canvasRef.current.height })
@@ -1193,11 +1367,11 @@ const EditImage = ({ editInfo, setEditState, setEditInfo, onSave }) => {
               Actions
             </p>
               <div className="flex flex-col gap-2">
-              <Button className="w-full h-7 px-3 text-xs font-medium rounded bg-neutral-100 dark:bg-neutral-800 text-army hover:bg-neutral-200 dark:hover:bg-neutral-700 transition flex items-center justify-center gap-2">
+              <Button onClick={handleDuplicate} className="w-full h-7 px-3 text-xs font-medium rounded bg-neutral-100 dark:bg-neutral-800 text-army hover:bg-neutral-200 dark:hover:bg-neutral-700 transition flex items-center justify-center gap-2">
                 <Copy size={14} />
                 Duplicate
               </Button>
-              <Button className="w-full h-7 px-3 text-xs font-medium rounded bg-red-50 dark:bg-red-950 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 transition flex items-center justify-center gap-2">
+              <Button onClick={handleDelete} className="w-full h-7 px-3 text-xs font-medium rounded bg-red-50 dark:bg-red-950 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 transition flex items-center justify-center gap-2">
                 <Trash2 size={14} />
                 Delete
               </Button>

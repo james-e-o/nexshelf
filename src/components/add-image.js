@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState,useContext } from 'react'
 import ImageUploading from 'react-images-uploading';
-import { Plus,XIcon,BriefcaseBusiness,Users, Trash2, File, ImageIcon, X, LucideRollerCoaster, RotateCcw, FolderPlusIcon, LayoutGridIcon, FolderCheck, FolderPlus, Check, FolderOpen, Ellipsis, Upload } from 'lucide-react'
+import { Plus,XIcon,BriefcaseBusiness,Users, Trash2, File,Pen, ImageIcon, X, LucideRollerCoaster, RotateCcw, FolderPlusIcon, LayoutGridIcon, FolderCheck, FolderPlus, Check, FolderOpen, Ellipsis, Upload, Move, SquareSplitHorizontal } from 'lucide-react'
 import { toast } from 'sonner';
 
 import { uploadImagesToSupabase } from '@/lib/supabaseUpload'
+import { replaceImageInSupabase } from '@/lib/supabaseReplaceImage'
 import { Button } from "@/components/ui/button"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel,AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,} from "@/components/ui/alert-dialog"
 import {Breadcrumb,BreadcrumbEllipsis,BreadcrumbItem,BreadcrumbLink,BreadcrumbList,BreadcrumbPage,BreadcrumbSeparator} from "@/components/ui/breadcrumb"
@@ -20,6 +21,7 @@ import Link from "next/link"
 import AvatarEditor from "react-avatar-editor";
 import { set } from 'date-fns';
 import { Spinner } from './ui/spinner';
+
 import EditImage from './edit-image';
 
 
@@ -31,9 +33,10 @@ const AddImage = () => {
 
 
      const [customDialog,setCustomDialog] =useState(false)
+     const [customDialogState,setCustomDialogState] =useState('upload')
      const [newFolderState,setNewFolderState] = useState(false)
      const [newFolderValue,setNewFolderValue] = useState('')
-     const [displayGrid,setDisplayGrid] = useState(false)
+     const [displayGrid,setDisplayGrid] = useState(true)
    
      const [isLoading,setIsLoading] = useState(true)
      const [selectedFiles,setSelectedFiles] = useState([])
@@ -79,13 +82,28 @@ const AddImage = () => {
           setNewFolderState(false)
      }
 
-     const openFolder =(folder)=> {
-          setBreadCrumbsList(prev=>[...prev,{id:folder.id,name:folder.name}])
-     }
+    //  const openFolder =(folder)=> {
+    //       setBreadCrumbsList(prev=>[...prev,{id:folder.id,name:folder.name}])
+    //  }
 
-     function navigateBreadcrumbs(item,index) {
+     const openFolder = (folder) => {
+        const active = breadCrumbsList[breadCrumbsList.length - 1];
+
+        // Prevent invalid cross-path opening
+        if (folder.folderId !== active.id) {
+          toast.error("Invalid folder open: folder is not a child of current folder");
+          return;
+        }
+
+        setBreadCrumbsList(prev => [
+          ...prev,
+          { id: folder.id, name: folder.name }
+        ]);
+    };
+
+    function navigateBreadcrumbs(item,index) {
           setBreadCrumbsList(prev=>prev.slice(0,index+1))
-     }
+    }
 
      const handleToggle = (id) => {
           selectedItems.includes(id)?
@@ -104,12 +122,17 @@ const AddImage = () => {
           return [];
         }
 
-        // Convert DB rows to your UI format
+        // Convert DB rows to your UI format with all needed properties
         return data.map(row => ({
           id: row.id,
           name: row.name,
           url: row.url,
-          folderId: row.folder || null
+          folderId: row.folder || null,
+          path: row.path,
+          bucket: row.storage,
+          owner: row.owner,
+          size: row.size,
+          mime_type: row.mime_type,
         }));
       }
 
@@ -148,20 +171,95 @@ const AddImage = () => {
                         editInfo={editInfo} 
                         setEditState={setEditState} 
                         setEditInfo={setEditInfo}
-                        onSave={(blob, filename) => {
-                          console.log('Image saved:', filename)
-                          toast('Image edited successfully')
+                        onDelete={async (oldEditInfo)=>{
+                                  try {
+    // 1️⃣ Fetch image record
+                                      const { data: image, error: fetchError } = await supabase
+                                        .from("images")
+                                        .select("id, storage, path")
+                                        .eq("id", imageId)
+                                        .single();
+
+                                      if (fetchError || !image) {
+                                        return { error: fetchError || new Error("Image not found") };
+                                      }
+
+                                      // 2️⃣ Delete from storage
+                                      const { error: storageError } = await supabase.storage
+                                        .from(image.storage)
+                                        .remove([image.path]);
+
+                                      if (storageError) {
+                                        return { error: storageError };
+                                      }
+
+                                      return { success: true };
+                                    } catch (err) {
+                                      return { error: err };
+                                    }
+                        }}
+                        onSave={async (file, replaceImage, oldEditInfo) => {
+                          console.log('new image:', file)
+                          try {
+                            if (replaceImage && oldEditInfo?.id && oldEditInfo?.path && oldEditInfo?.bucket) {
+                              // 🔄 REPLACE MODE: Delete old and upload new
+                              toast.loading('Replacing image...')
+                              const result = await replaceImageInSupabase(
+                                oldEditInfo.id,
+                                oldEditInfo.path,
+                                oldEditInfo.bucket,
+                                file,
+                                {
+                                  companyName: oldEditInfo.companyName || info.name,
+                                  folder: oldEditInfo.folder || '',
+                                  owner: oldEditInfo.owner || info.id,
+                                }
+                              )
+
+                              if (!result.success) {
+                                toast.error(`Replace failed: ${result.error?.message || 'Unknown error'}`)
+                                return
+                              }
+
+                              toast.success('Image replaced successfully!')
+                            } else {
+                              // ➕ NEW IMAGE: Upload as new image
+                              toast.loading('Uploading new image...')
+                              const uploadResults = await uploadImagesToSupabase([{ file }], {
+                                bucket: 'products',
+                                companyName: info.name,
+                                folder: '',
+                                owner: info.id,
+                              },false)
+
+                              const result = uploadResults[0]
+                              if (result.error) {
+                                toast.error(`Upload failed: ${result.error?.message || 'Unknown error'}`)
+                                return
+                              }
+
+                              toast.success('Image uploaded successfully!')
+                            }
+
+                            // Refresh file list to show changes
+                            const imageList = await fetchCompanyImages(info.name)
+                            setFiles(imageList)
+                          } catch (err) {
+                            console.error('Save error:', err)
+                            toast.error(`Save failed: ${err.message}`)
+                          }
+                          finally {toast.dismiss() }
                         }}
                       />
                     )
                       :
                     (<>
                     
-                    <div  defaultValue='files' className="flex md:flex-row flex-col w-full overflow-hidden grow p-1px my-1 items-start gap-0">
+                    <div  defaultValue='files' className="flex md:flex-row font-Inter flex-col w-full overflow-hidden grow p-1px my-1 items-start gap-0">
                          <div className="flex md:flex-col md:items-center items-start justify-start w-fit md:w-44 bg-white h-fit md:h-full">
                               <div className={`inline-flex  md:flex md:h-full p-3px md:min-w-max md:flex-col w-full justify-start min-w-max bg-white md:items-center mb-2 gap-2 rounded-[3px] md:pb-2 `}>
                                    <Separator className='hidden md:block mb-data-[state=active]:shadow-none1'/>
-                                   <Button onClick={()=>{setCustomDialog(true)}} className={'bg-core mx-2.5 h-7 text-xs md:mt-2 hover:bg-core/85'}>Upload Image</Button>
+                                   <Button onClick={()=>{setCustomDialogState('upload'),setCustomDialog(true)}} className={'bg-core mx-2.5 h-7 text-xs md:mt-2 hover:bg-core/85'}>Upload Image</Button>
                                    <Button onClick={()=>{setActiveTab('files')}} variant={'ghost'} className={`py-1 text-xs md:w-full inline-flex gap-1 items-center px-4 text-black md:px-3 relative h-11 border-b-4 md:border-r-4 border-transparent rounded-none md:border-b-0 md:mt-2 ${activeTab === 'files' ? 'border-b-army md:border-r-army bg-core_grey2' : 'border-b-transparent md:border-r-transparent bg-transparent'}`}><File className="p-5px"/><span className='text-10px'>Files</span></Button>
                                    <Button onClick={()=>{setActiveTab('trash')}} variant={'ghost'} className={`py-1 text-xs md:w-full inline-flex gap-1 items-center text-black px-4 relative h-11 border-b-4 md:border-r-4 border-transparent rounded-none md:border-b-0 md:mt-2 ${activeTab === 'trash' ? 'border-b-army md:border-r-army bg-core_grey2' : 'border-b-transparent md:border-r-transparent bg-transparent'}`}><Trash2 className="p-5px"/><span className='text-10px'>Trash</span></Button>
                               </div>
@@ -170,29 +268,50 @@ const AddImage = () => {
                               {activeTab === "files"? (
                               <div className='mt-0 h-full overflow-hidden w-full md:px-1 py-1'>
                                         <div className='w-full h-full  md:gap-2 md:justify-end overflow-hidden justify-start flex md:flex-row flex-col'>
-                                             <div className={`md:h-full w-full md:overflow-hidden overflow-scroll  rounded-lg px-1 flex flex-col justify-start`}>
-                                                  <Input placeholder="Search product..." className="w-full rounded-lg mb-1 h-8"/>
+                                             <div className={`md:h-full w-full md:overflow-hidden overflow-scroll  rounded-lg px-1 pt-2 flex flex-col justify-start`}>
+                                                  <div className="flex flex-col md:flex-row md:justify-between">
+                                                    <Input placeholder="Search image..." className="w-full md:w-4/5 text-xs rounded-lg mb-1"/>
+                                                    <div className="w-full justify-end inline-flex gap-3">
+                                                        <div className="inline-flex gap-0 overflow-x-clip "><p data-open={newFolderState} className="inline-flex items-center transition-all -z-10 opacity-0 data-[open=true]:opacity-100 data-[open=true]:right-0 data-[open=true]:z-0 relative -right-3"><Input id='newfolder' onBlur={()=>{!newFolderValue?setNewFolderState(false):""}} className='h-5 rounded-e-none outline-transparent  ml-1 w-24 rounded-s-md' value={newFolderValue} onChange={({target})=>{setNewFolderValue(target.value)}}/><Button onClick={()=>{addFolder()}} size='icon' disabled={!newFolderValue} className='px-1 rounded-e-md rounded-s-none w-fit h-5'><Check className=''/></Button></p><Button onClick={()=>{setNewFolderState(!newFolderState)}} variant='icon' className='p-1 relative min-w-max'><FolderPlus data-open={newFolderState} className='relative transition-all scale-125 data-[open=true]:-z-10 data-[open=true]:opacity-0 opacity-100 z-0'/><FolderCheck data-open={newFolderState} className='absolute transition-all scale-125 data-[open=true]:z-0 -z-10 data-[open=true]:opacity-100 opacity-0'/></Button></div>
+                                                        <Button onClick={()=>{setDisplayGrid(!displayGrid)}} variant='ghost'><LayoutGridIcon/></Button>
+                                                    </div>
+                                                  </div>
                                                   <div className='md:grow h-full flex md:overflow-hidden flex-col'>
-                                                       <div className="flex items-center px-2 mt-[3px] justify-between">
-                                                            <Breadcrumb>
-                                                                 <BreadcrumbList className='flex gap-0 sm:gap-0 md:gap-0'>
-                                                                      {breadCrumbsList.map((item,index)=>(
-                                                                           <div key={index} onClick={()=>{navigateBreadcrumbs(item,index)}} className="inline-flex gap-[3px]">
-                                                                                <BreadcrumbItem>
-                                                                                     <Button variant='ghost' className='h-0 px-1'>{item.name}</Button>
-                                  
-                                                                                </BreadcrumbItem>
-                                                                           {index!=breadCrumbsList.length-1? <BreadcrumbSeparator  />:""}
-                                                                           </div>
-                                                                      ))}
-                                                                 </BreadcrumbList>
-                                                            </Breadcrumb>
-                                                       </div>
-                                                       <div className="w-full justify-end inline-flex gap-3">
-                                                            <div className="inline-flex gap-0 overflow-x-clip "><p data-open={newFolderState} className="inline-flex items-center transition-all -z-10 opacity-0 data-[open=true]:opacity-100 data-[open=true]:right-0 data-[open=true]:z-0 relative -right-3"><Input id='newfolder' onBlur={()=>{!newFolderValue?setNewFolderState(false):""}} className='h-5 rounded-e-none outline-transparent  ml-1 w-24 rounded-s-md' value={newFolderValue} onChange={({target})=>{setNewFolderValue(target.value)}}/><Button onClick={()=>{addFolder()}} size='icon' disabled={!newFolderValue} className='px-1 rounded-e-md rounded-s-none w-fit h-5'><Check className=''/></Button></p><Button onClick={()=>{setNewFolderState(!newFolderState)}} variant='icon' className='p-1 relative min-w-max'><FolderPlus data-open={newFolderState} className='relative transition-all scale-125 data-[open=true]:-z-10 data-[open=true]:opacity-0 opacity-100 z-0'/><FolderCheck data-open={newFolderState} className='absolute transition-all scale-125 data-[open=true]:z-0 -z-10 data-[open=true]:opacity-100 opacity-0'/></Button></div>
-                                                            <Button onClick={()=>{setDisplayGrid(!displayGrid)}} variant='ghost'><LayoutGridIcon/></Button>
-                                                       </div>
-                                                       <p>Selected Items: {selectedItems&&selectedItems.length > 0 ? selectedItems.join(", ") : "None"}</p>
+                                                        <div className="w-full h-10 justify-between flex items-center">
+                                                          <div className="flex items-center px-0.5 justify-between">
+                                                                <Breadcrumb>
+                                                                    <BreadcrumbList className='flex gap-0 sm:gap-0 md:gap-0'>
+                                                                          {breadCrumbsList.map((item,index)=>(
+                                                                              <div key={index} onClick={()=>{navigateBreadcrumbs(item,index)}} className="inline-flex gap-[3px">
+                                                                                  <BreadcrumbItem>
+                                                                                        <Button variant='ghost' className='h-0 text-xs px-1'>{item.name}</Button></BreadcrumbItem>
+                                                                              {index!=breadCrumbsList.length-1? <BreadcrumbSeparator  />:""}
+                                                                              </div>
+                                                                          ))}
+                                                                    </BreadcrumbList>
+                                                                </Breadcrumb>
+                                                          </div>
+                                                          <>
+                                                          {selectedItems.length>0?(
+                                                            <div className='flex items-center gap-2'>
+                                                              {/* {selectedItems.length<=1?(
+                                                                <Button className={'text-black h-6 text-[11px]'} variant={'icon'}><SquareSplitHorizontal className='size-3.5 text-core'/><span className='md:inline hidden'>Rename</span></Button>
+                                                              ):''} */}
+                                                              <Button className={'text-black h-6 text-[11px]'} variant={'icon'}><Move className='size-3.5 text-core'/><span className='md:inline hidden'>Move</span></Button>
+                                                              <Button className={'text-black h-6 text-[11px]'} variant={'icon'}><Trash2 className='size-3.5 text-core'/><span className='md:inline hidden'>Delete</span></Button>
+                                                            </div>                  
+                                                          ):''}
+                                                          </>
+                                                        </div>
+                                                       <div className='px-2 mt-2 text-[11px] text-army'>
+                                                          <span className='text-neutral-800'>Selected Items:</span>
+
+                                                          {selectedItems && selectedItems.length > 0
+                                                            ? selectedItems
+                                                                .map(id => files.find(file => file.id === id)?.name || "(Unknown)")
+                                                                .join(", ")
+                                                            : "None"}
+                                                        </div>
 
                                                        <div className="h-full overflow-y-scroll">
                                                             <div data-grid={displayGrid} className="grid data-[grid=true]:justify-items-start h-fit data-[grid=true]:gap-3  grid-cols-1 data-[grid=true]:lg:grid-cols-4 data-[grid=true]:md:grid-cols-3 data-[grid=true]:sm:grid-cols-2">
@@ -216,7 +335,9 @@ const AddImage = () => {
                                                   </div>
                                              </div>
                                             <div className="w-full md:w-[40%] md:overflow-y-scroll no_scroll md:border-l px-2 border-t md:border-t-0 md:h-full">
-                                              <FileDetailsPanel selectedFile={clickedFileId ? files.find(f => f.id === clickedFileId) : null} setEditState={setEditState} setEditInfo={setEditInfo} />
+                                              <FileDetailsPanel selectedFile={clickedFileId ? files.find(f => f.id === clickedFileId) : null} setEditState={setEditState} setEditInfo={setEditInfo} updateName={(newValue,id,path)=>{
+                                                console.log(newValue,path)
+                                              }}/>
                                             </div>
                                         </div>
                                       </div>
@@ -240,64 +361,65 @@ const AddImage = () => {
 
           {/* Modal for upload - appears when `customDialog` is true */}
           {customDialog && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20">
-              <div className="bg-white dark:bg-neutral-900 flex-col flex rounded-lg w-[95%] max-w-4xl h-[60%] overflow-hidden p-2">
-                <div className="flex justify-end">
-                  <Button variant="ghost" size="icon" onClick={() => setCustomDialog(false)}>
-                    <X />
-                  </Button>
-                </div>
-                <div className=" rounded-md grow">
-                  <UploadModalContent
-                    onStartUpload={async (list) => {
-                      console.log("Starting upload for:", list);
-                     toast(`Uploading ${list.length} image(s)...`)
-                     try {
-                          const results = await uploadImagesToSupabase(
-                            list,
-                            {
-                              bucket: "products",
-                              companyName: info.name,
-                              folder: folder || "",
-                              owner: info.id
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20">
+                <div className="bg-white dark:bg-neutral-900 flex-col flex rounded-lg w-[95%] max-w-4xl h-[60%] overflow-hidden p-2">
+                  <div className="flex justify-end">
+                    <Button variant="ghost" size="icon" onClick={() => setCustomDialog(false)}>
+                      <X />
+                    </Button>
+                  </div>
+                  <div className=" rounded-md grow">
+                    <UploadModalContent
+                      onStartUpload={async (list) => {
+                        console.log("Starting upload for:", list);
+                      toast(`Uploading ${list.length} image(s)...`)
+                      try {
+                            const results = await uploadImagesToSupabase(
+                              list,
+                              {
+                                bucket: "products",
+                                companyName: info.name,
+                                folder: folder || "",
+                                owner: info.id
+                              },
+                              false
+                            );
+
+                            const success = results.filter(r => !r.error);
+                            const failed = results.filter(r => r.error);
+
+                            if (success.length) {
+                              toast(`Uploaded ${success.length} image(s)`);
+
+                              // 🔥 Fetch from DB and update UI
+                              const imageList = await fetchCompanyImages(info.name);
+                              setFiles(imageList);
                             }
-                          );
 
-                          const success = results.filter(r => !r.error);
-                          const failed = results.filter(r => r.error);
+                            if (failed.length) {
+                              toast(`Failed to upload ${failed.length} image(s)`);
+                              console.log("Upload errors:", failed);
+                            }
 
-                          if (success.length) {
-                            toast(`Uploaded ${success.length} image(s)`);
+                            setCustomDialog(false);
+                            return results;
 
-                            // 🔥 Fetch from DB and update UI
-                            const imageList = await fetchCompanyImages(info.name);
-                            setFiles(imageList);
+                          } catch (err) {
+                            console.error(err);
+                            toast.error ? toast.error("Upload failed") : toast("Upload failed");
+                          } finally {
+                            setCustomDialog(false);
                           }
 
-                          if (failed.length) {
-                            toast(`Failed to upload ${failed.length} image(s)`);
-                            console.log("Upload errors:", failed);
-                          }
+                      
 
-                          setCustomDialog(false);
-                          return results;
-
-                        } catch (err) {
-                          console.error(err);
-                          toast.error ? toast.error("Upload failed") : toast("Upload failed");
-                        } finally {
-                          setCustomDialog(false);
-                        }
-
-                    
-
-                    }}
-                    autoUploadThreshold={1}
-                  />
+                      }}
+                      autoUploadThreshold={1}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
          
      </DndProvider>
   )
@@ -668,7 +790,7 @@ export const UploadModalContent = ({ onStartUpload, autoUploadThreshold }) => {
                     onClick={onImageUpload}
                   >
                     <Upload />
-                    <Image />
+                    <ImageIcon />
                   </Button>
 
                    <p className="font-semibold text-xs">Drop images here or click to select</p>
@@ -685,9 +807,11 @@ export const UploadModalContent = ({ onStartUpload, autoUploadThreshold }) => {
 }
 
 // File Details Panel with Actions and Collapsible Sections
-const FileDetailsPanel = ({ selectedFile, setEditState, setEditInfo }) => {
+const FileDetailsPanel = ({ selectedFile, setEditState, setEditInfo ,updateName}) => {
   const [tagsOpen, setTagsOpen] = useState(false)
   const [fileInfoOpen, setFileInfoOpen] = useState(false)
+  const [renameDrop, setRenameDrop] = useState(false)
+  const [renameValue, setRenameValue] = useState('')
 
   const handleEditImage = () => {
     setEditInfo(selectedFile)
@@ -719,12 +843,50 @@ const FileDetailsPanel = ({ selectedFile, setEditState, setEditInfo }) => {
             <h3 className="font-semibold mb-2 text-sm px-2">Actions</h3>
             <div className="flex flex-col gap-2">
               <Button onClick={handleEditImage} variant="ghost" className="justify-start text-xs gap-2 hover:bg-gray-100">
-                <Check size={16} />
+                <Pen size={16} />
                 <div className="flex flex-col items-start">
                   <span>Edit Image</span>
                   <span className="text-gray-500 text-8px">Crop, remove background, adjust</span>
                 </div>
               </Button>
+              <Button onClick={()=>{setRenameDrop(!renameDrop)}} variant="ghost" className="justify-start text-xs gap-2 hover:bg-gray-100">
+                <SquareSplitHorizontal size={16} />
+                <div className="flex flex-col items-start">
+                  <span>Rename Image</span>
+                </div>
+              </Button>
+              <div className={renameDrop?"grid grid-rows-[1fr] relative -top-1.5 transition-collapse":"grid grid-rows-[0fr] relative -top-1.5 transition-collapse"}>
+                    <div className="overflow-hidden">
+                      <div className="rename-dialog">
+                        <Input
+                          type="text"
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)} 
+                          className="w-full border border-gray-300 rounde-sm h-8 "
+                          // you can also use a dedicated state, e.g. renameValue, if you prefer
+                        />
+
+                        <div className="flex justify-end mt-2 space-x-2">
+                          <Button
+                            className="px-4 py-2 bg-neutral-100 text-neutral-800 h-6 text-xs rounded hover:bg-neutral-200"
+                            onClick={() => {
+                              setRenameDrop(false);
+                              // optionally reset any rename-state
+                            }}
+                          >
+                            Cancel
+                          </Button>
+
+                          <Button
+                            className="px-4 py-2 bg-core text-white h-6 text-xs rounded hover:bg-core/85"
+                            onClick={()=>updateName(renameValue, selectedFile.id, selectedFile.path)}
+                          >
+                            Rename
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+              </div>
             </div>
           </div>
 

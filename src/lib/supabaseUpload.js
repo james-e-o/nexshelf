@@ -1,9 +1,7 @@
 import { supabase } from "../../config/supabaseClient";
 
 export async function uploadImagesToSupabase(
-  files,
-  { bucket, companyName, folder, owner }
-) {
+  files,{ bucket, companyName, folder, owner },replaceImage) {
   const results = [];
 
   for (const item of files) {
@@ -25,7 +23,7 @@ export async function uploadImagesToSupabase(
     // Upload
     const { data, error } = await supabase.storage
       .from(bucket)
-      .upload(fullPath, fileObj, { upsert: true });
+      .upload(fullPath, fileObj, { upsert: replaceImage });
 
     if (error) {
       results.push({ data: null, error, path: fullPath });

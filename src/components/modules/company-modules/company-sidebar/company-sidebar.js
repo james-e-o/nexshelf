@@ -32,29 +32,32 @@ export function AppSidebar({modules, company,...props }) {
   )
 }
 
-export const CollapsibleButton = ({title,icon,items,sidebarCollapse,sidebarOpen,caps }) => {
+export const CollapsibleButton = ({title,icon,items,sidebarCollapse,sidebarOpen,caps,defaultOpen, itemClass}) => {
    const item ={icon}
   return (
-    <Collapsible key={title} asChild defaultOpen={true} className="group/collapsible my-0.5" >
+    <Collapsible key={title} asChild defaultOpen={defaultOpen} className="group/collapsible my-0.5" >
         <SidebarMenuItem onRequestOpen={sidebarOpen} onRequestCollapse={sidebarCollapse} >
             <CollapsibleTrigger asChild>
-            <SidebarMenuButton  tooltip={title} className={'text-black font-WixMade'}>
-                 {item.icon && <item.icon className='font-bold' />}
-                <span className="font-medium text-xs ml-1">{title}</span>
-                <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-            </SidebarMenuButton>
+        <SidebarMenuButton  tooltip={title} className={`text-black cursor-pointer font-WixMade ${itemClass || ''}`}>
+                  {item.icon && <item.icon className='font-bold' />}
+                  <span className="font-medium text-xs ml-1">{title}</span>
+                  <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+              </SidebarMenuButton>
             </CollapsibleTrigger>
             <CollapsibleContent>
             <SidebarMenuSub>
-                {items?.map((subItem) => (
+                {items?.map((subItem) => {
+                const subBtnClass = subItem.className || 'text-black text-xs'
+                const titleClass = subItem.titleClass || 'font-medium data-[caps=capitalize]:capitalize data-[caps=lowercase]:lowercase data-[caps=uppercase]:uppercase font-WixMade text-xs ml-1'
+                return (
                 <SidebarMenuSubItem key={subItem.title}>
-                    <SidebarMenuSubButton className={`text-black text-xs`} asChild>
+                  <SidebarMenuSubButton className={subBtnClass} style={subItem.style} asChild>
                     <Link href={subItem.url}>
-                        <span data-caps={caps} className="font-medium data-[caps=capitalize]:capitalize data-[caps=lowercase]:lowercase data-[caps=uppercase]:uppercase font-WixMade text-xs ml-1">{subItem.title}</span>
+                      <span data-caps={caps} className={titleClass}>{subItem.title}</span>
                     </Link>
-                    </SidebarMenuSubButton>
+                  </SidebarMenuSubButton>
                 </SidebarMenuSubItem>
-                ))}
+                )})}
             </SidebarMenuSub>
             </CollapsibleContent>
         </SidebarMenuItem>

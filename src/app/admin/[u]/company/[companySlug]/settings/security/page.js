@@ -193,7 +193,7 @@ export default function SecurityOwnershipSettings() {
             </div>
           </div>
 
-          {/* Danger Zone */}
+          {/* Transfer company */}
           <div className="py-4 my-4">
             <p className="text-army text-xs font-medium flex items-center gap-1 mb-2">
               <RotateCcwKey className="w-3 h-3 text-army" />
@@ -212,6 +212,8 @@ export default function SecurityOwnershipSettings() {
                 </div>
             
           </div>
+
+          {/* Delete Company */}
           <div className="py-4">
             <p className="text-red-600 text-xs font-medium flex items-center gap-1 mb-2">
               <Trash2 className="w-3 h-3 text-red-600" />

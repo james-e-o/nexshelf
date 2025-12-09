@@ -48,7 +48,7 @@ const CreateProductPage = () => {
 
   return (
     <AlertDialog>
-    <div className=' flex inset-0  bg-neutral-500 shadow-md shadow- absolute z-40 '>
+    <div className=' flex font-WixMade inset-0  bg-neutral-500 shadow-md shadow- absolute z-40 '>
         <div className='bg-white flex flex-col border-zinc-400 border absolute inset-2 shadow-0   overflow-clip rounded-lg'>
 
 
