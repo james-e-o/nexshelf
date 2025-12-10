@@ -21,8 +21,8 @@ export default function CompanySidebarContent({modules, company}) {
                     items={[
                         {
                             title: "Manage Modules", 
-                            url: `/admin/${params.u}/company/${params.companySlug}/modules`,
-                            className: 'text-white font-semibold hover:bg-army/85 hover:text-white font-WixMade bg-core transition-all  text-xs',
+                            url: `/admin/${params.u}/company/${params.companySlug}/modules-manager`,
+                            className: 'text-white font-semibold hover:bg-army/85 hover:text-white font-WixMade bg-core/70 transition-all  text-xs',
                         },
                         {
                             title: "Accounting", 

@@ -25,6 +25,13 @@ export default function CompanyLayout({ children }) {
 
   const { u, companySlug } = params
 
+  function capitalizeFirstLetter(string) {
+    if (typeof string !== 'string' || string.length === 0) {
+      return string; // Handle non-string or empty input
+    }
+    return string.charAt(0).toUpperCase() + string.slice(1);
+  }
+
   useEffect(() => {
     async function checkAccess() {
       try {
@@ -73,7 +80,7 @@ export default function CompanyLayout({ children }) {
         } else {
           // Convert DB → UI format
           const transformedModules = modulesData.map(({ name, mod_key }) => ({
-            title: name,
+            title:capitalizeFirstLetter(mod_key),
             slug: mod_key,
           }))
           setModules(transformedModules)
@@ -120,7 +127,7 @@ export default function CompanyLayout({ children }) {
               </CompanyHeader>
             </div>
 
-            <div className="flex-grow overflow-y-auto p-2 md:p-4">
+            <div className="grow overflow-y-auto p-2 md:p-4">
               {children}
             </div>
 

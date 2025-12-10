@@ -10,7 +10,8 @@ export default function CompanySidebarFooter({ params, profile}) {
     <SidebarFooter className={'bg-white pb-8 flex-col flex gap-6'} >
       <div className="flex-col flex gap-1">
         <NoCollapsibleButton className={``} url={`/admin/${u}/company/${companySlug}/staff`} title={'staff'} icon={Users} active={false} name={'Staff'}/>
-        <CollapsibleButton caps={'capitalize'} defaultOpen={false} sidebarOpen={true} className={``} title={'Branches'} icon={SquaresSubtract} 
+        <NoCollapsibleButton className={``} url={`/admin/${u}/company/${companySlug}/branches`} title={'branches'} icon={SquaresSubtract} active={false} name={'Branches'}/>
+        {/* <CollapsibleButton caps={'capitalize'} defaultOpen={false} sidebarOpen={true} className={``} title={'Branches'} icon={SquaresSubtract} 
                     items={[
                        {
                             title: "Add Branch", 
@@ -19,7 +20,7 @@ export default function CompanySidebarFooter({ params, profile}) {
                         },
                     ]}
                     sidebarCollapse={false}
-                    />
+                    /> */}
         <NoCollapsibleButton className={``} url={`/admin/${u}/company/${companySlug}/settings`} title={'settings'} icon={Settings} active={false} name={'Company Settings'}/>
       </div>
       <NavUser user={profile} />
