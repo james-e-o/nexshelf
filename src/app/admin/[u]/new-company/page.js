@@ -3,12 +3,12 @@
 import { useEffect, useState,useContext } from 'react'
 import { supabase } from '../../../../../config/supabaseClient'
 import { Spinner } from '@/components/ui/spinner'
-import { ArrowLeft, ArrowRight, Bell, TriangleAlert } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Bell, TriangleAlert, Check } from 'lucide-react'
 import { DataContext } from '../layout'
-import { AppSidebar } from '@/components/modules/app-sidebar/app-sidebar'
+import { AppSidebar } from '@/components/sidebars/app-sidebar/app-sidebar'
 import {SidebarInset,SidebarProvider,SidebarTrigger,} from "@/components/ui/sidebar"
 import { useParams, useRouter } from 'next/navigation'
-import Header from '@/components/dashboard-header'
+import Header from '@/components/headers/dashboard-header'
 import { Button } from '@/components/ui/button'
 import {Field,FieldDescription,FieldGroup,FieldLabel,FieldSeparator,} from "@/components/ui/field"
 import { Input } from '@/components/ui/input'
@@ -16,6 +16,8 @@ import { toast } from 'sonner'
 import ComboDropTemplate from '@/components/combo-drop'
 import { cn } from '@/lib/utils'
 import { Tabs,TabsTrigger,TabsList,TabsContent } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select"
 
 export default function AdminUserPage() {
 
@@ -35,6 +37,8 @@ export default function AdminUserPage() {
             industry: "",
             currency: "",
             taxId: "",
+            branchAddress: "",
+            branchCity: "",
         });
           const requiredFields = ["name", "email", "type", "currency","phone"];
 
@@ -48,48 +52,56 @@ export default function AdminUserPage() {
 
             const isFormValid = requiredFields.every((field) => formData[field].trim() !== "") && !nameExists // ✅ also require unique name
 
-            // const handleSubmit = async () => {
-            //     if (!isFormValid) {
-            //     toast("Please fill in all required fields before submitting.");
-            //     return;
-            //     }
-                
-            //     setIsLoading(true);
-            //     const { info, error } = await supabase
-            //         .from("companies")
-            //         .insert([
-            //         {
-            //             name: formData.name,
-            //             owner:data.profile.id,
-            //             type: formData.type,
-            //             email: formData.email,
-            //             phone: formData.phone,
-            //             country: formData.country,
-            //             industry: formData.industry,
-            //             currency: formData.currency,
-            //             taxId: formData.taxId,
-            //         },
-            //         ]);
+          
 
-            //     if (error) {
-            //         console.log("Error inserting company:", error);
-            //         toast("Failed to create company",);
-            //         setIsLoading(false);
-            //     } else {
-            //         toast("Company created successfully!");
-            //         const { data: companies, error: companyError } = await supabase.from('companies').select('id, name, slug').eq('owner', data.profile.id)
-            //         if (companyError) {
-            //             toast('Unable to refresh data')           
-            //             setIsLoading(false)
-            //         } else {setData(prev => ({...prev,companies, }))}
-            //         setIsLoading(false);
-            //         router.push(`/admin/${params.u}`)
-            //     }
-            // };
+                        const createHeadOfficeBranch = async (
+                            companyId,
+                            companyName,
+                            companyEmail,
+                            companyPhone,
+                            companyCountry,
+                            companyCurrency,
+                            branchAddress,
+                            branchCity
+                        ) => {
+                        try {
+                                const { data: branch, error: branchError } = await supabase
+                                    .from('branches')
+                                    .insert([
+                                        {
+                                            company: companyId,
+                                            name: 'HEAD OFFICE',
+                                            address: branchAddress || '',
+                                            city: branchCity || '',
+                                            country: companyCountry,
+                                            phone: companyPhone,
+                                            email: companyEmail,
+                                            isheadoffice: true,
+                                            status: 'active',
+                                            currency: companyCurrency,
+                                        },
+                                    ])
+                                    .select()
+                                    .single();
+
+                if (branchError) {
+                  console.error('Error creating head office branch:', branchError);
+                  toast.error('Head office branch creation failed');
+                  return false;
+                }
+
+                toast.success('✓ Head office branch created!');
+                return true;
+              } catch (err) {
+                console.error('Unexpected error creating branch:', err);
+                toast.error('Unexpected error creating branch');
+                return false;
+              }
+            };
 
             const handleSubmit = async () => {
             if (!isFormValid) {
-                toast("Please fill in all required fields before submitting.");
+                toast.error("Please fill in all required fields before submitting.");
                 return;
             }
 
@@ -115,20 +127,36 @@ export default function AdminUserPage() {
                 .single();
 
             if (companyError) {
-                toast("Failed to create company");
+                toast.error("Failed to create company");
                 console.log("Error inserting company:", companyError);
                 setIsLoading(false);
                 return;
             } else {
-                    console.log(insertedCompany)
+                    toast.success("✨ Company created successfully!");
+                    console.log(insertedCompany);
 
-                    // 🟦 At this point, insertedCompany.id exists
                     const companyType = insertedCompany.type;
                     const companyName = insertedCompany.name;
                     const companyId = insertedCompany.id;
-                    console.log(companyType,companyId)
+                    console.log(companyType,companyId);
 
-                    // 2️⃣ Fetch all modules that match this company's default types
+                    // 2️⃣ Create head office branch
+                                        const branchCreated = await createHeadOfficeBranch(
+                                            companyId,
+                                            companyName,
+                                            formData.email,
+                                            formData.phone,
+                                            formData.country,
+                                            formData.currency,
+                                            formData.branchAddress,
+                                            formData.branchCity
+                                        );
+
+                    if (!branchCreated) {
+                      console.warn('Branch creation failed but company exists');
+                    }
+
+                    // 3️⃣ Fetch and assign default modules
                     const { data: defaultModules, error: modulesError } = await supabase
                     .from("modules")
                     .select("key, defaulttypes,name")
@@ -136,16 +164,14 @@ export default function AdminUserPage() {
 
                     if (modulesError) {
                         console.log("Error fetching default modules:", modulesError);
-                        toast("Company created, but failed to assign default modules.");
+                        toast.error("Failed to assign default modules.");
                     } else {
-                        // 3️⃣ Insert default modules into company_modules
-                        console.log(defaultModules)
+                        console.log(defaultModules);
                         const moduleRows = defaultModules.map((mod) => ({
                             company: companyId,
                             company_name: companyName,
                             mod_key: mod.key,
                             name: mod.name,
-                            active: true,
                         }));
 
                         const { error: addModuleError } = await supabase
@@ -153,13 +179,11 @@ export default function AdminUserPage() {
                         .insert(moduleRows);
 
                         if (addModuleError) {
-                        console.log("Error adding company modules:", addModuleError);
-                        toast("Company created, but failed to add modules.");
+                          console.log("Error adding company modules:", addModuleError);
+                          toast.error("Failed to add default modules.");
                         }
-                    }
 
-                    // 4️⃣ Update state & redirect
-                    toast("Company created successfully!");
+                    }
 
                     const { data: companies, error: reloadError } = await supabase
                         .from("companies")
@@ -167,13 +191,11 @@ export default function AdminUserPage() {
                         .eq("owner", data.profile.id);
 
                     if (reloadError) {
-                        toast("Unable to refresh data");
+                        toast.error("Unable to refresh data");
                     } else {
                         setData((prev) => ({ ...prev, companies }));
                     }
-            }
-
-            
+                }
 
             setIsLoading(false);
             router.push(`/admin/${params.u}`);
@@ -230,7 +252,7 @@ export default function AdminUserPage() {
                     </div>
                     </Header>
                 </div>
-                <div className='md:px-5 flex-col overflow-y-hidden flex-grow p-0.5 flex px-3'>
+                <div className='md:px-5 flex-col overflow-y-hidden grow p-0.5 flex px-3'>
         
                    
                         <div className="md:w-4/5 mx-auto font-WixMade tracking-tight mt-10 p-6">
@@ -290,12 +312,16 @@ export default function AdminUserPage() {
                                             <><span className="text-red-500 ml-1">*</span></>
                                         ) : (       '')}
                                     </FieldLabel>
-                                    <select name="type" value={formData.type} onChange={handleChange} className="w-full border text-xs p-2 rounded-lg" >
-                                    <option value="">Select Company Type</option>
-                                    <option value="product">Product-based</option>
-                                    <option value="service">Service-based</option>
-                                    <option value="project">Project-based</option>
-                                    </select>
+                                    <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
+                                      <SelectTrigger className="w-full text-xs border rounded-lg">
+                                        <SelectValue placeholder="Select Company Type" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="product">Product-based</SelectItem>
+                                        <SelectItem value="service">Service-based</SelectItem>
+                                        <SelectItem value="project">Project-based</SelectItem>
+                                      </SelectContent>
+                                    </Select>
                                     <FieldDescription className="text-xs ml-1" />
                                 </Field>
 
@@ -334,36 +360,47 @@ export default function AdminUserPage() {
                                 <div className="space-y-3">
                                 <h2 className="text-md font-semibold mb-2">Company Details</h2>
 
-                                <Field>
-                                    <FieldLabel className="text-xs" htmlFor="industry">
-                                    Industry {requiredFields.includes("industry") ? (
-                                            <><span className="text-red-500 ml-1">*</span></>
-                                        ) : (       '')}
-                                    </FieldLabel>
-                                    <Input type="text" name="industry" placeholder="Industry (e.g., Retail, IT, Construction)" value={formData.industry} onChange={handleChange} className="w-full border text-xs p-2 rounded-lg" />
-                                </Field>
+                                                                <Field>
+                                                                        <FieldLabel className="text-xs" htmlFor="industry">
+                                                                        Industry {requiredFields.includes("industry") ? (
+                                                                                        <><span className="text-red-500 ml-1">*</span></>
+                                                                                ) : (       '')}
+                                                                        </FieldLabel>
+                                                                        <Input type="text" name="industry" placeholder="Industry (e.g., Retail, IT, Construction)" value={formData.industry} onChange={handleChange} className="w-full border text-xs p-2 rounded-lg" />
+                                                                </Field>
 
-                                {/* <Field>
-                                    <FieldLabel className="text-xs" htmlFor="employees">
-                                    Number of Employees
-                                    </FieldLabel>
-                                    <Input type="number" name="employees" placeholder="Number of Employees" value={formData.employees} onChange={handleChange} className="w-full text-xs border p-2 rounded-lg" />
-                                </Field> */}
+                                                                <Field>
+                                                                        <FieldLabel className="text-xs" htmlFor="branchAddress">
+                                                                        Head Office Address
+                                                                        </FieldLabel>
+                                                                        <Input type="text" name="branchAddress" placeholder="Head office address (stored on branch)" value={formData.branchAddress} onChange={handleChange} className="w-full border text-xs p-2 rounded-lg" />
+                                                                </Field>
 
-                                <Field>
-                                    <FieldLabel className="text-xs" htmlFor="currency">
-                                    Currency {requiredFields.includes("currency") ? (
-                                            <><span className="text-red-500 ml-1">*</span></>
-                                        ) : (       '')}
-                                    </FieldLabel>
-                                    <select name="currency" value={formData.currency} onChange={handleChange} className="w-full text-xs border p-2 rounded-lg" >
-                                    <option value="">Select Currency</option>
-                                    <option value="USD">USD - US Dollar</option>
-                                    <option value="EUR">EUR - Euro</option>
-                                    <option value="RWF">RWF - Rwandan Franc</option>
-                                    <option value="NGN">NGN - Naira</option>
-                                    </select>
-                                </Field>
+                                                                <Field>
+                                                                        <FieldLabel className="text-xs" htmlFor="branchCity">
+                                                                        Head Office City
+                                                                        </FieldLabel>
+                                                                        <Input type="text" name="branchCity" placeholder="Head office city (stored on branch)" value={formData.branchCity} onChange={handleChange} className="w-full border text-xs p-2 rounded-lg" />
+                                                                </Field>
+
+                                                                <Field>
+                                                                        <FieldLabel className="text-xs" htmlFor="currency">
+                                                                        Currency {requiredFields.includes("currency") ? (
+                                                                                        <><span className="text-red-500 ml-1">*</span></>
+                                                                                ) : (       '')}
+                                                                        </FieldLabel>
+                                                                        <Select value={formData.currency} onValueChange={(value) => setFormData({ ...formData, currency: value })}>
+                                                                            <SelectTrigger className="w-full text-xs border rounded-lg">
+                                                                                <SelectValue placeholder="Select Currency" />
+                                                                            </SelectTrigger>
+                                                                            <SelectContent>
+                                                                                <SelectItem value="USD">USD - US Dollar</SelectItem>
+                                                                                <SelectItem value="EUR">EUR - Euro</SelectItem>
+                                                                                <SelectItem value="RWF">RWF - Rwandan Franc</SelectItem>
+                                                                                <SelectItem value="NGN">NGN - Naira</SelectItem>
+                                                                            </SelectContent>
+                                                                        </Select>
+                                                                </Field>
 
 
                                 <Field>

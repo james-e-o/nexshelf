@@ -16,7 +16,7 @@ import {Popover,PopoverContent,PopoverTrigger,} from "@/components/ui/popover"
 import { X ,Check, ChevronsUpDown, GripIcon, GripHorizontalIcon, ArrowRight, Upload} from "lucide-react"
 import { useParams } from "next/navigation"
 import AddImage from "@/components/add-image";
-import { supabase } from "../../../../../../../../config/supabaseClient";
+import { supabase } from "../../../../../../../../../config/supabaseClient";
 
 const CreateProductPage = () => {
     const [activeTab, setActiveTab] = useState("details");

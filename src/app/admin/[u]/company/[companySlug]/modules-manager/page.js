@@ -1,66 +1,91 @@
 "use client"
 
-import React, { useState } from 'react'
-import { Button } from '@/components/ui/button'
-import {
-  LayoutDashboard,
-  FileChartLine,
-  ChartCandlestick,
-  Settings,
-  Users,
-  Check,
-  Plus,
-  Info,
-} from 'lucide-react'
+import React, { useEffect, useState,useContext } from "react"
+import { CompanyInfoContext } from "../layout"
+import { Button } from "@/components/ui/button"
+import {  LayoutDashboard,  FileChartLine,  ChartCandlestick,  Settings,  Users,  Check,  Plus,  Info,  Package,  Boxes,  Truck,} from "lucide-react"
+import { supabase } from "../../../../../../../config/supabaseClient"
 
-const sampleModules = [
-  {
-    id: 'dashboard',
-    name: 'Company Dashboard',
-    description: 'Overview of company metrics, sales, and recent activity.',
-    icon: LayoutDashboard,
-    included: true,
-    users: 12,
-  },
-  {
-    id: 'reports',
-    name: 'Reports & Analytics',
-    description: 'Customizable reports, charts, and exportable analytics.',
-    icon: ChartCandlestick,
-    included: false,
-    users: 0,
-  },
-  {
-    id: 'inventory',
-    name: 'Inventory Manager',
-    description: 'Manage stock levels, SKUs, and product variants.',
-    icon: FileChartLine,
-    included: true,
-    users: 4,
-  },
-  {
-    id: 'settings',
-    name: 'Settings & Access',
-    description: 'Company-level settings, roles and permissions.',
-    icon: Settings,
-    included: true,
-    users: 3,
-  },
-  {
-    id: 'staff',
-    name: 'Staff Directory',
-    description: 'Manage employees, invites, and permissions.',
-    icon: Users,
-    included: false,
-    users: 0,
-  },
-]
+// Map module keys → icons (for dynamic assignment)
+const moduleIcons = {
+  dashboard: LayoutDashboard,
+  inventory: Package,
+  products: FileChartLine,
+  customers: Users,
+  sales: ChartCandlestick,
+  orders: Boxes,
+  purchases: Boxes,
+  services: Settings,
+  bookings: Users,
+  projects: Settings,
+  logistics: Truck,
+  warehousing: Boxes,
+}
 
 export default function ModulesManagementPage() {
-  const [modules, setModules] = useState(sampleModules)
+  const [modules, setModules] = useState([])
+  const [loading, setLoading] = useState(true)
+  const {modules:CompanyModules} = useContext(CompanyInfoContext)
+  console .log("CompanyModules in ModulesManagementPage:", CompanyModules);
 
-  const toggleModule = (id) => {
-    setModules((m) => m.map((mod) => (mod.id === id ? { ...mod, included: !mod.included } : mod)))
+  // helper: check if a fetched module key matches any company module `slug`
+  const isKeyInCompanyBySlug = (key) => {
+    if (!CompanyModules || !Array.isArray(CompanyModules)) return false
+    return CompanyModules.some((cm) => {
+      if (!cm) return false
+      // support string entries
+      if (typeof cm === "string") return cm === key || cm === String(key)
+      // support objects with a `slug` property
+      if (cm.slug && cm.slug === key) return true
+      // backwards compatibility: other possible keys
+      if (cm.key && cm.key === key) return true
+      if (cm.module_key && cm.module_key === key) return true
+      if (cm.mod_key && cm.mod_key === key) return true
+      return false
+    })
+  }
+
+  // Fetch modules from Supabase
+  const fetchModules = async () => {
+    setLoading(true)
+    const { data, error } = await supabase
+      .from("modules")
+      .select("*")
+      .order("id", { ascending: true })
+
+    if (error) console.error("Fetch error:", error)
+    else if (Array.isArray(data)) {
+      const annotated = data.map((d) => ({
+        ...d,
+        included: !!(d.included || isKeyInCompanyBySlug(d.key)),
+      }))
+      setModules(annotated)
+    } else setModules(data)
+
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    fetchModules()
+  }, [CompanyModules])
+
+  const toggleModule = async (id) => {
+    // You'll update this based on your company-module join table logic.
+    // For now, we only toggle visually.
+
+    setModules((prev) =>
+      prev.map((m) =>
+        m.id === id ? { ...m, included: !m.included } : m
+      )
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="px-5 text-sm text-muted-foreground">
+        Loading modules...
+      </div>
+    )
   }
 
   return (
@@ -68,33 +93,40 @@ export default function ModulesManagementPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-base font-semibold">Modules Manager</h1>
-          <p className="text-xs text-muted-foreground">Manage which apps and modules are available to this company and its branches.</p>
+          <p className="text-xs text-muted-foreground">
+            Choose and manage which modules are available to this company and its branches.
+          </p>
         </div>
-        {/* <Button className="h-7 inline-flex items-center gap-2">
-          <Plus size={14} />
-          <span className="text-xs">Add Module</span>
-        </Button> */}
       </div>
 
+      {/* MODULE CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {modules.map((mod) => {
-          const Icon = mod.icon || Info
+          const Icon = moduleIcons[mod.key] || Info
+          const status = String(mod.status || "active").toLowerCase()
+          const isActive = status === "active"
+          const isComing = status === "coming_soon" || status === "coming-soon" || status === "coming soon"
+          const disableAdd = !isActive && !mod.included
+
           return (
             <article
               key={mod.id}
-              className="relative rounded-lg overflow-hidden border  border-core"
-
+              className="relative rounded-lg overflow-hidden border border-core"
             >
-              {/* Badge */}
-              <div className="absolute right-3 top-3 z-10">
-                <span
-                  className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${mod.included ? 'bg-green-100 text-green-600' : 'bg-zinc-100 text-zinc-700'}`}>
-                  {mod.included ? <Check size={12} /> : <Plus size={12} />}
-                  {mod.included ? 'Included' : 'Not Added'}
-                </span>
-              </div>
+              {/* Top badge: only show 'Not Added' when module is NOT included by company slug */}
+              {isActive&&!mod.included && (
+                <div className="absolute right-3 top-3 z-10">
+                  <span className="inline-flex items-center gap-1  text-[11px] font-medium px-2 py rounded-full bg-army text-zinc-50">
+                    Not Added
+                  </span>
+                </div>
+              )}
 
-              <div className="p-4 flex gap-4 items-start" style={{ minHeight: 140, maxHeight: 180 }}>
+              {/* Card content */}
+              <div
+                className="p-4 flex gap-4 items-start"
+                style={{ minHeight: 140, maxHeight: 180 }}
+              >
                 <div className="shrink-0">
                   <div className="w-14 h-14 rounded-lg bg-white/70 border border-white flex items-center justify-center shadow">
                     <Icon size={22} className="text-army" />
@@ -103,22 +135,58 @@ export default function ModulesManagementPage() {
 
                 <div className="flex-1">
                   <h3 className="text-sm font-semibold mb-1">{mod.name}</h3>
-                  <p className="text-xs text-zinc-600 mb-3">{mod.description}</p>
+                  <p className="text-xs text-zinc-600 mb-3">
+                    {mod.description}
+                  </p>
 
-                  <div className="flex items-center gap-3">
-                    <div className="text-xs text-zinc-500">Users: <span className="font-medium text-zinc-700">{mod.users}</span></div>
-                    <div className="h-4 w-px bg-zinc-200" />
-                    <Button data-included={mod.included} className="h-6 bg-core data-[included=true]:bg-army hover:bg-core/85 data-[included=true]:hover:bg-army/85 text-xs" onClick={() => toggleModule(mod.id)}>{mod.included ? 'Remove' : 'Add'}</Button>
-                      {mod.included && (
-                        <Button variant="ghost" className="h-7 text-xs">Configure</Button>
-                      )}
-                  </div>
+                  {isActive && (
+                    <div className="flex items-center gap-3">
+                      <Button
+                        data-included={mod.included}
+                        className={`h-6 text-xs ${
+                          disableAdd
+                            ? "bg-gray-200 text-gray-600 opacity-60 cursor-not-allowed"
+                            : mod.included
+                            ? "bg-army hover:bg-army/85"
+                            : "bg-core hover:bg-core/85"
+                        }`}
+                        onClick={() => toggleModule(mod.id)}
+                        disabled={disableAdd}
+                      >
+                        {mod.included ? "Remove" : "Add"}
+                      </Button>
+
+                      <Button
+                        variant="ghost"
+                        className={`h-6 text-xs ${!(mod.included && isActive) ? "opacity-60 text-gray-500 cursor-not-allowed" : ""}`}
+                        disabled={!(mod.included && isActive)}
+                      >
+                        Configure
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
 
+              {/* Footer row: premium (left) and status badge (right) */}
               <div className="px-4 py-2 border-t border-white/50 bg-white/30 flex items-center justify-between">
-                <div className="text-xs text-zinc-500">Module ID: <span className="font-mono text-xs text-zinc-700">{mod.id}</span></div>
-                <div className="text-xs text-zinc-500">Status: <span className="font-medium text-zinc-700">{mod.included ? 'Active' : 'Inactive'}</span></div>
+                <div>
+                  {isActive&&mod.premium && (
+                    <span className="inline-flex items-center text-[10px] italic font-medium px-2 py rounded-full bg-purple-100 text-purple-800">Premium</span>
+                  )}
+                </div>
+
+                <div>
+                  {isActive && (
+                    <span className="inline-flex items-center text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-800">Active</span>
+                  )}
+                  {isComing && (
+                    <span className="inline-flex items-center text-xs font-medium px-2 py-1 rounded-full bg-orange-300 text-neutral-900">Coming Soon</span>
+                  )}
+                  {!isActive && !isComing && (
+                    <span className="inline-flex items-center text-xs font-medium px-2 py-1 rounded-full bg-zinc-100 text-zinc-700">Inactive</span>
+                  )}
+                </div>
               </div>
             </article>
           )

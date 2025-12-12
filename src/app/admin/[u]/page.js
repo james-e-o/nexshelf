@@ -5,10 +5,10 @@ import { supabase } from '../../../../config/supabaseClient'
 import { Spinner } from '@/components/ui/spinner'
 import { Bell } from 'lucide-react'
 import { DataContext } from './layout'
-import { AppSidebar } from '@/components/modules/app-sidebar/app-sidebar'
+import { AppSidebar } from '@/components/sidebars/app-sidebar/app-sidebar'
 import {SidebarInset,SidebarProvider,SidebarTrigger,} from "@/components/ui/sidebar"
 import { useParams, useRouter } from 'next/navigation'
-import Header from '@/components/dashboard-header'
+import Header from '@/components/headers/dashboard-header'
 import { Button } from '@/components/ui/button'
 import { FileSearch, Factory} from 'lucide-react'
 import Link from 'next/link'
@@ -19,12 +19,13 @@ import {  Alert,  AlertDescription,  AlertTitle,} from "@/components/ui/alert"
 export default function AdminUserPage() {
 
     const router = useRouter()
-    const [isLoading, setIsLoading] = useState(true)
+    const [isLoading, setIsLoading] = useState(false)
     const params = useParams()
     const {data,setData} = useContext(DataContext)
 
     useEffect(()=>{
       async function fetchCompany(){
+        setIsLoading(true)
         const { data: companies, error: companyError } = await supabase
                   .from('companies')
                   .select('id, name, slug')
@@ -34,12 +35,13 @@ export default function AdminUserPage() {
                   console.error('Company fetch error:', companyError)
                   toast('Unable to load your companies. Please try again later.')
                   setData(prev => ({ ...prev, companies: [] }))
+                  setIsLoading(false )
                   return
                 }
         
                 if (!companies || companies.length === 0) {
-                  toast('No companies found for this account.')
                   setData(prev => ({ ...prev, companies: [] }))
+                  setIsLoading(false )
                   return
                 }
         
@@ -62,7 +64,7 @@ export default function AdminUserPage() {
       <SidebarInset className={' overflow-hidden h-svh static'}>
 
         <div className="flex mb-0.5 h-full overflow-hidden flex-col gap-4">
-         <div className='flex-col  border-b-1 overflow-hidden h-full flex'>
+         <div className='flex-col  border-b overflow-hidden h-full flex'>
            <div className='h-12'>
              <Header >
                <div className="flex">
@@ -76,7 +78,7 @@ export default function AdminUserPage() {
                </div>
              </Header>
            </div>
-           <div className='flex-col overflow-y-hidden flex-grow  flex'>
+           <div className='flex-col overflow-y-hidden grow  flex'>
               <div className='md:px-4 pt-2 md:pt-4 p-0.5 px-1 h-full overflow-y-auto'>
                 
                   <div>

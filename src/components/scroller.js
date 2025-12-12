@@ -35,7 +35,7 @@ export default function FeatureScroller() {
     <div className="flex flex-col md:flex-row items-center  z-10 md:h-[58vh] md:gap-20 mb-0 gap-5 md:justify-between ">
       {/* Left Text Section */}
       <div className="w-full md:w-1/2 flex-col justify-between h-full flex ">
-            <p className="font-WixMade min-w-2/6 tracking-tighter leading-tight text-white text-pretty font-[100] text-[40px]">One Platform. Every Store. Every Sale.</p>
+            <p className="font-WixMade min-w-2/6 tracking-tighter leading-tight text-white text-pretty font-thin text-[40px]">One Platform. Every Store. Every Sale.</p>
             <div className="mt-3 md:mt-4 h-20 leading-snug overflow-hidden md:h-fit">
          
                 {features.map((feature, index) => (

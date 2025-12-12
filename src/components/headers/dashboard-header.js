@@ -3,8 +3,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {  Breadcrumb,  BreadcrumbList,  BreadcrumbItem,  BreadcrumbSeparator,  BreadcrumbLink,  BreadcrumbPage,
 } from "@/components/ui/breadcrumb"; // adjust if needed
-import { Separator } from "./ui/separator";
-import { SidebarTrigger } from "./ui/sidebar";
+import { Separator } from "../ui/separator";
+import { SidebarTrigger } from "../ui/sidebar";
 
 export default function Header({children}) {
   const pathname = usePathname();

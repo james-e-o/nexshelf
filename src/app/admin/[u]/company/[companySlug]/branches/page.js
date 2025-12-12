@@ -1,15 +1,12 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useContext } from 'react'
 import { Button } from '@/components/ui/button'
 import { Plus, Edit3, Trash2 } from 'lucide-react'
+import { CompanyInfoContext } from '../layout'
 
 export default function BranchesPage() {
-  const [branches, setBranches] = useState([
-    { id: 'head', name: 'Head Office', address: '123 Main St, City', isHead: true },
-    { id: 'br1', name: 'Branch - East', address: '45 East Ave, City', isHead: false },
-    { id: 'br2', name: 'Branch - West', address: '88 West Blvd, City', isHead: false },
-  ])
+  const { branches } = useContext(CompanyInfoContext)
 
   const [showAdd, setShowAdd] = useState(false)
   const [newName, setNewName] = useState('')
@@ -20,25 +17,17 @@ export default function BranchesPage() {
   const [editingAddress, setEditingAddress] = useState('')
 
   const addBranch = () => {
-    if (!newName.trim()) return
-    const id = `br${Date.now()}`
-    setBranches((s) => [...s, { id, name: newName.trim(), address: newAddress.trim(), isHead: false }])
-    setNewName('')
-    setNewAddress('')
-    setShowAdd(false)
+    // TODO: Implement add branch to DB
+    alert('Add branch functionality not implemented yet')
   }
 
   const startEdit = (b) => {
-    setEditingId(b.id)
-    setEditingName(b.name)
-    setEditingAddress(b.address)
+    // TODO: Implement edit branch
+    alert('Edit branch functionality not implemented yet')
   }
 
   const saveEdit = () => {
-    setBranches((s) => s.map((b) => (b.id === editingId ? { ...b, name: editingName, address: editingAddress } : b)))
-    setEditingId(null)
-    setEditingName('')
-    setEditingAddress('')
+    // TODO
   }
 
   const cancelEdit = () => {
@@ -48,7 +37,8 @@ export default function BranchesPage() {
   }
 
   const removeBranch = (id) => {
-    setBranches((s) => s.filter((b) => b.id !== id))
+    // TODO: Implement remove branch
+    alert('Remove branch functionality not implemented yet')
   }
 
   return (
@@ -89,9 +79,9 @@ export default function BranchesPage() {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-medium">{b.name}</span>
-                    {b.isHead && <span className="text-xs text-zinc-500">(Head Office)</span>}
+                    {b.isheadoffice && <span className="text-xs text-zinc-500">(Head Office)</span>}
                   </div>
-                  <div className="text-xs text-zinc-500">{b.address}</div>
+                  <div className="text-xs text-zinc-500">{b.address}, {b.city}</div>
                 </div>
               )}
             </div>
@@ -107,7 +97,7 @@ export default function BranchesPage() {
                   <Button variant={'outline'} className="h-6 inline-flex  items-center gap-2" onClick={() => startEdit(b)}>
                     <Edit3 size={12} />
                   </Button>
-                  {!b.isHead && (
+                  {!b.isheadoffice && (
                     <Button className="h-6 inline-flex items-center gap-2" variant="destructive" onClick={() => removeBranch(b.id)}>
                       <Trash2 size={12} />
                     </Button>

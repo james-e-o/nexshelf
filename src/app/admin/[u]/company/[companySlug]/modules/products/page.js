@@ -32,7 +32,7 @@ export default function Productpage() {
             <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3 ml-0.5">
               <p className="text-base font-bold">Products</p>
 
-                <Link href={`/admin/${u}/company/${companySlug}/products/categories`}><Button  className="bg-army text-white text-xs h-7 w-fit px-3 hover:bg-army/85">  Categories</Button></Link>
+                <Link href={`/admin/${u}/company/${companySlug}/modules/products/categories`}><Button  className="bg-army text-white text-xs h-7 w-fit px-3 hover:bg-army/85">  Categories</Button></Link>
             </div>
 
             {/* Right side nav buttons */}
@@ -40,7 +40,7 @@ export default function Productpage() {
               <Button className="text-xs h-7" variant="outline">  Import</Button>
               <Button className="text-xs h-7" variant="outline">  Export</Button>
 
-              <Link href={`/admin/${u}/company/${companySlug}/products/create`}><Button className="bg-core text-white text-xs h-7 hover:bg-core/85">  Create</Button></Link>
+              <Link href={`/admin/${u}/company/${companySlug}/modules/products/create`}><Button className="bg-core text-white text-xs h-7 hover:bg-core/85">  Create</Button></Link>
             </nav>
           </div>
 

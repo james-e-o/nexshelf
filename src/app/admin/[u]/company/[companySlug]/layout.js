@@ -5,9 +5,9 @@ import { useRouter, useParams } from "next/navigation"
 import { supabase } from "../../../../../../config/supabaseClient"
 import { toast } from "sonner"
 import { Spinner } from "@/components/ui/spinner"
-import { AppSidebar } from "@/components/modules/company-modules/company-sidebar/company-sidebar"
+import { AppSidebar } from "@/components/sidebars/company-sidebar/company-sidebar"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import CompanyHeader from "@/components/modules/company-modules/company-dashboard-header"
+import CompanyHeader from "@/components/headers/company-dashboard-header"
 import { Button } from "@/components/ui/button"
 import { Bell } from "lucide-react"
 import { RefreshContext } from "../../layout"
@@ -21,6 +21,7 @@ export default function CompanyLayout({ children }) {
 
   const [info, setInfo] = useState()
   const [modules, setModules] = useState([])  // ← ADD MODULES STATE
+  const [branches, setBranches] = useState([])  // ← ADD BRANCHES STATE
   const [isLoading, setIsLoading] = useState(true)
 
   const { u, companySlug } = params
@@ -86,6 +87,21 @@ export default function CompanyLayout({ children }) {
           setModules(transformedModules)
         }
 
+        // --------------------------------------------
+        // Step 5: Fetch company branches (background, no loading)
+        // --------------------------------------------
+        const { data: branchesData, error: branchesError } = await supabase
+          .from("branches")
+          .select("*")
+          .eq("company", companyData.id)
+
+        if (branchesError) {
+          console.error("Branches fetch error:", branchesError)
+          setBranches([])
+        } else {
+          setBranches(branchesData || [])
+        }
+
       } catch (e) {
         console.error("Company access error:", e)
         toast("Unexpected error occurred.")
@@ -109,7 +125,7 @@ export default function CompanyLayout({ children }) {
   if (!info) return null
 
   return (
-    <CompanyInfoContext.Provider value={{ info, setInfo, modules }}>
+    <CompanyInfoContext.Provider value={{ info, setInfo, modules, branches }}>
       <SidebarProvider className="relative">
         <AppSidebar company={info} modules={modules} /> {/* ← PASS MODULES IF NEEDED */}
 

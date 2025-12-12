@@ -14,7 +14,7 @@ import { useParams } from "next/navigation";
 import { useIsMobile } from "@/hooks/use-mobile";
 import CompanySidebarContent from "./company-sidebar-content";
 import CompanySidebarFooter from "./company-sidebar-footer";
-import { AppSidebarHeader } from "../../app-sidebar/app-sidebar-header";
+import { AppSidebarHeader } from "../app-sidebar/app-sidebar-header";
 
 
 export function AppSidebar({modules, company,...props }) {
@@ -65,11 +65,11 @@ export const CollapsibleButton = ({title,icon,items,sidebarCollapse,sidebarOpen,
   )
 }
 
-export const NoCollapsibleButton = ({name,active,url,icon }) => {
+export const NoCollapsibleButton = ({name,active,url,icon,title}) => {
     const item ={icon}
   return (
     <SidebarMenuItem mobileCollapse={true}  key={name} className={'my-0.5'}>
-        <SidebarMenuButton asChild isActive={active} className={'text-black border-2 border-transparent hover:border-zinc-100 bg-transparent'} >
+        <SidebarMenuButton tooltip={title} asChild isActive={active} className={'text-black border-2 border-transparent hover:border-zinc-100 bg-transparent'} >
             <Link href={url}>
                 {item.icon && <item.icon className='font-bold' />}
                 <span className="font-medium font-WixMade text-xs ml-1">{name}</span>

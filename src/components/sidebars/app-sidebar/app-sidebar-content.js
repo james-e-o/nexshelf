@@ -14,7 +14,7 @@ export default function AppSidebarContent({ profile,companies}) {
     <SidebarContent className={'bg-[white] text-zinc-100'} >
         <SidebarGroup>
             <Link href={`/admin/${params.u}/new-company`} className="no-underline">
-            <SidebarMenuButton tooltip={'new company'} size="lg" className=" hover:bg-core/90 mt-3 h-10 cursor-pointer bg-core ">
+            <SidebarMenuButton tooltip={'new company'} size="lg" className=" hover:from-core/90 hover:to-army/90 mt-3 h-10 cursor-pointer bg-linear-to-r from-core to-60% to-army">
                 <div className="bg-transparent scale-125 flex aspect-square size-8 items-center justify-center rounded-lg">
                     <Rocket className="size-4 text-white font-bold" />
                 </div>
