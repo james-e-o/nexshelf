@@ -12,8 +12,8 @@ import { useParams } from "next/navigation";
 
 
 import { useIsMobile } from "@/hooks/use-mobile";
-import CompanySidebarContent from "./branch-sidebar-content";
-import CompanySidebarFooter from "./branch-sidebar-footer";
+import BranchSidebarContent from "./branch-sidebar-content";
+import BranchSidebarFooter from "./branch-sidebar-footer";
 import { AppSidebarHeader } from "../app-sidebar/app-sidebar-header";
 
 
@@ -25,8 +25,8 @@ export function BranchSidebar({modules, company,...props }) {
   return (
     <Sidebar  className={''} collapsible="icon" {...props}>
       <AppSidebarHeader/>
-      <CompanySidebarContent modules={modules} company={company} />
-      <CompanySidebarFooter params={params} profile={data.profile}/>
+      <BranchSidebarContent modules={modules} company={company} />
+      <BranchSidebarFooter params={params} profile={data.profile}/>
       <SidebarRail />
     </Sidebar>
   )
@@ -65,16 +65,43 @@ export const CollapsibleButton = ({title,icon,items,sidebarCollapse,sidebarOpen,
   )
 }
 
-export const NoCollapsibleButton = ({name,active,url,icon,title}) => {
-    const item ={icon}
+export const NoCollapsibleButton = ({
+  name,
+  active,
+  url,
+  icon,
+  title,
+  badge,
+}) => {
+  const item = { icon }
+
   return (
-    <SidebarMenuItem mobileCollapse={true}  key={name} className={'my-0.5'}>
-        <SidebarMenuButton tooltip={title} asChild isActive={active} className={'text-black border-2 border-transparent hover:border-zinc-100 bg-transparent'} >
-            <Link href={url}>
-                {item.icon && <item.icon className='font-bold' />}
-                <span className="font-medium font-WixMade text-xs ml-1">{name}</span>
-            </Link>
-        </SidebarMenuButton>
+    <SidebarMenuItem mobileCollapse={true} key={name} className="my-0.5">
+      <SidebarMenuButton
+        tooltip={title}
+        asChild
+        isActive={active}
+        className="relative text-black border-2 border-transparent hover:border-zinc-100 bg-transparent"
+      >
+        <Link href={url} className="relative flex items-center w-full">
+          {item.icon && <item.icon className="font-bold" />}
+
+          <span className="font-medium font-WixMade text-xs ml-1">
+            {name}
+          </span>
+
+          {/* 🔴 BADGE */}
+          {badge && (
+            <span className="absolute bottom-0.5 right-0.5 min-w-max h-4
+              px-1.5 rounded-full bg-army font-thin text-white text-[10px]
+              flex items-center justify-center leading-none">
+              <span className="relative">
+                {badge}
+              </span>
+            </span>
+          )}
+        </Link>
+      </SidebarMenuButton>
     </SidebarMenuItem>
   )
 }

@@ -69,7 +69,7 @@ export default function CompanyLayout({ children }) {
         setInfo(companyData)
 
         // --------------------------------------------
-        // Step 4: Fetch company modules (YOUR REQUEST)
+        // Step 4: Fetch company modules with level information
         // --------------------------------------------
         const { data: modulesData, error: modulesError } = await supabase
           .from("company_modules")
@@ -77,14 +77,41 @@ export default function CompanyLayout({ children }) {
           .eq("company", companyData.id)
 
         if (modulesError) {
-          console.error("Module fetch error:", modulesError)
+          console.error("Company modules fetch error:", modulesError)
+          setModules([])
         } else {
-          // Convert DB → UI format
-          const transformedModules = modulesData.map(({ name, mod_key }) => ({
-            title:capitalizeFirstLetter(mod_key),
-            slug: mod_key,
-          }))
-          setModules(transformedModules)
+          // Fetch modules table to get level information
+          const { data: allModulesData, error: allModulesError } = await supabase
+            .from("modules")
+            .select("key, companylevel, branchlevel")
+            .in("key", modulesData.map(mod => mod.mod_key))
+
+          if (allModulesError) {
+            console.error("Modules table fetch error:", allModulesError)
+            // Fallback to all company modules if we can't check levels
+            const transformedModules = modulesData.map(({ name, mod_key }) => ({
+              title: capitalizeFirstLetter(mod_key),
+              slug: mod_key,
+            }))
+            setModules(transformedModules)
+          } else {
+            // Create a map of module levels
+            const moduleLevels = {}
+            allModulesData.forEach(mod => {
+              moduleLevels[mod.key] = {
+                companylevel: mod.companylevel,
+                branchlevel: mod.branchlevel
+              }
+            })
+
+            // Convert DB → UI format and include level info
+            const transformedModules = modulesData.map(({ name, mod_key }) => ({
+              title: capitalizeFirstLetter(mod_key),
+              slug: mod_key,
+              levels: moduleLevels[mod_key] || { companylevel: false, branchlevel: false }
+            }))
+            setModules(transformedModules)
+          }
         }
 
         // --------------------------------------------
@@ -126,8 +153,18 @@ export default function CompanyLayout({ children }) {
 
   return (
     <CompanyInfoContext.Provider value={{ info, setInfo, modules, branches }}>
+      {children}
+    </CompanyInfoContext.Provider>
+  )
+}
+
+
+
+export const ReusableCompanySidebar = ({children}) => {
+  const { info, modules } = useContext(CompanyInfoContext)
+  return (
       <SidebarProvider className="relative">
-        <AppSidebar company={info} modules={modules} /> {/* ← PASS MODULES IF NEEDED */}
+        <AppSidebar company={info} modules={modules} /> 
 
         <SidebarInset className="h-svh overflow-hidden static">
           <div className="flex flex-col h-full">
@@ -150,6 +187,7 @@ export default function CompanyLayout({ children }) {
           </div>
         </SidebarInset>
       </SidebarProvider>
-    </CompanyInfoContext.Provider>
   )
 }
+
+

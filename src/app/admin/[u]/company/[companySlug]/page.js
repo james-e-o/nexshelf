@@ -4,6 +4,7 @@ import { useContext ,useEffect} from "react"
 import { useParams,useRouter } from "next/navigation"
 import { CompanyInfoContext } from "./layout"
 import { RefreshContext } from "../../layout"
+import { ReusableCompanySidebar } from "./layout"
 
 export default function CompanyPage() {
   const { info } = useContext(CompanyInfoContext)
@@ -17,11 +18,14 @@ export default function CompanyPage() {
   },[u,companySlug])
 
   return (
-    <div className="p-1 font-WixMade">
-      <h1 className="text-xl font-bold">
-        Welcome to {info?.name || "Company"}
-      </h1>
-      <p>Company ID: {info?.id}</p>
-    </div>
+
+      <ReusableCompanySidebar >      
+        <div className="p-1 font-WixMade">
+          <h1 className="text-xl font-bold">
+            Welcome to {info?.name || "Company"}
+          </h1>
+          <p>Company ID: {info?.id}</p>
+        </div>
+      </ReusableCompanySidebar>
   )
 }

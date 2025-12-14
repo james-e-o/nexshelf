@@ -415,7 +415,7 @@ function RoleGroupingsTable() {
           </div>
 
           {/* Table */}
-          <div className="relative min-h-[26rem]">
+          <div className="relative min-h-104">
             <table className="w-full border-collapse text-xs">
               <thead className="text-left bg-gray-100 text-gray-700">
                 <tr>

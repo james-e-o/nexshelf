@@ -12,7 +12,7 @@ export default function CompanySidebarContent({modules, company}) {
    const params = useParams()   
 
     return (
-    <SidebarContent className={'bg-[white]  text-zinc-100'} >
+    <SidebarContent className={'bg-white  text-zinc-100'} >
         <SidebarGroup>
             <SidebarMenu>
                 <NoCollapsibleButton className={`capitalize`} url={`/admin/${params.u}/company/${params.companySlug}`} title={'Dashboard'} icon={Building2} active={false} name={`${params.companySlug.toUpperCase()} Dashboard`}/>
@@ -20,7 +20,7 @@ export default function CompanySidebarContent({modules, company}) {
                     <CollapsibleButton caps={'capitalize'} defaultOpen={true} sidebarOpen={true} className={``} title={'Business Modules'} icon={Group} 
                     items={[
                       
-                        ...modules.map((module) => ({ title: module.title, url: `/admin/${params.u}/company/${params.companySlug}/modules/${module.slug}`}))]}
+                        ...modules.filter(module => module.levels?.companylevel).map((module) => ({ title: module.title, url: `/admin/${params.u}/company/${params.companySlug}/modules/${module.slug}`}))]}
                         sidebarCollapse={false}
                     />
                 )}

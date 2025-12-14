@@ -1,5 +1,6 @@
 "use client"
 
+import { ReusableCompanySidebar } from '../layout'
 import React, { useState, useContext } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -52,71 +53,73 @@ export default function BranchesPage() {
   }
 
   return (
-    <div className="px-5 font-WixMade">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold">Branch Management</h2>
-        <div className="flex items-center gap-2">
-          <Button className="h-7 inline-flex items-center bg-army hover:bg-army/85 gap-2" onClick={() => setShowAdd((v) => !v)}>
-            <Plus size={14} />
-            <span className="text-xs">Add New Branch</span>
-          </Button>
-        </div>
-      </div>
-
-      {showAdd && (
-        <div className="mb-4 p-3 border rounded bg-white dark:bg-neutral-900">
-          <div className="grid grid-cols-2 gap-2">
-            <input className="p-2 border rounded text-sm" placeholder="Branch name" value={newName} onChange={(e) => setNewName(e.target.value)} />
-            <input className="p-2 border rounded text-sm" placeholder="Address" value={newAddress} onChange={(e) => setNewAddress(e.target.value)} />
-          </div>
-          <div className="flex gap-2 mt-2">
-            <Button className="h-7" onClick={addBranch}>Add</Button>
-            <Button variant="ghost" className="h-7" onClick={() => setShowAdd(false)}>Cancel</Button>
-          </div>
-        </div>
-      )}
-
-      <div className="space-y-3">
-        {branches.map((b) => (
-          <div key={b.id} className="border rounded bg-white dark:bg-neutral-900">
-            <div className="flex items-center justify-between p-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <button className="text-xs font-medium hover:underline" onClick={() => router.push(`/admin/${params.u}/company/${params.companySlug}/branches/${b.id}`)}>{b.name}</button>
-                  {b.isheadoffice && <span className="text-xs text-zinc-500">(Head Office)</span>}
-                </div>
-                <div className="text-xs text-zinc-500">{b.address}, {b.city}</div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Button variant={'outline'} className="h-6 inline-flex items-center gap-2" onClick={() => startEdit(b)}>
-                  <Edit3 size={12} />
-                </Button>
-                {!b.isheadoffice && (
-                  <Button className="h-6 inline-flex items-center gap-2" variant="destructive" onClick={() => removeBranch(b.id)}>
-                    <Trash2 size={12} />
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            <div className={editingId === b.id ? "grid grid-rows-[1fr] transition-all duration-300" : "grid grid-rows-[0fr] transition-all duration-300"}>
-              <div className="overflow-hidden">
-                <div className="p-3 border-t bg-gray-50 dark:bg-neutral-800">
-                  <div className="grid gap-2">
-                    <input className="p-2 border rounded text-sm" placeholder="Branch name" value={editingName} onChange={(e) => setEditingName(e.target.value)} />
-                    <input className="p-2 border rounded text-sm" placeholder="Address" value={editingAddress} onChange={(e) => setEditingAddress(e.target.value)} />
-                  </div>
-                  <div className="flex gap-2 mt-2">
-                    <Button className="h-7" onClick={saveEdit}>Save</Button>
-                    <Button variant="ghost" className="h-7" onClick={cancelEdit}>Cancel</Button>
-                  </div>
-                </div>
-              </div>
+    <ReusableCompanySidebar>
+        <div className="px-5 font-WixMade">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold">Branch Management</h2>
+            <div className="flex items-center gap-2">
+              <Button className="h-7 inline-flex items-center bg-army hover:bg-army/85 gap-2" onClick={() => setShowAdd((v) => !v)}>
+                <Plus size={14} />
+                <span className="text-xs">Add New Branch</span>
+              </Button>
             </div>
           </div>
-        ))}
-      </div>
-    </div>
+
+          {showAdd && (
+            <div className="mb-4 p-3 border rounded bg-white dark:bg-neutral-900">
+              <div className="grid grid-cols-2 gap-2">
+                <input className="p-2 border rounded text-sm" placeholder="Branch name" value={newName} onChange={(e) => setNewName(e.target.value)} />
+                <input className="p-2 border rounded text-sm" placeholder="Address" value={newAddress} onChange={(e) => setNewAddress(e.target.value)} />
+              </div>
+              <div className="flex gap-2 mt-2">
+                <Button className="h-7" onClick={addBranch}>Add</Button>
+                <Button variant="ghost" className="h-7" onClick={() => setShowAdd(false)}>Cancel</Button>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {branches.map((b) => (
+              <div key={b.id} className="border rounded bg-white dark:bg-neutral-900">
+                <div className="flex items-center justify-between p-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <button className="text-xs font-medium hover:underline" onClick={() => router.push(`/admin/${params.u}/company/${params.companySlug}/branches/${b.id}`)}>{b.name}</button>
+                      {b.isheadoffice && <span className="text-xs text-zinc-500">(Head Office)</span>}
+                    </div>
+                    <div className="text-xs text-zinc-500">{b.address}, {b.city}</div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button variant={'outline'} className="h-6 inline-flex items-center gap-2" onClick={() => startEdit(b)}>
+                      <Edit3 size={12} />
+                    </Button>
+                    {!b.isheadoffice && (
+                      <Button className="h-6 inline-flex items-center gap-2" variant="destructive" onClick={() => removeBranch(b.id)}>
+                        <Trash2 size={12} />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                <div className={editingId === b.id ? "grid grid-rows-[1fr] transition-all duration-300" : "grid grid-rows-[0fr] transition-all duration-300"}>
+                  <div className="overflow-hidden">
+                    <div className="p-3 border-t bg-gray-50 dark:bg-neutral-800">
+                      <div className="grid gap-2">
+                        <input className="p-2 border rounded text-sm" placeholder="Branch name" value={editingName} onChange={(e) => setEditingName(e.target.value)} />
+                        <input className="p-2 border rounded text-sm" placeholder="Address" value={editingAddress} onChange={(e) => setEditingAddress(e.target.value)} />
+                      </div>
+                      <div className="flex gap-2 mt-2">
+                        <Button className="h-7" onClick={saveEdit}>Save</Button>
+                        <Button variant="ghost" className="h-7" onClick={cancelEdit}>Cancel</Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+    </ReusableCompanySidebar>
   )
 }

@@ -20,7 +20,7 @@ export default function BranchSidebarContent({modules, company}) {
                     <CollapsibleButton caps={'capitalize'} defaultOpen={true} sidebarOpen={true} className={``} title={'Business Modules'} icon={Group} 
                     items={[
                       
-                        ...modules.map((module) => ({ title: module.title, url: `/admin/${params.u}/company/${params.companySlug}/modules/${module.slug}`}))]}
+                        ...modules.map((module) => ({ title: module.title, url: `/admin/${params.u}/company/${params.companySlug}/branches/${params.branch}/modules/${module.slug}`}))]}
                         sidebarCollapse={false}
                     />
                 )}

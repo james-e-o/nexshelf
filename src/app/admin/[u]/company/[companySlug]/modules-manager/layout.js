@@ -1,6 +1,6 @@
-import { ReusableCompanySidebar } from "../layout"
+import { ReusableCompanySidebar } from "../layout";
 
-export default function CompanySettingsLayout ({children}){
+export default function ModulesManagerLayout ({children}){
     
     return(
         <ReusableCompanySidebar>
