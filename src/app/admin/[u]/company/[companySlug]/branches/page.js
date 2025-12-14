@@ -1,12 +1,15 @@
 "use client"
 
 import React, { useState, useContext } from 'react'
+import { useRouter, useParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Plus, Edit3, Trash2 } from 'lucide-react'
 import { CompanyInfoContext } from '../layout'
 
 export default function BranchesPage() {
   const { branches } = useContext(CompanyInfoContext)
+  const router = useRouter()
+  const params = useParams()
 
   const [showAdd, setShowAdd] = useState(false)
   const [newName, setNewName] = useState('')
@@ -22,8 +25,15 @@ export default function BranchesPage() {
   }
 
   const startEdit = (b) => {
-    // TODO: Implement edit branch
-    alert('Edit branch functionality not implemented yet')
+    if (editingId === b.id) {
+      setEditingId(null)
+      setEditingName('')
+      setEditingAddress('')
+    } else {
+      setEditingId(b.id)
+      setEditingName(b.name)
+      setEditingAddress(b.address)
+    }
   }
 
   const saveEdit = () => {
@@ -68,42 +78,41 @@ export default function BranchesPage() {
 
       <div className="space-y-3">
         {branches.map((b) => (
-          <div key={b.id} className="flex items-center justify-between p-3 border rounded bg-white dark:bg-neutral-900">
-            <div>
-              {editingId === b.id ? (
-                <div className="grid gap-2">
-                  <input className="p-2 border rounded text-sm" value={editingName} onChange={(e) => setEditingName(e.target.value)} />
-                  <input className="p-2 border rounded text-sm" value={editingAddress} onChange={(e) => setEditingAddress(e.target.value)} />
+          <div key={b.id} className="border rounded bg-white dark:bg-neutral-900">
+            <div className="flex items-center justify-between p-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <button className="text-xs font-medium hover:underline" onClick={() => router.push(`/admin/${params.u}/company/${params.companySlug}/branches/${b.id}`)}>{b.name}</button>
+                  {b.isheadoffice && <span className="text-xs text-zinc-500">(Head Office)</span>}
                 </div>
-              ) : (
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium">{b.name}</span>
-                    {b.isheadoffice && <span className="text-xs text-zinc-500">(Head Office)</span>}
-                  </div>
-                  <div className="text-xs text-zinc-500">{b.address}, {b.city}</div>
-                </div>
-              )}
+                <div className="text-xs text-zinc-500">{b.address}, {b.city}</div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button variant={'outline'} className="h-6 inline-flex items-center gap-2" onClick={() => startEdit(b)}>
+                  <Edit3 size={12} />
+                </Button>
+                {!b.isheadoffice && (
+                  <Button className="h-6 inline-flex items-center gap-2" variant="destructive" onClick={() => removeBranch(b.id)}>
+                    <Trash2 size={12} />
+                  </Button>
+                )}
+              </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              {editingId === b.id ? (
-                <>
-                  <Button className="h-7" onClick={saveEdit}>Save</Button>
-                  <Button variant="ghost" className="h-7" onClick={cancelEdit}>Cancel</Button>
-                </>
-              ) : (
-                <>
-                  <Button variant={'outline'} className="h-6 inline-flex  items-center gap-2" onClick={() => startEdit(b)}>
-                    <Edit3 size={12} />
-                  </Button>
-                  {!b.isheadoffice && (
-                    <Button className="h-6 inline-flex items-center gap-2" variant="destructive" onClick={() => removeBranch(b.id)}>
-                      <Trash2 size={12} />
-                    </Button>
-                  )}
-                </>
-              )}
+            <div className={editingId === b.id ? "grid grid-rows-[1fr] transition-all duration-300" : "grid grid-rows-[0fr] transition-all duration-300"}>
+              <div className="overflow-hidden">
+                <div className="p-3 border-t bg-gray-50 dark:bg-neutral-800">
+                  <div className="grid gap-2">
+                    <input className="p-2 border rounded text-sm" placeholder="Branch name" value={editingName} onChange={(e) => setEditingName(e.target.value)} />
+                    <input className="p-2 border rounded text-sm" placeholder="Address" value={editingAddress} onChange={(e) => setEditingAddress(e.target.value)} />
+                  </div>
+                  <div className="flex gap-2 mt-2">
+                    <Button className="h-7" onClick={saveEdit}>Save</Button>
+                    <Button variant="ghost" className="h-7" onClick={cancelEdit}>Cancel</Button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         ))}
