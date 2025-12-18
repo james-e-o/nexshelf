@@ -9,7 +9,7 @@ import {  Sidebar,  SidebarContent,  SidebarFooter,  SidebarHeader,SidebarTrigge
 import {  Collapsible,  CollapsibleContent,  CollapsibleTrigger,} from "@/components/ui/collapsible"
 import {  SidebarGroup,  SidebarGroupLabel,  SidebarMenu,  SidebarMenuButton,  SidebarMenuItem,  SidebarMenuSub,  SidebarMenuSubButton,  SidebarMenuSubItem,} from "@/components/ui/sidebar"
 import { useParams } from "next/navigation";
-
+import { useSidebar } from "@/components/ui/sidebar";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 import CompanySidebarContent from "./company-sidebar-content";
@@ -65,19 +65,7 @@ export const CollapsibleButton = ({title,icon,items,sidebarCollapse,sidebarOpen,
   )
 }
 
-// export const NoCollapsibleButton = ({name,active,url,icon,title}) => {
-//     const item ={icon}
-//   return (
-//     <SidebarMenuItem mobileCollapse={true}  key={name} className={'my-0.5'}>
-//         <SidebarMenuButton tooltip={title} asChild isActive={active} className={'text-black border-2 border-transparent hover:border-zinc-100 bg-transparent'} >
-//             <Link href={url}>
-//                 {item.icon && <item.icon className='font-bold' />}
-//                 <span className="font-medium font-WixMade text-xs ml-1">{name}</span>
-//             </Link>
-//         </SidebarMenuButton>
-//     </SidebarMenuItem>
-//   )
-// }
+
 export const NoCollapsibleButton = ({
   name,
   active,
@@ -87,6 +75,7 @@ export const NoCollapsibleButton = ({
   badge,
 }) => {
   const item = { icon }
+  const {open} =useSidebar()
 
   return (
     <SidebarMenuItem mobileCollapse={true} key={name} className="my-0.5">
@@ -104,7 +93,7 @@ export const NoCollapsibleButton = ({
           </span>
 
           {/* 🔴 BADGE */}
-          {badge && (
+          {open&&badge && (
             <span className="absolute bottom-0.5 right-0.5 min-w-max h-4
               px-1.5 rounded-full bg-core font-thin text-white text-[10px]
               flex items-center justify-center leading-none">

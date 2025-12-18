@@ -1,6 +1,8 @@
 'use client'
 
-import React, { useState,useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { DndProvider, useDrag, useDrop } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
 import { useReactTable, getCoreRowModel, flexRender } from "@tanstack/react-table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs,TabsTrigger,TabsList,TabsContent } from "@/components/ui/tabs"
@@ -11,9 +13,10 @@ import { Label } from "@/components/ui/label"
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger} from "@/components/ui/sheet"
 import {AlertDialog,AlertDialogAction,AlertDialogCancel,AlertDialogContent,AlertDialogDescription,AlertDialogFooter,AlertDialogHeader,AlertDialogTitle,AlertDialogTrigger,} from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
+import { Switch } from "@/components/ui/switch";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,} from "@/components/ui/command"
 import {Popover,PopoverContent,PopoverTrigger,} from "@/components/ui/popover"
-import { X ,Check, ChevronsUpDown, GripIcon, GripHorizontalIcon, ArrowRight, Upload} from "lucide-react"
+import { X ,Check, ChevronsUpDown, GripIcon,GripVertical,GripHorizontal, GripHorizontalIcon, ArrowRight, Upload} from "lucide-react"
 import { useParams } from "next/navigation"
 import AddImage from "@/components/add-image";
 import { supabase } from "../../../../../../../../../../../config/supabaseClient";
@@ -21,30 +24,78 @@ import { supabase } from "../../../../../../../../../../../config/supabaseClient
 const CreateProductPage = () => {
     const [activeTab, setActiveTab] = useState("details");
     const params = useParams(); 
-    const { u, companySlug } = params;
+    const { u, companySlug,branch } = params;
+    const [hasVariants, setHasVariants] = useState(true);
+    const [variantCombinations, setVariantCombinations] = useState([]);
 
-    // useEffect(() => {
-    //    async function listDeep(prefix) {
-    //       const { data } = await supabase.storage.from("products").list(prefix);
-  
-    //       const result = [];
-  
-    //       for (const item of data) {
-    //         if (item.name.endsWith("/")) {
-    //           // It's a folder
-    //           const sub = await listDeep(`${prefix}/${item.name}`);
-    //           result.push(...sub);
-    //         } else {
-    //           // It's a file
-    //           result.push(`${prefix}/${item.name}`);
-    //         }
-    //       }
-    //       console.log(result);
-    //       return result;
-    //     }
-    //     listDeep(info.name)
-    // }, []);
- 
+    // Options state
+    const [options, setOptions] = useState([]);
+    const inputRefs = useRef([]);
+
+    // Generate combinations
+    const generateCombinations = (optionsets) => {
+        const validOptions = optionsets.filter(opt => opt.name && opt.values.length > 0);
+        if (validOptions.length === 0) return [];
+        let combinations = [[]];
+        for (let option of validOptions) {
+            let newCombinations = [];
+            for (let combo of combinations) {
+                for (let value of option.values) {
+                    newCombinations.push([...combo, { optionName: option.name, value }]);
+                }
+            }
+            combinations = newCombinations;
+        }
+        return combinations.map((combo) => ({ combination: combo, id: combo.map(item => `${item.optionName}-${item.value}`).join('-') }));
+    };
+
+    useEffect(() => {
+        setVariantCombinations(generateCombinations(options));
+    }, [options]);
+
+    // Functions for combinations
+    const moveCombination = (fromIndex, toIndex) => {
+        const newCombos = [...variantCombinations];
+        const [moved] = newCombos.splice(fromIndex, 1);
+        newCombos.splice(toIndex, 0, moved);
+        setVariantCombinations(newCombos);
+    };
+
+    // Functions to handle options
+    const addOption = () => {
+        setOptions([...options, { id: Date.now(), name: '', values: [], input: '' }]);
+    };
+
+    const removeOption = (index) => {
+        setOptions(options.filter((_, i) => i !== index));
+    };
+
+    const updateOptionName = (index, name) => {
+        setOptions(options.map((opt, i) => i === index ? { ...opt, name } : opt));
+    };
+
+    const updateOptionInput = (index, input) => {
+        setOptions(options.map((opt, i) => i === index ? { ...opt, input } : opt));
+    };
+
+    const addValue = (index) => {
+        const opt = options[index];
+        if (opt.input.trim()) {
+            setOptions(options.map((o, i) => i === index ? { ...o, values: [...o.values, o.input.trim()], input: '' } : o));
+        }
+    };
+
+    const removeValue = (index, valIndex) => {
+        setOptions(options.map((o, i) => i === index ? { ...o, values: o.values.filter((_, vi) => vi !== valIndex) } : o));
+    };
+
+    const handleKeyDown = (e, index) => {
+        if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            addValue(index);
+            inputRefs.current[index]?.focus();
+        }
+    };
 
   return (
     <AlertDialog>
@@ -57,7 +108,7 @@ const CreateProductPage = () => {
                  <div className="flex items-center gap-4 border-b px-6 py-3 bg-white z-10">
 
                     {/* X Button */}
-                    <Link href={`/admin/${u}/company/${companySlug}/products`}><Button variant={'ghost'} className="text-neutral-500 h-7 hover:text-black text-xs">✕</Button></Link>
+                    <Link href={`/admin/${u}/company/${companySlug}/branches/${branch}/products`}><Button variant={'ghost'} className="text-neutral-500 h-7 hover:text-black text-xs">✕</Button></Link>
 
                     {/* ESC Badge */}
                     <div className="px-2 py-px border rounded-sm text-[10px] text-neutral-600">
@@ -116,11 +167,11 @@ const CreateProductPage = () => {
 
                     {/* DETAILS TAB */}
                     {activeTab === "details" && (
-                        <div className="space-y-10">
+                        <div className="space-y-10 py-9">
 
                         {/* GENERAL */}
-                        <div className="space-y-5">
-                            <h2 className="font-semibold text-xs">General</h2>
+                        <div className="space-y-5 mx-8">
+                            <h2 className="font-semibold text-sm">General</h2>
 
                             {/* 3-column section */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -168,7 +219,7 @@ const CreateProductPage = () => {
                                 Description <span className="text-neutral-400">(Optional)</span>
                             </label>
                             <textarea
-                                rows={3}
+                                rows={4}
                                 className="border rounded-sm px-2 py-2 text-xs"
                                 placeholder="A warm and cozy jacket"
                             ></textarea>
@@ -179,7 +230,7 @@ const CreateProductPage = () => {
                             <label className="text-xs font-medium">
                                 Media <span className="text-neutral-400">(Optional)</span>
                             </label>
-                            <div className="mt-2 border border-dashed rounded-sm h-40 flex flex-col items-center justify-center text-neutral-500">
+                            <div className="mt-2 border border-dashed rounded-sm h-24 flex flex-col items-center justify-center text-neutral-500">
                               
                               <AlertDialogTrigger asChild><Button variant={'ghost'} className="flex flex-col h-fit items-center justify-center gap-0.5">
                                 <span className="text-lg mb-1"><Upload className="text-core size-4"/></span>
@@ -190,32 +241,103 @@ const CreateProductPage = () => {
                         </div>
 
                         {/* VARIANTS SECTION */}
-                        <div className="space-y-5">
-                            <h2 className="text-xs font-semibold">Variants</h2>
+                          <div className="space-y-5 mx-8">
+                              <h2 className="text-xs font-semibold">Variants</h2>
 
-                            <div className="border rounded-sm px-4 py-3 space-y-1">
-                            <div className="flex items-center gap-2">
-                                <input type="checkbox" defaultChecked className="scale-110" />
-                                <span className="font-medium text-xs">
-                                Yes, this is a product with variants
-                                </span>
-                            </div>
-                            <p className="text-[10px] text-neutral-500">
-                                When unchecked, we will create a default variant for you
-                            </p>
-                            </div>
+                              <div className="border rounded-sm px-4 py-3 space-y-1">
+                                <div className="flex items-center gap-2">
+                                    <Switch
+                                        className={''}
+                                        checked={hasVariants}
+                                        onCheckedChange={setHasVariants}
+                                    />
+                                    <span className="font-medium text-xs">
+                                    Yes, this is a product with variants
+                                    </span>
+                                </div>
+                                <p className="text-[10px] text-neutral-500">
+                                    When unchecked, we will create a default variant for you
+                                </p>
+                              </div>
 
-                            <div className="space-y-2">
-                            <h3 className="text-xs font-medium">Product options</h3>
-                            <p className="text-[10px] text-neutral-500">
-                                Define the options for the product, e.g. color, size, etc.
-                            </p>
+                              <div className={hasVariants ? "grid grid-rows-[1fr] transition-all duration-300" : "grid grid-rows-[0fr] transition-all duration-300"}>
+                                <div className="overflow-hidden">
+                                  <div className="space-y-4">
+                                    <div className="space-y-2">
+                                      <h3 className="text-xs font-medium">Product options</h3>
+                                      <p className="text-[10px] text-neutral-500">
+                                          Define the options for the product, e.g. color, size, etc.
+                                      </p>
 
-                            <Button className="border rounded-sm px-4 py-2 text-xs hover:bg-neutral-50 w-fit">
-                                Add
-                            </Button>
-                            </div>
-                        </div>
+                                      <Button className="border rounded-sm px-4 text-white h-7 bg-army text-xs hover:bg-army/85 w-fit" onClick={addOption}>
+                                          Add
+                                      </Button>
+                                    </div>
+
+                                    {/* Dynamic Options */}
+                                    {options.map((option, index) => (
+                                      <div key={option.id} className="border rounded-sm">
+                                        <div className="flex items-center justify-between px-4 py-3 border-b">
+                                          <input
+                                            type="text"
+                                            defaultValue={option.name}
+                                            onInput={(e) => {
+                                              e.target.value = e.target.value.toUpperCase();
+                                              updateOptionName(index, e.target.value);
+                                            }}
+                                            className="font-medium text-xs border-0 outline-0 flex-1"
+                                            placeholder="Option name"
+                                          />
+                                          <Button variant="ghost" size="sm" onClick={() => removeOption(index)} className="h-6 w-6 p-0">
+                                            <X className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                        <div className="px-4 py-3 space-y-2">
+                                          <label className="text-xs font-medium">Values</label>
+                                          <input
+                                            ref={(el) => inputRefs.current[index] = el}
+                                            type="text"
+                                            value={option.input}
+                                            onChange={(e) => updateOptionInput(index, e.target.value.toLowerCase())}
+                                            onKeyDown={(e) => handleKeyDown(e, index)}
+                                            className="w-full border-0 outline-0 text-xs placeholder-neutral-400"
+                                            placeholder="Add values..."
+                                          />
+                                          <div className="flex flex-wrap gap-2">
+                                            {option.values.map((value, valIndex) => (
+                                              <span key={valIndex} className="inline-flex items-center gap-1 px-2 py-1 bg-neutral-100 rounded-sm text-xs">
+                                                {value}
+                                                <button onClick={() => removeValue(index, valIndex)} className="text-neutral-500 hover:text-neutral-700">
+                                                  <X className="h-3 w-3" />
+                                                </button>
+                                              </span>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {options.length > 0 && (
+                                <div className="mt-4">
+                                  <h3 className="text-xs mb-2 font-medium">Variant Combinations <span className="text-[10px] ml-1 text-core italic">{`(drag and drop to modify hierarchy)`}</span></h3>
+                                  <DndProvider backend={HTML5Backend}>
+                                    <div className="space-y-2">
+                                      {variantCombinations.map((combo, index) => (
+                                        <DraggableCombination
+                                          key={combo.id}
+                                          combo={combo}
+                                          index={index}
+                                          moveCombination={moveCombination}
+                                        />
+                                      ))}
+                                    </div>
+                                  </DndProvider>
+                                </div>
+                              )}
+                          </div>
                         </div>
                     )}
 
@@ -314,7 +436,7 @@ const CreateProductPage = () => {
                     {activeTab === "variants" && (
                         <div className="text-neutral-700 text-xs">
                         <h2 className="font-semibold mb-4">Variants</h2>
-                        <VariantTable />
+                        <VariantTable options={options} />
                         </div>
                     )}
                     </div>
@@ -371,14 +493,9 @@ const initialData = [
 // ---------------------- Column Definitions ----------------------
 const columns = [
   {
-    header: "Size / Color",
+    header: "Variant",
     accessorKey: "sizeColor",
     cell: ({ row }) => <span>{row.original.sizeColor}</span>,
-  },
-  {
-    header: "Title",
-    accessorKey: "title",
-    cell: ({ row }) => <span>{row.original.title}</span>,
   },
   {
     header: "SKU",
@@ -457,8 +574,35 @@ const columns = [
 ];
 
 // ---------------------- Table Component ----------------------
-export  function VariantTable() {
-  const [data, setData] = useState(initialData);
+export  function VariantTable({ options }) {
+  // Generate combinations from options
+  const generateCombinations = (optionsets) => {
+    const validOptions = optionsets.filter(opt => opt.name && opt.values.length > 0);
+    if (validOptions.length === 0) return [];
+    let combinations = [[]];
+    for (let option of validOptions) {
+      let newCombinations = [];
+      for (let combo of combinations) {
+        for (let value of option.values) {
+          newCombinations.push([...combo, { optionName: option.name, value }]);
+        }
+      }
+      combinations = newCombinations;
+    }
+    return combinations;
+  };
+
+  const combinations = generateCombinations(options);
+  const data = combinations.map((combo, index) => ({
+    sizeColor: combo.map(item => item.value).join(' / '),
+    sku: '',
+    managed: false,
+    backorder: false,
+    kit: false,
+    eur: '€',
+    usd: '$',
+    eur2: '€'
+  }));
 
   const table = useReactTable({
     data,
@@ -466,14 +610,8 @@ export  function VariantTable() {
     getCoreRowModel: getCoreRowModel(),
     meta: {
       updateValue: (rowIndex, columnId, value) => {
-        setData((old) =>
-          old.map((row, index) => {
-            if (index === rowIndex) {
-              return { ...row, [columnId]: value };
-            }
-            return row;
-          })
-        );
+        // Since data is generated, we can't update it directly, but for demo, we can log or handle
+        console.log('Update', rowIndex, columnId, value);
       },
     },
   });
@@ -504,6 +642,48 @@ export  function VariantTable() {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+// Draggable Combination Component
+function DraggableCombination({ combo, index, moveCombination }) {
+  const ref = useRef(null);
+  const [{ isDragging }, drag] = useDrag({
+    type: 'COMBINATION',
+    item: { index },
+    collect: (monitor) => ({
+      isDragging: monitor.isDragging(),
+    }),
+  });
+  const [, drop] = useDrop({
+    accept: 'COMBINATION',
+    hover(item, monitor) {
+      if (!ref.current) return;
+      const dragIndex = item.index;
+      const hoverIndex = index;
+      if (dragIndex === hoverIndex) return;
+      const hoverBoundingRect = ref.current.getBoundingClientRect();
+      const hoverMiddleY = (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
+      const clientOffset = monitor.getClientOffset();
+      const hoverClientY = clientOffset.y - hoverBoundingRect.top;
+      if (dragIndex < hoverIndex && hoverClientY < hoverMiddleY) return;
+      if (dragIndex > hoverIndex && hoverClientY > hoverMiddleY) return;
+      moveCombination(dragIndex, hoverIndex);
+      item.index = hoverIndex;
+    },
+  });
+  drag(drop(ref));
+  return (
+    <div ref={ref} style={{ opacity: isDragging ? 0.5 : 1 }} className="border rounded p-2 cursor-move bg-white">
+      <div className="flex items-center gap-2">
+        <GripVertical className="h-4 w-4" />
+        <div className="text-sm">
+          {combo.combination.map((item, i) => (
+            <div key={i}>{item.optionName}: {item.value}</div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

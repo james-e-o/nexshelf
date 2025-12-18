@@ -12,6 +12,7 @@ import { useParams } from "next/navigation";
 
 
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useSidebar } from "@/components/ui/sidebar";
 import BranchSidebarContent from "./branch-sidebar-content";
 import BranchSidebarFooter from "./branch-sidebar-footer";
 import { AppSidebarHeader } from "../app-sidebar/app-sidebar-header";
@@ -23,7 +24,7 @@ export function BranchSidebar({modules, company,...props }) {
     const {data,setData} = useContext(DataContext)
 
   return (
-    <Sidebar  className={''} collapsible="icon" {...props}>
+    <Sidebar   className={''} collapsible="icon" {...props}>
       <AppSidebarHeader/>
       <BranchSidebarContent modules={modules} company={company} />
       <BranchSidebarFooter params={params} profile={data.profile}/>
@@ -74,6 +75,7 @@ export const NoCollapsibleButton = ({
   badge,
 }) => {
   const item = { icon }
+  const {open} =useSidebar()
 
   return (
     <SidebarMenuItem mobileCollapse={true} key={name} className="my-0.5">
@@ -91,7 +93,7 @@ export const NoCollapsibleButton = ({
           </span>
 
           {/* 🔴 BADGE */}
-          {badge && (
+          {open&&badge && (
             <span className="absolute bottom-0.5 right-0.5 min-w-max h-4
               px-1.5 rounded-full bg-army font-thin text-white text-[10px]
               flex items-center justify-center leading-none">

@@ -33,7 +33,7 @@ const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 
 const SidebarContext = React.createContext(null)
 
-function useSidebar() {
+export function useSidebar() {
   const context = React.useContext(SidebarContext)
   if (!context) {
     throw new Error("useSidebar must be used within a SidebarProvider.")
@@ -445,7 +445,7 @@ function SidebarMenuItem({
   onRequestOpen,
   ...props
 }) {
-  const { isMobile,setOpen,setOpenMobile, state,toggleSidebar } = useSidebar()
+  const { isMobile,setOpen,setOpenMobile, open,state,toggleSidebar } = useSidebar()
   return (
     <li
       onClick={()=>{mobileCollapse&&isMobile?setOpenMobile(false):'';onRequestOpen?setOpen(true):'';onRequestCollapse?setOpen(false):'';}}

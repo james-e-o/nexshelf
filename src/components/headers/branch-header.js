@@ -24,9 +24,11 @@ export default function BranchHeader({ children }) {
   
   let displaySegments;
   if (isInModule && currentBranch) {
-    // For module routes under branch: show branch name + module name
-    const moduleSegment = segments[segments.length - 1]; // Last segment is module
-    displaySegments = [currentBranch.name, moduleSegment];
+    // For module routes under branch: show branch name + module name + any sub-routes
+    const modulesIndex = segments.indexOf("modules");
+    const moduleSegment = segments[modulesIndex + 1]; // Module name after "modules"
+    const subSegments = segments.slice(modulesIndex + 2); // Everything after module name
+    displaySegments = [currentBranch.name, moduleSegment, ...subSegments];
   } else if (isInBranch && currentBranch) {
     // For branch routes: show just the branch name
     displaySegments = [currentBranch.name];
@@ -74,16 +76,21 @@ export default function BranchHeader({ children }) {
                 {/* Sub-page breadcrumbs */}
                 {displaySegments.map((segment, i) => {
                   let href;
-                  if (isInModule && i === displaySegments.length - 1) {
-                    // Last segment is the module name, link to current module
-                    href = pathname;
-                  } else if (isInBranch && currentBranch && i === 0) {
+                  if (isInBranch && currentBranch && i === 0) {
                     // First segment is branch name, link to branch
                     href = `/admin/${userId}/company/${companySlug}/branches/${params.branch}`;
+                  } else if (isInModule && i === 1) {
+                    // Second segment (i=1) is the module name, link to module
+                    const moduleSlug = displaySegments[1];
+                    href = `/admin/${userId}/company/${companySlug}/branches/${params.branch}/modules/${moduleSlug}`;
+                  } else if (isInModule && i > 1) {
+                    // Sub-routes under module (i > 1)
+                    const moduleSlug = displaySegments[1];
+                    const subPath = displaySegments.slice(2, i + 1).join("/");
+                    href = `/admin/${userId}/company/${companySlug}/branches/${params.branch}/modules/${moduleSlug}/${subPath}`;
                   } else {
-                    // Regular segments - reconstruct path
-                    const segmentPath = segments.slice(4, 4 + i + 1).join("/");
-                    href = `/admin/${userId}/company/${companySlug}/${segmentPath}`;
+                    // Fallback
+                    href = pathname;
                   }
                   
                   const isLast = i === displaySegments.length - 1;

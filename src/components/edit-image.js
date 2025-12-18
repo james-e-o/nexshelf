@@ -29,7 +29,9 @@ const EditImage = ({ editInfo, setEditState, setEditInfo, onSave, onDelete , onD
   // Object eraser states
   const [brushSize, setBrushSize] = useState(20)
   const [eraserStrength, setEraserStrength] = useState(100)
-  const canvasHistoryRef = useRef([]) // stores canvas states for undo/redo during erasing
+  const canvasHistoryRef = useRef([]) // stores canvas states for undo/redo
+  const originalImageHistoryRef = useRef([]) // stores originalImage states for undo/redo
+  const stateHistoryRef = useRef([]) // stores other state for undo/redo
   const historyIndexRef = useRef(-1)
   const erasingRef = useRef(false)
   const activeToolRef = useRef('crop') // track active tool without triggering effects
@@ -68,6 +70,18 @@ const EditImage = ({ editInfo, setEditState, setEditInfo, onSave, onDelete , onD
       }
     }
   }, [editInfo, editInfo?.name])
+
+  // Save initial state to history when image loads
+  useEffect(() => {
+    if (originalImage && canvasRef.current) {
+      // Initialize crop rect to full image
+      setCropRect({ x: 0, y: 0, width: originalImage.width, height: originalImage.height })
+      setCropDimensionWidth(String(originalImage.width))
+      setCropDimensionHeight(String(originalImage.height))
+      // Save initial state
+      setTimeout(() => pushCanvasHistory(), 100) // delay to ensure canvas is rendered
+    }
+  }, [originalImage])
 
   // Apply filters to canvas
   useEffect(() => {
@@ -132,17 +146,30 @@ const EditImage = ({ editInfo, setEditState, setEditInfo, onSave, onDelete , onD
         setTimeout(() => pushCanvasHistory(), 0)
       })
     }
-  }, [originalImage, brightness, contrast, saturation, rotation])
+  }, [originalImage])
 
   const pushCanvasHistory = () => {
-    if (!canvasRef.current) return
+    if (!canvasRef.current || !originalImage) return
     try {
       // Save snapshot before any operation
       const snapshot = canvasRef.current.toDataURL('image/png')
       // Remove any redo history beyond current index
       canvasHistoryRef.current = canvasHistoryRef.current.slice(0, historyIndexRef.current + 1)
+      originalImageHistoryRef.current = originalImageHistoryRef.current.slice(0, historyIndexRef.current + 1)
+      stateHistoryRef.current = stateHistoryRef.current.slice(0, historyIndexRef.current + 1)
       // Add new snapshot
       canvasHistoryRef.current.push(snapshot)
+      originalImageHistoryRef.current.push(originalImage)
+      stateHistoryRef.current.push({
+        brightness,
+        contrast,
+        saturation,
+        rotation,
+        cropRect,
+        cropDimensionWidth,
+        cropDimensionHeight,
+        aspectRatio
+      })
       historyIndexRef.current = canvasHistoryRef.current.length - 1
     } catch (err) {
       console.warn('Could not save canvas history', err)
@@ -157,7 +184,9 @@ const EditImage = ({ editInfo, setEditState, setEditInfo, onSave, onDelete , onD
     }
     historyIndexRef.current -= 1
     const snapshot = canvasHistoryRef.current[historyIndexRef.current]
-    if (!snapshot) return
+    const origImg = originalImageHistoryRef.current[historyIndexRef.current]
+    const state = stateHistoryRef.current[historyIndexRef.current]
+    if (!snapshot || !origImg || !state) return
     
     const img = new window.Image()
     img.crossOrigin = 'anonymous'
@@ -167,6 +196,16 @@ const EditImage = ({ editInfo, setEditState, setEditInfo, onSave, onDelete , onD
       const ctx = canvas.getContext('2d')
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       ctx.drawImage(img, 0, 0)
+      // Restore states
+      setOriginalImage(origImg)
+      setBrightness(state.brightness)
+      setContrast(state.contrast)
+      setSaturation(state.saturation)
+      setRotation(state.rotation)
+      setCropRect(state.cropRect)
+      setCropDimensionWidth(state.cropDimensionWidth)
+      setCropDimensionHeight(state.cropDimensionHeight)
+      setAspectRatio(state.aspectRatio)
     }
     img.onerror = () => {
       console.warn('Failed to load undo snapshot')
@@ -184,7 +223,9 @@ const EditImage = ({ editInfo, setEditState, setEditInfo, onSave, onDelete , onD
     }
     historyIndexRef.current += 1
     const snapshot = canvasHistoryRef.current[historyIndexRef.current]
-    if (!snapshot) return
+    const origImg = originalImageHistoryRef.current[historyIndexRef.current]
+    const state = stateHistoryRef.current[historyIndexRef.current]
+    if (!snapshot || !origImg || !state) return
     
     const img = new window.Image()
     img.crossOrigin = 'anonymous'
@@ -194,6 +235,16 @@ const EditImage = ({ editInfo, setEditState, setEditInfo, onSave, onDelete , onD
       const ctx = canvas.getContext('2d')
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       ctx.drawImage(img, 0, 0)
+      // Restore states
+      setOriginalImage(origImg)
+      setBrightness(state.brightness)
+      setContrast(state.contrast)
+      setSaturation(state.saturation)
+      setRotation(state.rotation)
+      setCropRect(state.cropRect)
+      setCropDimensionWidth(state.cropDimensionWidth)
+      setCropDimensionHeight(state.cropDimensionHeight)
+      setAspectRatio(state.aspectRatio)
     }
     img.onerror = () => {
       console.warn('Failed to load redo snapshot')
@@ -267,10 +318,21 @@ async function generateNextNumberedName(companyName, fileName) {
     const existingNames = Array.isArray(images) ? images.map(img => img.name || '') : []
 
     const dot = fileName.lastIndexOf('.')
-    const base = dot > 0 ? fileName.slice(0, dot) : fileName
+    const baseWithExt = dot > 0 ? fileName.slice(0, dot) : fileName
     const ext = dot > 0 ? fileName.slice(dot) : ''
 
-    let n = 1
+    // Check if the base name already ends with a number in parentheses
+    const parenMatch = baseWithExt.match(/^(.*)\s*\((\d+)\)$/)
+    let base = baseWithExt
+    let startNum = 1
+
+    if (parenMatch) {
+      // If it already has a number, use that as the base and start from that number + 1
+      base = parenMatch[1].trim()
+      startNum = parseInt(parenMatch[2]) + 1
+    }
+
+    let n = startNum
     let newName = `${base} (${n})${ext}`
 
     // Keep incrementing until a unique full name (including extension) is found
@@ -289,6 +351,28 @@ async function generateNextNumberedName(companyName, fileName) {
     const base = dot > 0 ? fileName.slice(0, dot) : fileName
     const ext = dot > 0 ? fileName.slice(dot) : ''
     return `${base} (1)${ext}`
+  }
+}
+
+async function doesImageNameExist(companyName, fileName) {
+  try {
+    const { data: images, error } = await supabase
+      .from("images")
+      .select("name")
+      .eq("companyName", companyName);
+
+    if (error) {
+      console.error('Error checking if image name exists:', error);
+      return false; // Assume it doesn't exist if we can't check
+    }
+
+    const existingNames = Array.isArray(images) ? images.map(img => img.name || '') : []
+    
+    // Check if the exact name exists (including extension)
+    return existingNames.includes(fileName);
+  } catch (err) {
+    console.error('doesImageNameExist error:', err);
+    return false; // Assume it doesn't exist if there's an error
   }
 }
 

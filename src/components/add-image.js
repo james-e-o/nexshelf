@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel,AlertDialogContent, A
 import {Breadcrumb,BreadcrumbEllipsis,BreadcrumbItem,BreadcrumbLink,BreadcrumbList,BreadcrumbPage,BreadcrumbSeparator} from "@/components/ui/breadcrumb"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { DndProvider, useDrag, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { CompanyInfoContext } from '@/app/admin/[u]/company/[companySlug]/layout';
@@ -46,6 +47,7 @@ const AddImage = () => {
      const [currentFolder,setCurrentFolder] = useState([])
      const [selectedItems, setSelectedItems] = useState([]);
      const [clickedFileId, setClickedFileId] = useState(null);
+     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
       const { info,setInfo,modules } = useContext(CompanyInfoContext)
      
@@ -54,32 +56,61 @@ const AddImage = () => {
      ]);
      
      const [folders, setFolders] = useState([
-          { id: "folder1", name: "Folder 1",folderId:null,selected:false},
-          { id: "folder2", name: "Folder 2",folderId:null,selected:false},
+      
      ]);
      
      const moveFile = (fileId, folderId) => {
-          console.log(`Moving file ${fileId} to folder ${folderId}`);
           setFiles((prevFiles) =>
                prevFiles.map((file) =>
-               file.id === fileId ? (console.log(true),{ ...file, folderId:folderId}) : file
+               file.id === fileId ? { ...file, folderId:folderId} : file
                )
           );
      };
 
      const moveFolder = (folderId ,parentId) => {
-          console.log(`Moving file ${folderId} to folder ${parentId}`);
           setFolders((prev) =>
                prev.map((folder) =>
-               folder.id === folderId ? (console.log(true),{ ...folder, folderId:parentId}) : folder
+               folder.id === folderId ? { ...folder, folderId:parentId} : folder
                )
           );
      };
 
-     const addFolder = () => {
-          setFolders(prev=>[...prev,{id:Date.now(),name:newFolderValue,folderId:breadCrumbsList[breadCrumbsList.length-1].id}])
-          setNewFolderValue('')
-          setNewFolderState(false)
+     const addFolder = async () => {
+          try {
+               toast.loading('Creating folder...');
+               
+               const { data, error } = await supabase
+                    .from('folders')
+                    .insert({
+                         name: newFolderValue,
+                         folderId: breadCrumbsList[breadCrumbsList.length-1].id,
+                         owner: info.id
+                    })
+                    .select()
+                    .single();
+
+               if (error) {
+                    console.error('Error creating folder:', error);
+                    toast.error('Failed to create folder');
+                    return;
+               }
+
+               // Add to local state
+               setFolders(prev => [...prev, {
+                    id: data.id,
+                    name: data.name,
+                    folderId: data.folderId
+               }]);
+               
+               setNewFolderValue('');
+               setNewFolderState(false);
+               toast.success('Folder created successfully');
+          } catch (err) {
+               console.error('Error creating folder:', err);
+               toast.error('Failed to create folder');
+          } finally {
+               toast.dismiss();
+          }
      }
 
     //  const openFolder =(folder)=> {
@@ -111,6 +142,195 @@ const AddImage = () => {
           setSelectedItems((prev) => [...prev, id]);
      };
 
+     const handleSelectAll = () => {
+          const currentFolderId = breadCrumbsList[breadCrumbsList.length - 1].id;
+          const folderItems = folders.filter(folder => folder.folderId === currentFolderId).map(folder => `folder-${folder.id}`);
+          const fileItems = files.filter(file => file.folderId === currentFolderId).map(file => file.id);
+          const allItems = [...folderItems, ...fileItems];
+          
+          if (selectedItems.length === allItems.length) {
+               // All items are selected, deselect all
+               setSelectedItems([]);
+          } else {
+               // Select all items
+               setSelectedItems(allItems);
+          }
+     };
+
+     const handleDeleteSelected = async () => {
+       if (selectedItems.length === 0) return;
+       setDeleteDialogOpen(true);
+     };
+
+     const confirmDeleteSelected = async () => {
+       setDeleteDialogOpen(false);
+
+       try {
+         toast.loading('Moving items to trash...');
+
+         const filesToMove = [];
+         const foldersToDelete = [];
+
+         // Separate files and folders
+         for (const itemId of selectedItems) {
+           if (itemId.startsWith('folder-')) {
+             const folderId = itemId.replace('folder-', '');
+             foldersToDelete.push(folderId);
+           } else {
+             filesToMove.push(itemId);
+           }
+         }
+
+         // Get file objects for moving to trash
+         const filesToMoveToTrash = filesToMove.map(fileId =>
+           files.find(f => f.id === fileId)
+         ).filter(Boolean);
+
+         // Collect files from folders and their subfolders
+         const allFilesToMove = [...filesToMoveToTrash];
+         const allFoldersToDelete = [...foldersToDelete];
+
+         for (const folderId of foldersToDelete) {
+           // Collect files in this folder and subfolders
+           const folderFiles = files.filter(f => f.folderId === folderId);
+           allFilesToMove.push(...folderFiles);
+
+           const { folders: folderFolders } = await collectFoldersRecursively(folderId);
+           allFoldersToDelete.push(...folderFolders);
+
+           // Also collect files from subfolders
+           for (const subFolderId of folderFolders) {
+             const subFolderFiles = files.filter(f => f.folderId === subFolderId);
+             allFilesToMove.push(...subFolderFiles);
+           }
+         }
+
+         // Move all files to trash
+         if (allFilesToMove.length > 0) {
+           await moveFilesToTrash(allFilesToMove);
+         }
+
+         // Delete folders from database
+         if (allFoldersToDelete.length > 0) {
+           await supabase.from('folders').delete().in('id', allFoldersToDelete);
+         }
+
+         // Remove duplicates
+         const uniqueFilesMoved = [...new Set(allFilesToMove.map(f => f.id))];
+         const uniqueFoldersDeleted = [...new Set(allFoldersToDelete)];
+
+         // Update local state - remove all affected files and folders
+         setFiles(prevFiles => prevFiles.filter(file => !uniqueFilesMoved.includes(file.id)));
+         setFolders(prevFolders => prevFolders.filter(folder => !uniqueFoldersDeleted.includes(folder.id)));
+         setSelectedItems([]);
+
+         toast.success('Items moved to trash successfully');
+       } catch (error) {
+         console.error('Move to trash error:', error);
+         toast.error('Failed to move items to trash');
+       } finally {
+         toast.dismiss();
+       }
+     };
+
+     const collectFoldersRecursively = async (folderId) => {
+       const deletedFolders = [folderId];
+
+       // Find all subfolders
+       const subfolders = folders.filter(f => f.folderId === folderId);
+
+       // Recursively collect subfolders
+       for (const subfolder of subfolders) {
+         const { folders: subFolders } = await collectFoldersRecursively(subfolder.id);
+         deletedFolders.push(...subFolders);
+       }
+
+       return { folders: deletedFolders };
+     };
+
+     async function deleteImagesFromStorage(images) {
+       if (!images.length) return;
+
+       // Group by bucket (required by Supabase)
+       const bucketMap = {};
+
+       for (const img of images) {
+         if (!bucketMap[img.bucket]) {
+           bucketMap[img.bucket] = [];
+         }
+
+         bucketMap[img.bucket].push(
+           img.path.replace(/^\/+/, '') // normalize
+         );
+       }
+
+       for (const bucket of Object.keys(bucketMap)) {
+         const { error } = await supabase.storage
+           .from(bucket)
+           .remove(bucketMap[bucket]);
+
+         if (error) {
+           console.error(`Failed deleting from bucket ${bucket}`, error);
+           throw error;
+         }
+       }
+     }
+
+     async function moveFilesToTrash(files) {
+       // Delete from images table
+       const ids = files.map(f => f.id);
+       await supabase.from('images').delete().in('id', ids);
+
+       // Insert into trash
+       const trashData = files.map(f => ({
+         id: f.id,
+         name: f.name,
+         url: f.url,
+         folder: f.folderId,
+         path: f.path,
+         storage: f.bucket,
+         owner: f.owner,
+         size: f.size,
+         mime_type: f.mime_type,
+         deleted_at: new Date().toISOString()
+       }));
+       await supabase.from('trash').insert(trashData);
+     }
+
+     async function deleteFromTrash(images) {
+       // Delete from storage
+       await deleteImagesFromStorage(images);
+
+       // Delete from trash
+       const ids = images.map(f => f.id);
+       await supabase.from('trash').delete().in('id', ids);
+     }
+
+     async function fetchTrashedImages(companyName) {
+       const { data, error } = await supabase
+         .from("trash")
+         .select("*")
+         .eq("owner", info.id);
+
+       if (error) {
+         console.error("Fetch trashed images error:", error);
+         return [];
+       }
+
+       return data.map(row => ({
+         id: row.id,
+         name: row.name,
+         url: `${row.url}?t=${Date.now()}`,
+         folderId: row.folder || null,
+         path: row.path,
+         bucket: row.storage,
+         owner: row.owner,
+         size: row.size,
+         mime_type: row.mime_type,
+         deleted_at: row.deleted_at
+       }));
+     }
+
      async function fetchCompanyImages(companyName) {
         const { data, error } = await supabase
           .from("images")
@@ -126,13 +346,33 @@ const AddImage = () => {
         return data.map(row => ({
           id: row.id,
           name: row.name,
-          url: row.url,
+          url: `${row.url}?t=${Date.now()}`, // Add cache-busting parameter
           folderId: row.folder || null,
           path: row.path,
           bucket: row.storage,
           owner: row.owner,
           size: row.size,
           mime_type: row.mime_type,
+        }));
+      }
+
+     async function fetchFolders(companyName) {
+        const { data, error } = await supabase
+          .from("folders")
+          .select("*")
+          .eq("owner", info.id);  // folders owned by this company
+
+        if (error) {
+          console.error("Fetch folders error:", error);
+          return [];
+        }
+
+        // Convert DB rows to your UI format
+        return data.map(row => ({
+          id: row.id,
+          name: row.name,
+          folderId: row.folderId || null,
+          owner: row.owner,
         }));
       }
 
@@ -146,17 +386,22 @@ const AddImage = () => {
           newFolderState?newfolder.focus():""
           setSelectedFiles(files.filter((item,index)=>item.selected))
           setSelectedFolders(folders.filter((item,index)=>item.selected))
-          console.log(selectedFiles,selectedFolders)
      },[files,folders,newFolderState])   
 
      useEffect(()=>{  
-          fetchCompanyImages(info.name).then(imageList=>{
+          Promise.all([
+               fetchCompanyImages(info.name),
+               fetchFolders(info.name)
+          ]).then(([imageList, folderList]) => {
                setFiles(imageList)
+               setFolders(folderList)
                setIsLoading(false)
           }).catch(err=>{
-               toast("Error fetching images:", err)
+               console.error("Error fetching data:", err)
+               toast.error("Error fetching data")
                setIsLoading(false)
                setFiles([])
+               setFolders([])
           })
          setCurrentFolder(breadCrumbsList[breadCrumbsList.length-1])
      },[breadCrumbsList])
@@ -177,7 +422,7 @@ const AddImage = () => {
                                       const { data: image, error: fetchError } = await supabase
                                         .from("images")
                                         .select("id, storage, path")
-                                        .eq("id", imageId)
+                                        .eq("id", oldEditInfo.id)
                                         .single();
 
                                       if (fetchError || !image) {
@@ -199,7 +444,6 @@ const AddImage = () => {
                                     }
                         }}
                         onSave={async (file, replaceImage, oldEditInfo) => {
-                          console.log('new image:', file)
                           try {
                             if (replaceImage && oldEditInfo?.id && oldEditInfo?.path && oldEditInfo?.bucket) {
                               // 🔄 REPLACE MODE: Delete old and upload new
@@ -272,7 +516,7 @@ const AddImage = () => {
                                                   <div className="flex flex-col md:flex-row md:justify-between">
                                                     <Input placeholder="Search image..." className="w-full md:w-4/5 text-xs rounded-lg mb-1"/>
                                                     <div className="w-full justify-end inline-flex gap-3">
-                                                        <div className="inline-flex gap-0 overflow-x-clip "><p data-open={newFolderState} className="inline-flex items-center transition-all -z-10 opacity-0 data-[open=true]:opacity-100 data-[open=true]:right-0 data-[open=true]:z-0 relative -right-3"><Input id='newfolder' onBlur={()=>{!newFolderValue?setNewFolderState(false):""}} className='h-5 rounded-e-none outline-transparent  ml-1 w-24 rounded-s-md' value={newFolderValue} onChange={({target})=>{setNewFolderValue(target.value)}}/><Button onClick={()=>{addFolder()}} size='icon' disabled={!newFolderValue} className='px-1 rounded-e-md rounded-s-none w-fit h-5'><Check className=''/></Button></p><Button onClick={()=>{setNewFolderState(!newFolderState)}} variant='icon' className='p-1 relative min-w-max'><FolderPlus data-open={newFolderState} className='relative transition-all scale-125 data-[open=true]:-z-10 data-[open=true]:opacity-0 opacity-100 z-0'/><FolderCheck data-open={newFolderState} className='absolute transition-all scale-125 data-[open=true]:z-0 -z-10 data-[open=true]:opacity-100 opacity-0'/></Button></div>
+                                                        <div className="inline-flex gap-0 overflow-x-clip "><p data-open={newFolderState} className="inline-flex items-center transition-all -z-10 opacity-0 data-[open=true]:opacity-100 data-[open=true]:right-0 data-[open=true]:z-0 relative -right-3"><Input id='newfolder' onBlur={()=>{!newFolderValue?setNewFolderState(false):""}} className='h-5 rounded-e-none outline-transparent  ml-1 w-24 rounded-s-md' value={newFolderValue} onChange={({target})=>{setNewFolderValue(target.value)}}/><Button onClick={()=>{addFolder()}} size='icon' disabled={!newFolderValue} className='px-1 rounded-e-md rounded-s-none w-fit h-5'><Plus className=''/></Button></p><Tooltip><TooltipTrigger asChild><Button onClick={()=>{setNewFolderState(!newFolderState)}} variant='icon' className='p-1 relative min-w-max'><FolderPlus data-open={newFolderState} className='relative transition-all scale-125 data-[open=true]:-z-10 data-[open=true]:opacity-0 opacity-100 z-0'/><FolderCheck data-open={newFolderState} className='absolute transition-all scale-125 data-[open=true]:z-0 -z-10 data-[open=true]:opacity-100 opacity-0'/></Button></TooltipTrigger><TooltipContent><p className="text-xs">Add new folder</p></TooltipContent></Tooltip></div>
                                                         <Button onClick={()=>{setDisplayGrid(!displayGrid)}} variant='ghost'><LayoutGridIcon/></Button>
                                                     </div>
                                                   </div>
@@ -298,17 +542,38 @@ const AddImage = () => {
                                                                 <Button className={'text-black h-6 text-[11px]'} variant={'icon'}><SquareSplitHorizontal className='size-3.5 text-core'/><span className='md:inline hidden'>Rename</span></Button>
                                                               ):''} */}
                                                               <Button className={'text-black h-6 text-[11px]'} variant={'icon'}><Move className='size-3.5 text-core'/><span className='md:inline hidden'>Move</span></Button>
-                                                              <Button className={'text-black h-6 text-[11px]'} variant={'icon'}><Trash2 className='size-3.5 text-core'/><span className='md:inline hidden'>Delete</span></Button>
+                                                              <Button className={'text-black h-6 text-[11px]'} variant={'icon'} onClick={handleDeleteSelected}><Trash2 className='size-3.5 text-core'/><span className='md:inline hidden'>Delete</span></Button>
                                                             </div>                  
                                                           ):''}
                                                           </>
                                                         </div>
                                                        <div className='px-2 mt-2 text-[11px] text-army'>
+                                                          <div className="flex items-center gap-2 mb-1">
+                                                            <Checkbox
+                                                              className={'size-3'}
+                                                              checked={(() => {
+                                                                const currentFolderId = breadCrumbsList[breadCrumbsList.length - 1].id;
+                                                                const folderItems = folders.filter(folder => folder.folderId === currentFolderId).map(folder => `folder-${folder.id}`);
+                                                                const fileItems = files.filter(file => file.folderId === currentFolderId).map(file => file.id);
+                                                                const allItems = [...folderItems, ...fileItems];
+                                                                return allItems.length > 0 && selectedItems.length === allItems.length;
+                                                              })()}
+                                                              onCheckedChange={handleSelectAll}
+                                                            />
+                                                            <span className='text-neutral-800'>Select All</span>
+                                                          </div>
                                                           <span className='text-neutral-800'>Selected Items:</span>
 
                                                           {selectedItems && selectedItems.length > 0
                                                             ? selectedItems
-                                                                .map(id => files.find(file => file.id === id)?.name || "(Unknown)")
+                                                                .map(id => {
+                                                                  if (id.startsWith('folder-')) {
+                                                                    const folderId = id.replace('folder-', '');
+                                                                    return folders.find(folder => folder.id === folderId)?.name || "(Unknown Folder)";
+                                                                  } else {
+                                                                    return files.find(file => file.id === id)?.name || "(Unknown File)";
+                                                                  }
+                                                                })
                                                                 .join(", ")
                                                             : "None"}
                                                         </div>
@@ -317,7 +582,7 @@ const AddImage = () => {
                                                             <div data-grid={displayGrid} className="grid data-[grid=true]:justify-items-start h-fit data-[grid=true]:gap-3  grid-cols-1 data-[grid=true]:lg:grid-cols-4 data-[grid=true]:md:grid-cols-3 data-[grid=true]:sm:grid-cols-2">
 
                                                                  {folders.filter(folder => folder.folderId === currentFolder.id).map(folder => (
-                                                                      <Folder key={folder.id} folder={folder} children={{folders:folders.filter(item=>item.folderId==folder.id).length, files:files.filter(item=>item.folderId==folder.id).length}} click={()=>{openFolder(folder),console.log(folder.id)}} moveFile={moveFile} moveFolder={moveFolder} grid={displayGrid}/>
+                                                                      <Folder key={folder.id} folder={folder} children={{folders:folders.filter(item=>item.folderId==folder.id).length, files:files.filter(item=>item.folderId==folder.id).length}} click={()=>{openFolder(folder)}} moveFile={moveFile} moveFolder={moveFolder} checked={selectedItems&&selectedItems.some(item=>item===`folder-${folder.id}`)} onCheck={(status)=>{handleToggle(`folder-${folder.id}`)}} grid={displayGrid}/>
                                                                  ))}
                                                                  {isLoading ? (
                                                                           <Spinner className='size-4 ml-2 text-core' spinning={isLoading} />
@@ -329,6 +594,30 @@ const AddImage = () => {
                                                                       ))
                                                                     )
                                                                  }
+
+                                                                 {/* Empty state when no files or folders */}
+                                                                 {!isLoading && folders.filter(folder => folder.folderId === currentFolder.id).length === 0 && files.filter(file => file.folderId === currentFolder.id).length === 0 && (
+                                                                   <div className="col-span-full w-full flex flex-col items-center justify-center py-12 px-4 text-center min-h-[300px]">
+                                                                     <div className="mb-4 p-4 rounded-full bg-gray-100 dark:bg-neutral-800">
+                                                                       <ImageIcon className="w-10 h-10 text-gray-400 dark:text-neutral-500" />
+                                                                     </div>
+                                                                     <h3 className="text-base font-medium text-gray-900 dark:text-white mb-2">
+                                                                       {currentFolder.id === null ? "No images uploaded yet" : "This folder is empty"}
+                                                                     </h3>
+                                                                     <p className="text-xs text-gray-500 dark:text-neutral-400 mb-4 max-w-sm">
+                                                                       {currentFolder.id === null ? "Get started by uploading your first image. You can organize them into folders for better management." : "This folder doesn't contain any images or subfolders yet."}
+                                                                     </p>
+                                                                     {currentFolder.id === null && (
+                                                                       <Button 
+                                                                         onClick={()=>{setCustomDialogState('upload'),setCustomDialog(true)}}
+                                                                         className="bg-core hover:bg-core/85 text-white h-8 text-xs"
+                                                                       >
+                                                                         <Upload className="w-3 h-3 mr-2" />
+                                                                         Upload Your First Image
+                                                                       </Button>
+                                                                     )}
+                                                                   </div>
+                                                                 )}
                                 
                                                             </div>
                                                        </div>
@@ -336,7 +625,7 @@ const AddImage = () => {
                                              </div>
                                             <div className="w-full md:w-[40%] md:overflow-y-scroll no_scroll md:border-l px-2 border-t md:border-t-0 md:h-full">
                                               <FileDetailsPanel selectedFile={clickedFileId ? files.find(f => f.id === clickedFileId) : null} setEditState={setEditState} setEditInfo={setEditInfo} updateName={(newValue,id,path)=>{
-                                                console.log(newValue,path)
+
                                               }}/>
                                             </div>
                                         </div>
@@ -371,7 +660,6 @@ const AddImage = () => {
                   <div className=" rounded-md grow">
                     <UploadModalContent
                       onStartUpload={async (list) => {
-                        console.log("Starting upload for:", list);
                       toast(`Uploading ${list.length} image(s)...`)
                       try {
                             const results = await uploadImagesToSupabase(
@@ -398,7 +686,6 @@ const AddImage = () => {
 
                             if (failed.length) {
                               toast(`Failed to upload ${failed.length} image(s)`);
-                              console.log("Upload errors:", failed);
                             }
 
                             setCustomDialog(false);
@@ -421,6 +708,24 @@ const AddImage = () => {
               </div>
             )}
          
+         {/* Delete Confirmation Dialog */}
+         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+           <AlertDialogContent>
+             <AlertDialogHeader>
+               <AlertDialogTitle>Delete Selected Items</AlertDialogTitle>
+               <AlertDialogDescription>
+                 Are you sure you want to delete {selectedItems.length} selected item(s)? This action cannot be undone.
+               </AlertDialogDescription>
+             </AlertDialogHeader>
+             <AlertDialogFooter>
+               <AlertDialogCancel>Cancel</AlertDialogCancel>
+               <AlertDialogAction onClick={confirmDeleteSelected} className="bg-red-600 hover:bg-red-700">
+                 Delete
+               </AlertDialogAction>
+             </AlertDialogFooter>
+           </AlertDialogContent>
+         </AlertDialog>
+         
      </DndProvider>
   )
 }
@@ -433,18 +738,232 @@ export default AddImage
 
 
 export const TrashBox = () => {
-  return (
-    <div className='w-full h-full  gap-2 md:justify-end justify-start flex md:flex-row flex-col'>
-          <div className={`md:h-full w-full h-fit rounded-lg px-1 flex flex-col justify-start`}>
-               <Input placeholder="Search product..." className="w-full rounded-lg mb-1 h-8"/>
-               
-          </div>
-          <div className="w-full md:w-[40%] md:overflow-y-scroll no_scroll md:border-l px-2 border-t md:border-t-0 md:h-full">
+  const [trashedFiles, setTrashedFiles] = useState([]);
+  const [selectedTrashedItems, setSelectedTrashedItems] = useState([]);
+  const [displayGrid, setDisplayGrid] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const { info } = useContext(CompanyInfoContext);
 
+  const fetchTrashedImages = async () => {
+    const { data, error } = await supabase
+      .from("trash")
+      .select("*")
+      .eq("owner", info.id);
+
+    if (error) {
+      console.error("Fetch trashed images error:", error);
+      return [];
+    }
+
+    return data.map(row => ({
+      id: row.id,
+      name: row.name,
+      url: `${row.url}?t=${Date.now()}`,
+      folderId: row.folder || null,
+      path: row.path,
+      bucket: row.storage,
+      owner: row.owner,
+      size: row.size,
+      mime_type: row.mime_type,
+      deleted_at: row.deleted_at
+    }));
+  };
+
+  const deleteImagesFromStorage = async (images) => {
+    if (!images.length) return;
+
+    // Group by bucket (required by Supabase)
+    const bucketMap = {};
+
+    for (const img of images) {
+      if (!bucketMap[img.bucket]) {
+        bucketMap[img.bucket] = [];
+      }
+
+      bucketMap[img.bucket].push(
+        img.path.replace(/^\/+/, '') // normalize
+      );
+    }
+
+    for (const bucket of Object.keys(bucketMap)) {
+      const { error } = await supabase.storage
+        .from(bucket)
+        .remove(bucketMap[bucket]);
+
+      if (error) {
+        console.error(`Failed deleting from bucket ${bucket}`, error);
+        throw error;
+      }
+    }
+  };
+
+  const deleteFromTrash = async (images) => {
+    // Delete from storage
+    await deleteImagesFromStorage(images);
+
+    // Delete from trash
+    const ids = images.map(f => f.id);
+    await supabase.from('trash').delete().in('id', ids);
+  };
+
+  const handleTrashedToggle = (id) => {
+    selectedTrashedItems.includes(id) ?
+    setSelectedTrashedItems(prev => prev.filter(item => item !== id)) :
+    setSelectedTrashedItems((prev) => [...prev, id]);
+  };
+
+  const handleTrashedSelectAll = () => {
+    if (selectedTrashedItems.length === trashedFiles.length) {
+      setSelectedTrashedItems([]);
+    } else {
+      setSelectedTrashedItems(trashedFiles.map(file => file.id));
+    }
+  };
+
+  const handleDeleteFromTrash = async () => {
+    if (selectedTrashedItems.length === 0) return;
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteFromTrash = async () => {
+    setDeleteDialogOpen(false);
+
+    try {
+      toast.loading('Permanently deleting selected items...');
+
+      const filesToDelete = selectedTrashedItems.map(id =>
+        trashedFiles.find(f => f.id === id)
+      ).filter(Boolean);
+
+      if (filesToDelete.length > 0) {
+        await deleteFromTrash(filesToDelete);
+      }
+
+      // Update local state
+      setTrashedFiles(prev => prev.filter(file => !selectedTrashedItems.includes(file.id)));
+      setSelectedTrashedItems([]);
+
+      toast.success('Items permanently deleted');
+    } catch (error) {
+      console.error('Permanent delete error:', error);
+      toast.error('Failed to delete items');
+    } finally {
+      toast.dismiss();
+    }
+  };
+
+  useEffect(() => {
+    const loadTrashedFiles = async () => {
+      setIsLoading(true);
+      const trashed = await fetchTrashedImages(info.name);
+      setTrashedFiles(trashed);
+      setIsLoading(false);
+    };
+    loadTrashedFiles();
+  }, [info.name]);
+
+  return (
+    <div className='w-full h-full gap-2 md:justify-end justify-start flex md:flex-row flex-col'>
+      <div className={`md:h-full w-full md:overflow-hidden overflow-scroll rounded-lg px-1 pt-2 flex flex-col justify-start`}>
+        <div className="flex flex-col md:flex-row md:justify-between">
+          <Input placeholder="Search trashed images..." className="w-full md:w-4/5 text-xs rounded-lg mb-1"/>
+          <div className="w-full justify-end inline-flex gap-3">
+            <Button onClick={() => setDisplayGrid(!displayGrid)} variant='ghost'>
+              <LayoutGridIcon />
+            </Button>
           </div>
+        </div>
+        <div className='md:grow h-full flex md:overflow-hidden flex-col'>
+          <div className="w-full h-10 justify-between flex items-center">
+            <div className="flex items-center px-0.5 justify-between">
+              <span className='text-sm font-medium'>Trash</span>
+            </div>
+            {selectedTrashedItems.length > 0 && (
+              <div className='flex items-center gap-2'>
+                <Button className={'text-black h-6 text-[11px]'} variant={'icon'} onClick={handleDeleteFromTrash}>
+                  <Trash2 className='size-3.5 text-red-600' />
+                  <span className='md:inline hidden'>Delete Permanently</span>
+                </Button>
+              </div>
+            )}
+          </div>
+          <div className='px-2 mt-2 text-[11px] text-army'>
+            <div className="flex items-center gap-2 mb-1">
+              <Checkbox
+                className={'size-3'}
+                checked={trashedFiles.length > 0 && selectedTrashedItems.length === trashedFiles.length}
+                onCheckedChange={handleTrashedSelectAll}
+              />
+              <span className='text-neutral-800'>Select All</span>
+            </div>
+            <span className='text-neutral-800'>Selected Items: {selectedTrashedItems.length}</span>
+          </div>
+          <div className="h-full overflow-y-scroll">
+            <div data-grid={displayGrid} className="grid data-[grid=true]:justify-items-start h-fit data-[grid=true]:gap-3 grid-cols-1 data-[grid=true]:lg:grid-cols-4 data-[grid=true]:md:grid-cols-3 data-[grid=true]:sm:grid-cols-2">
+              {isLoading ? (
+                <Spinner className='size-4 ml-2 text-core' spinning={isLoading} />
+              ) : trashedFiles.length === 0 ? (
+                <div className="col-span-full w-full flex flex-col items-center justify-center py-12 px-4 text-center min-h-[300px]">
+                  <div className="mb-4 p-4 rounded-full bg-gray-100 dark:bg-neutral-800">
+                    <Trash2 className="w-10 h-10 text-gray-400 dark:text-neutral-500" />
+                  </div>
+                  <h3 className="text-base font-medium text-gray-900 dark:text-white mb-2">
+                    Trash is empty
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-neutral-400 mb-4 max-w-sm">
+                    Deleted items will appear here. Permanently delete them to free up storage space.
+                  </p>
+                </div>
+              ) : (
+                trashedFiles.map(file => (
+                  <div key={file.id} className={`border-b relative hover:bg-core_grey2/50 p-1 flex justify-between gap-2 items-center h-fit data-[checked=true]:bg-core_grey2 data-[grid=true]:inline-flex data-[grid=true]:flex-col data-[grid=true]:justify-start data-[grid=true]:items-center data-[grid=true]:gap-0 data-[grid=true]:border-none data-[grid=true]:w-36 data-[grid=true]:h-48`}>
+                    <p className="inline-flex w-fit items-center justify-start data-[grid=true]:justify-between data-[grid=true]:w-full">
+                      <Checkbox
+                        checked={selectedTrashedItems.includes(file.id)}
+                        onCheckedChange={() => handleTrashedToggle(file.id)}
+                        className="text-white fill-white border scale-90 data-[grid=true]:scale-75"
+                      />
+                    </p>
+                    <div className="inline-flex gap-2 items-center grow justify-start data-[grid=true]:flex-col data-[grid=true]:gap-1">
+                      <div className="data-[grid=true]:h-32 data-[grid=true]:w-full data-[grid=true]:flex data-[grid=true]:items-center data-[grid=true]:justify-center overflow-hidden">
+                        <Image src={file.url} alt="trashed file" height={80} width={80} className="object-contain max-h-full max-w-full data-[grid=true]:w-24 data-[grid=true]:h-auto" />
+                      </div>
+                      <p className="flex overflow-hidden whitespace-nowrap text-xs flex-col items-start text-center gap-0 data-[grid=true]:whitespace-normal data-[grid=true]:leading-tight data-[grid=true]:text-[11px] data-[grid=true]:max-w-32 data-[grid=true]:line-clamp-2 data-[grid=true]:overflow-hidden data-[grid=true]:text-ellipsis">
+                        <span>{file.name}</span>
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="w-full md:w-[40%] md:overflow-y-scroll no_scroll md:border-l px-2 border-t md:border-t-0 md:h-full">
+        {/* File details panel can be added here if needed */}
+      </div>
+
+      {/* Permanent Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Permanently Delete Selected Items</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete {selectedTrashedItems.length} selected item(s)? This action cannot be undone and will free up storage space.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteFromTrash} className="bg-red-600 hover:bg-red-700">
+              Delete Permanently
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
-  )
-}
+  );
+};
 
 
 
@@ -735,7 +1254,6 @@ export const UploadModalContent = ({ onStartUpload, autoUploadThreshold }) => {
   const [localImages, setLocalImages] = useState([])
 
   const handleChange = (list) => {
-    // console.log("Selected images:", list)
     setLocalImages(list)
     if (list.length >= (autoUploadThreshold || 1)) {
       onStartUpload(list)

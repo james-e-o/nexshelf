@@ -54,6 +54,36 @@ export default function SecurityOwnershipSettings() {
 
   async function onDelete (){
     setIsLoading(true)
+
+    // First, delete all images associated with this company from storage
+    try {
+      const { data: files, error: listError } = await supabase.storage
+        .from('products')
+        .list(info.name, {
+          limit: 100,
+          offset: 0,
+          sortBy: { column: 'name', order: 'asc' }
+        });
+
+      if (listError) {
+        console.error("Error listing files:", listError);
+      } else if (files && files.length > 0) {
+        const fileNames = files.map(file => `${info.name}/${file.name}`);
+        const { error: deleteError } = await supabase.storage
+          .from('products')
+          .remove(fileNames);
+
+        if (deleteError) {
+          console.error("Error deleting images:", deleteError);
+          // Continue with company deletion even if image deletion fails
+        } else {
+          console.log("Images deleted successfully");
+        }
+      }
+    } catch (storageError) {
+      console.error("Storage operation failed:", storageError);
+      // Continue with company deletion
+    }
     
     const { data, error } = await supabase
         .from("companies")
@@ -71,7 +101,7 @@ export default function SecurityOwnershipSettings() {
       // If we reach here, deletion worked
       console.log("Company deleted:", data);
       toast("Company deleted.");
-      router.push(`/admin//${u}`); // or wherever you want
+      router.push(`/admin/${u}`); // or wherever you want
       
       setIsLoading(false)
   }

@@ -32,7 +32,7 @@ export default function Productpage() {
             <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3 ml-0.5">
               <p className="text-base font-bold">Products</p>
 
-                <Link href={`/admin/${u}/company/${companySlug}/branches/${branch}/modules/products/categories`}><Button  className="bg-army text-white text-xs h-7 w-fit px-3 hover:bg-army/85">  Categories</Button></Link>
+                <Link href={`/admin/${u}/company/${companySlug}/branches/${branch}/modules/products/categories`}><Button  className="bg-army text-white font-medium text-[10px] h-6 w-fit px-3 hover:bg-army/85">  Categories, Collections & Tags</Button></Link>
             </div>
 
             {/* Right side nav buttons */}
