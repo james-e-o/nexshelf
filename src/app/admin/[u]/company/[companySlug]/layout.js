@@ -22,6 +22,7 @@ export default function CompanyLayout({ children }) {
   const [info, setInfo] = useState()
   const [modules, setModules] = useState([])  // ← ADD MODULES STATE
   const [branches, setBranches] = useState([])  // ← ADD BRANCHES STATE
+  const [currencies, setCurrencies] = useState([])  // ← ADD CURRENCIES STATE
   const [isLoading, setIsLoading] = useState(true)
 
   const { u, companySlug } = params
@@ -48,7 +49,7 @@ export default function CompanyLayout({ children }) {
         // Step 2: Fetch company
         const { data: companyData, error: companyError } = await supabase
           .from("companies")
-          .select("id, name, slug, owner")
+          .select("id, name, slug, owner, currencies")
           .eq("slug", params.companySlug)
           .single()
 
@@ -69,8 +70,19 @@ export default function CompanyLayout({ children }) {
         setInfo(companyData)
 
         // --------------------------------------------
-        // Step 4: Fetch company modules with level information
+        // Step 4: Fetch company currencies details
         // --------------------------------------------
+        const { data: currenciesArray, error: currenciesError } = await supabase
+          .from("currencies")
+          .select("name, code, flag")
+          .in("code", companyData.currencies || [])
+
+        if (currenciesError) {
+          console.error("Failed to fetch currencies:", currenciesError);
+          setCurrencies([])
+        } else {
+          setCurrencies(currenciesArray || [])
+        }
         const { data: modulesData, error: modulesError } = await supabase
           .from("company_modules")
           .select("name, mod_key")
@@ -152,7 +164,7 @@ export default function CompanyLayout({ children }) {
   if (!info) return null
 
   return (
-    <CompanyInfoContext.Provider value={{ info, setInfo, modules, branches }}>
+    <CompanyInfoContext.Provider value={{ info, setInfo, modules, branches,currencies }}>
       {children}
     </CompanyInfoContext.Provider>
   )

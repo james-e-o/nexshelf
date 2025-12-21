@@ -24,6 +24,7 @@ import { set } from 'date-fns';
 import { Spinner } from './ui/spinner';
 
 import EditImage from './edit-image';
+import FolderMoveDialog from './FolderMoveDialog';
 
 
 
@@ -48,6 +49,8 @@ const AddImage = () => {
      const [selectedItems, setSelectedItems] = useState([]);
      const [clickedFileId, setClickedFileId] = useState(null);
      const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+     const [moveDialogOpen, setMoveDialogOpen] = useState(false);
+     const [targetFolderId, setTargetFolderId] = useState(undefined);
 
       const { info,setInfo,modules } = useContext(CompanyInfoContext)
      
@@ -59,20 +62,36 @@ const AddImage = () => {
       
      ]);
      
-     const moveFile = (fileId, folderId) => {
-          setFiles((prevFiles) =>
-               prevFiles.map((file) =>
-               file.id === fileId ? { ...file, folderId:folderId} : file
-               )
-          );
+     const moveFile = async (fileId, folderId) => {
+       try {
+         // Update database
+         await supabase.from('images').update({ folder: folderId }).eq('id', fileId);
+         // Update local state
+         setFiles((prevFiles) =>
+           prevFiles.map((file) =>
+             file.id === fileId ? { ...file, folderId } : file
+           )
+         );
+       } catch (error) {
+         console.error('Error moving file:', error);
+         toast.error('Failed to move file');
+       }
      };
 
-     const moveFolder = (folderId ,parentId) => {
-          setFolders((prev) =>
-               prev.map((folder) =>
-               folder.id === folderId ? { ...folder, folderId:parentId} : folder
-               )
-          );
+     const moveFolder = async (folderId, parentId) => {
+       try {
+         // Update database
+         await supabase.from('folders').update({ folderId: parentId }).eq('id', folderId);
+         // Update local state
+         setFolders((prev) =>
+           prev.map((folder) =>
+             folder.id === folderId ? { ...folder, folderId: parentId } : folder
+           )
+         );
+       } catch (error) {
+         console.error('Error moving folder:', error);
+         toast.error('Failed to move folder');
+       }
      };
 
      const addFolder = async () => {
@@ -160,6 +179,20 @@ const AddImage = () => {
      const handleDeleteSelected = async () => {
        if (selectedItems.length === 0) return;
        setDeleteDialogOpen(true);
+     };
+
+     const fetchFilesAndFolders = async () => {
+       try {
+         const [imageList, folderList] = await Promise.all([
+           fetchCompanyImages(info.name),
+           fetchFolders(info.name)
+         ]);
+         setFiles(imageList);
+         setFolders(folderList);
+       } catch (err) {
+         console.error("Error fetching data:", err);
+         toast.error("Error fetching data");
+       }
      };
 
      const confirmDeleteSelected = async () => {
@@ -541,7 +574,7 @@ const AddImage = () => {
                                                               {/* {selectedItems.length<=1?(
                                                                 <Button className={'text-black h-6 text-[11px]'} variant={'icon'}><SquareSplitHorizontal className='size-3.5 text-core'/><span className='md:inline hidden'>Rename</span></Button>
                                                               ):''} */}
-                                                              <Button className={'text-black h-6 text-[11px]'} variant={'icon'}><Move className='size-3.5 text-core'/><span className='md:inline hidden'>Move</span></Button>
+                                                              <Button className={'text-black h-6 text-[11px]'} variant={'icon'} onClick={() => setMoveDialogOpen(true)}><Move className='size-3.5 text-core'/><span className='md:inline hidden'>Move</span></Button>
                                                               <Button className={'text-black h-6 text-[11px]'} variant={'icon'} onClick={handleDeleteSelected}><Trash2 className='size-3.5 text-core'/><span className='md:inline hidden'>Delete</span></Button>
                                                             </div>                  
                                                           ):''}
@@ -725,6 +758,20 @@ const AddImage = () => {
              </AlertDialogFooter>
            </AlertDialogContent>
          </AlertDialog>
+
+         {/* Move Dialog */}
+         <FolderMoveDialog
+           open={moveDialogOpen}
+           onOpenChange={setMoveDialogOpen}
+           selectedItems={selectedItems}
+           onMoveSuccess={() => {
+             // Update local state
+             setSelectedItems([]);
+             setTargetFolderId(undefined);
+             // Refresh the current folder view
+             fetchFilesAndFolders();
+           }}
+         />
          
      </DndProvider>
   )
@@ -955,7 +1002,7 @@ export const TrashBox = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteFromTrash} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction onClick={confirmDeleteFromTrash} className="bg-red-600 h-7 hover:bg-red-700">
               Delete Permanently
             </AlertDialogAction>
           </AlertDialogFooter>

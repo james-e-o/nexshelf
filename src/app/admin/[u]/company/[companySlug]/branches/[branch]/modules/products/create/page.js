@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs,TabsTrigger,TabsList,TabsContent } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea";
 import Link from "next/link"
 import { Label } from "@/components/ui/label"
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger} from "@/components/ui/sheet"
@@ -20,6 +21,7 @@ import { X ,Check, ChevronsUpDown, GripIcon,GripVertical,GripHorizontal, GripHor
 import { useParams } from "next/navigation"
 import AddImage from "@/components/add-image";
 import { supabase } from "../../../../../../../../../../../config/supabaseClient";
+import { set } from "date-fns";
 
 const CreateProductPage = () => {
     const [activeTab, setActiveTab] = useState("details");
@@ -30,7 +32,14 @@ const CreateProductPage = () => {
 
     // Options state
     const [options, setOptions] = useState([]);
-    const inputRefs = useRef([]);
+    const InputRefs = useRef([]);
+
+
+    //Inputs Values State
+    const [title, setTitle] = useState('');
+    const [subtitle, setSubtitle] = useState('');
+    const [handle, setHandle] = useState('');
+    const [description, setDescription] = useState('');
 
     // Generate combinations
     const generateCombinations = (optionsets) => {
@@ -63,7 +72,7 @@ const CreateProductPage = () => {
 
     // Functions to handle options
     const addOption = () => {
-        setOptions([...options, { id: Date.now(), name: '', values: [], input: '' }]);
+        setOptions([...options, { id: Date.now(), name: '', values: [], Input: '' }]);
     };
 
     const removeOption = (index) => {
@@ -74,14 +83,14 @@ const CreateProductPage = () => {
         setOptions(options.map((opt, i) => i === index ? { ...opt, name } : opt));
     };
 
-    const updateOptionInput = (index, input) => {
-        setOptions(options.map((opt, i) => i === index ? { ...opt, input } : opt));
+    const updateOptionInput = (index, Input) => {
+        setOptions(options.map((opt, i) => i === index ? { ...opt, Input } : opt));
     };
 
     const addValue = (index) => {
         const opt = options[index];
-        if (opt.input.trim()) {
-            setOptions(options.map((o, i) => i === index ? { ...o, values: [...o.values, o.input.trim()], input: '' } : o));
+        if (opt.Input.trim()) {
+            setOptions(options.map((o, i) => i === index ? { ...o, values: [...o.values, o.Input.trim()], Input: '' } : o));
         }
     };
 
@@ -93,9 +102,19 @@ const CreateProductPage = () => {
         if (e.key === 'Enter' || e.key === ',') {
             e.preventDefault();
             addValue(index);
-            inputRefs.current[index]?.focus();
+            InputRefs.current[index]?.focus();
         }
     };
+
+     function convertToSlug(input) {
+      let newValue= input.toString().toLowerCase().replace(/['"]/g, '').trim().replace(/\band\b/g, '&').replace(/[^a-z0-9\&-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').replace(/&/g, 'and') 
+      return(newValue)
+    }
+    function capitalize(input) {
+      let newValue= input.toString().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ').replace(/\bAnd\b/g, '&')
+      return(newValue)
+    }
 
   return (
     <AlertDialog>
@@ -108,7 +127,7 @@ const CreateProductPage = () => {
                  <div className="flex items-center gap-4 border-b px-6 py-3 bg-white z-10">
 
                     {/* X Button */}
-                    <Link href={`/admin/${u}/company/${companySlug}/branches/${branch}/products`}><Button variant={'ghost'} className="text-neutral-500 h-7 hover:text-black text-xs">✕</Button></Link>
+                    <Link href={`/admin/${u}/company/${companySlug}/branches/${branch}/modules/products`}><Button variant={'ghost'} className="text-neutral-500 h-7 hover:text-black text-xs">✕</Button></Link>
 
                     {/* ESC Badge */}
                     <div className="px-2 py-px border rounded-sm text-[10px] text-neutral-600">
@@ -179,10 +198,7 @@ const CreateProductPage = () => {
                             {/* Title */}
                             <div className="flex flex-col space-y-1">
                                 <label className="text-xs font-medium">Title</label>
-                                <input
-                                className="border rounded-sm px-2 py-2 text-xs"
-                                placeholder="Winter jacket"
-                                />
+                                <Input className="border rounded-sm px-2 py-2 text-xs" placeholder="Winter jacket" value={title} onChange={({target})=>{setTitle(capitalize(target.value),setHandle(convertToSlug(target.value)))}}/>
                             </div>
 
                             {/* Subtitle */}
@@ -190,10 +206,7 @@ const CreateProductPage = () => {
                                 <label className="text-xs font-medium">
                                 Subtitle <span className="text-neutral-400">(Optional)</span>
                                 </label>
-                                <input
-                                className="border rounded-sm px-2 py-2 text-xs"
-                                placeholder="Warm and cozy"
-                                />
+                                <Input className="border rounded-sm px-2 py-2 text-xs"  placeholder="Warm and cozy" value={subtitle}  onChange={({target})=>{setSubtitle(target.value)}}/>
                             </div>
 
                             {/* Handle */}
@@ -205,10 +218,7 @@ const CreateProductPage = () => {
                                 <span className="border border-r-0 rounded-sm rounded-r-none px-2 py-2 text-xs bg-neutral-100 text-neutral-500">
                                     /
                                 </span>
-                                <input
-                                    className="border rounded-sm rounded-l-none px-2 py-2 text-xs w-full"
-                                    placeholder="winter-jacket"
-                                />
+                                <Input className="border rounded-sm rounded-l-none px-2 py-2 text-xs w-full" value={handle}  onChange={({target})=>{setHandle(convertToSlug(target.value))}}   placeholder="winter-jacket" />
                                 </div>
                             </div>
                             </div>
@@ -218,11 +228,11 @@ const CreateProductPage = () => {
                             <label className="text-xs font-medium">
                                 Description <span className="text-neutral-400">(Optional)</span>
                             </label>
-                            <textarea
+                            <Textarea
                                 rows={4}
                                 className="border rounded-sm px-2 py-2 text-xs"
                                 placeholder="A warm and cozy jacket"
-                            ></textarea>
+                            ></Textarea>
                             </div>
 
                             {/* Media uploader */}
@@ -278,7 +288,7 @@ const CreateProductPage = () => {
                                     {options.map((option, index) => (
                                       <div key={option.id} className="border rounded-sm">
                                         <div className="flex items-center justify-between px-4 py-3 border-b">
-                                          <input
+                                          <Input
                                             type="text"
                                             defaultValue={option.name}
                                             onInput={(e) => {
@@ -294,10 +304,10 @@ const CreateProductPage = () => {
                                         </div>
                                         <div className="px-4 py-3 space-y-2">
                                           <label className="text-xs font-medium">Values</label>
-                                          <input
-                                            ref={(el) => inputRefs.current[index] = el}
+                                          <Input
+                                            ref={(el) => InputRefs.current[index] = el}
                                             type="text"
-                                            value={option.input}
+                                            value={option.Input}
                                             onChange={(e) => updateOptionInput(index, e.target.value.toLowerCase())}
                                             onKeyDown={(e) => handleKeyDown(e, index)}
                                             className="w-full border-0 outline-0 text-xs placeholder-neutral-400"
@@ -351,7 +361,7 @@ const CreateProductPage = () => {
                             {/* Discountable Toggle */}
                             <div className=" rounded-sm bg-white p-4 space-y-2">
                             <div className="flex items-center gap-3">
-                                <input type="checkbox" className="toggle-checkbox" />
+                                <Input type="checkbox" className="toggle-checkbox" />
                                 <div>
                                 <p className="text-xs font-medium">Discountable</p>
                                 <p className="text-gray-500 text-xs">
@@ -475,26 +485,11 @@ export default CreateProductPage
 
 
 
-
-
-// ---------------------- Dummy Variant Data ----------------------
-const initialData = [
-  { sizeColor: "small / red", title: "small / red", sku: "SM-RED", managed: false, backorder: false, kit: false, eur: "€", usd: "$", eur2: "€" },
-  { sizeColor: "big / red", title: "big / red", sku: "BG-RED", managed: false, backorder: false, kit: false, eur: "€", usd: "$", eur2: "€" },
-  { sizeColor: "medium / red", title: "medium / red", sku: "MD-RED", managed: false, backorder: false, kit: false, eur: "€", usd: "$", eur2: "€" },
-  { sizeColor: "small / blue", title: "small / blue", sku: "SM-BLU", managed: false, backorder: false, kit: false, eur: "€", usd: "$", eur2: "€" },
-  { sizeColor: "big / blue", title: "big / blue", sku: "BG-BLU", managed: false, backorder: false, kit: false, eur: "€", usd: "$", eur2: "€" },
-  { sizeColor: "medium / blue", title: "medium / blue", sku: "MD-BLU", managed: false, backorder: false, kit: false, eur: "€", usd: "$", eur2: "€" },
-  { sizeColor: "small / green", title: "small / green", sku: "SM-GRN", managed: false, backorder: false, kit: false, eur: "€", usd: "$", eur2: "€" },
-  { sizeColor: "big / green", title: "big / green", sku: "BG-GRN", managed: false, backorder: false, kit: false, eur: "€", usd: "$", eur2: "€" },
-  { sizeColor: "medium / green", title: "medium / green", sku: "MD-GRN", managed: false, backorder: false, kit: false, eur: "€", usd: "$", eur2: "€" }
-];
-
 // ---------------------- Column Definitions ----------------------
 const columns = [
   {
     header: "Variant",
-    accessorKey: "sizeColor",
+    accessorKey: "variant",
     cell: ({ row }) => <span>{row.original.sizeColor}</span>,
   },
   {
@@ -515,26 +510,6 @@ const columns = [
       <Checkbox
         checked={row.original.managed}
         onCheckedChange={(v) => table.options.meta.updateValue(row.index, "managed", v)}
-      />
-    ),
-  },
-  {
-    header: "Allow backorder",
-    accessorKey: "backorder",
-    cell: ({ row, table }) => (
-      <Checkbox
-        checked={row.original.backorder}
-        onCheckedChange={(v) => table.options.meta.updateValue(row.index, "backorder", v)}
-      />
-    ),
-  },
-  {
-    header: "Has inventory kit",
-    accessorKey: "kit",
-    cell: ({ row, table }) => (
-      <Checkbox
-        checked={row.original.kit}
-        onCheckedChange={(v) => table.options.meta.updateValue(row.index, "kit", v)}
       />
     ),
   },
@@ -594,11 +569,9 @@ export  function VariantTable({ options }) {
 
   const combinations = generateCombinations(options);
   const data = combinations.map((combo, index) => ({
-    sizeColor: combo.map(item => item.value).join(' / '),
+    variant: combo.map(item => item.value).join(' / '),
     sku: '',
     managed: false,
-    backorder: false,
-    kit: false,
     eur: '€',
     usd: '$',
     eur2: '€'

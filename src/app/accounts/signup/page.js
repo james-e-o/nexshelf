@@ -41,42 +41,7 @@ export default function SignupPage() {
 
     const allValid = Object.values(rules).every(Boolean);
     
-    // function generateUsername(email) {
-    //   if (!email) return;
-
-    //   const namePart = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
-      
-    //   return `@${namePart}`;
-    // }
     
-    // function extractHandle(username) {
-    //   const randomPart = Math.random().toString(36).substring(2, 6);
-    //   const cleanName = username.startsWith('@') ? username.slice(1) : username;
-
-    //   return `${cleanName}_${randomPart}`;
-    // }
-
-    // async function generateUniqueUsername(email, supabase) {
-    //   let username;
-    //   let handle;
-
-    //   while (true) {
-    //     username = generateUsername(email);
-    //     handle = extractHandle(username);
-
-    //   const { data: existing, error } = await supabase
-    //     .from('profiles')
-    //     .select('id')
-    //     .or(`username.eq.${username},handle.eq.${handle}`)
-    //     .maybeSingle(); 
-
-    //     if (!existing) break;
-
-    //   }
-
-    //   return { username, handle };
-    // }
-
 
       function generateUsername(email) {
         if (!email) return;
@@ -219,7 +184,7 @@ export default function SignupPage() {
                             <div className="mt-0 text-[11px] ml-0.5 transition-all">
                               {(focused || errorMessage==message.passwordError) && !isEmpty(password) && (
                                   
-                                    <ul className="space-y-[1px]">
+                                    <ul className="space-y-px">
                                         <li className={`flex items-center gap-1 ${rules.length ? "text-green-600" : "text-orange-500"}`}>
                                           {rules.length ? (
                                             <CheckCircle size={11} />
@@ -266,7 +231,7 @@ export default function SignupPage() {
                             <div className="mt-0 text-[11px] ml-0.5 transition-all">
                               {(validateFocused||errorMessage==message.validateError) && !isEmpty(passwordValidate) && (
                                   
-                                    <ul className="space-y-[1px]">
+                                    <ul className="space-y-px">
                                         <li className={`flex items-center gap-1 ${passwordValidate===password ? "text-green-600" : "text-orange-500"}`}>
                                           {rules.length ? (
                                             <CheckCircle size={11} />

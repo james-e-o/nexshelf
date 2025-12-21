@@ -16,10 +16,29 @@ import { toast } from 'sonner'
 import ComboDropTemplate from '@/components/combo-drop'
 import { cn } from '@/lib/utils'
 import { Tabs,TabsTrigger,TabsList,TabsContent } from "@/components/ui/tabs"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select"
+import { Checkbox } from '@/components/ui/checkbox'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select"
 
 export default function AdminUserPage() {
+
+    const CURRENCIES = [
+        { code: "USD", name: "US Dollar", flag: "https://flagcdn.com/w20/us.png" },
+        { code: "EUR", name: "Euro", flag: "https://flagcdn.com/w20/eu.png" },
+        { code: "GBP", name: "British Pound", flag: "https://flagcdn.com/w20/gb.png" },
+        { code: "NGN", name: "Nigerian Naira", flag: "https://flagcdn.com/w20/ng.png" },
+        { code: "GHS", name: "Ghana Cedi", flag: "https://flagcdn.com/w20/gh.png" },
+        { code: "KES", name: "Kenyan Shilling", flag: "https://flagcdn.com/w20/ke.png" },
+        { code: "ZAR", name: "South African Rand", flag: "https://flagcdn.com/w20/za.png" },
+        { code: "CAD", name: "Canadian Dollar", flag: "https://flagcdn.com/w20/ca.png" },
+        { code: "AUD", name: "Australian Dollar", flag: "https://flagcdn.com/w20/au.png" },
+        { code: "JPY", name: "Japanese Yen", flag: "https://flagcdn.com/w20/jp.png" },
+        { code: "CNY", name: "Chinese Yuan", flag: "https://flagcdn.com/w20/cn.png" },
+        { code: "INR", name: "Indian Rupee", flag: "https://flagcdn.com/w20/in.png" },
+        { code: "CHF", name: "Swiss Franc", flag: "https://flagcdn.com/w20/ch.png" },
+        { code: "AED", name: "UAE Dirham", flag: "https://flagcdn.com/w20/ae.png" },
+        { code: "SAR", name: "Saudi Riyal", flag: "https://flagcdn.com/w20/sa.png" },
+        { code: "SGD", name: "Singapore Dollar", flag: "https://flagcdn.com/w20/sg.png" },
+    ];
 
         const router = useRouter()
         const params = useParams()
@@ -35,12 +54,12 @@ export default function AdminUserPage() {
             phone: "",
             country: "",
             industry: "",
-            currency: "",
+            currencies: ["USD"],
             taxId: "",
             branchAddress: "",
             branchCity: "",
         });
-          const requiredFields = ["name", "email", "type", "currency","phone"];
+          const requiredFields = ["name", "email", "type", "currencies","phone"];
 
           const handleChange = (e) => {
                 setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -50,7 +69,10 @@ export default function AdminUserPage() {
             const prevStep = () => setStep((prev) => Math.max(prev - 1, 1));
             const goToStep = (num) => setStep(num);
 
-            const isFormValid = requiredFields.every((field) => formData[field].trim() !== "") && !nameExists // ✅ also require unique name
+            const isFormValid = requiredFields.every((field) => {
+                if (field === "currencies") return formData.currencies.length > 0;
+                return formData[field].trim() !== "";
+            }) && !nameExists // ✅ also require unique name
 
           
 
@@ -60,7 +82,7 @@ export default function AdminUserPage() {
                             companyEmail,
                             companyPhone,
                             companyCountry,
-                            companyCurrency,
+                            companyCurrencies,
                             branchAddress,
                             branchCity
                         ) => {
@@ -78,7 +100,7 @@ export default function AdminUserPage() {
                                             email: companyEmail,
                                             isheadoffice: true,
                                             status: 'active',
-                                            currency: companyCurrency,
+                                            currencies: companyCurrencies,
                                         },
                                     ])
                                     .select()
@@ -119,7 +141,7 @@ export default function AdminUserPage() {
                     phone: formData.phone,
                     country: formData.country,
                     industry: formData.industry,
-                    currency: formData.currency,
+                    currencies: formData.currencies,
                     taxId: formData.taxId,
                 },
                 ])
@@ -147,7 +169,7 @@ export default function AdminUserPage() {
                                             formData.email,
                                             formData.phone,
                                             formData.country,
-                                            formData.currency,
+                                            formData.currencies,
                                             formData.branchAddress,
                                             formData.branchCity
                                         );
@@ -227,6 +249,27 @@ export default function AdminUserPage() {
 
                 return () => clearTimeout(timer)
             }, [formData.name])
+
+            // Fetch companies on mount
+            useEffect(() => {
+                const fetchCompanies = async () => {
+                    const { data: companies, error } = await supabase
+                        .from("companies")
+                        .select("id, name, slug")
+                        .eq("owner", data.profile.id);
+
+                    if (error) {
+                        console.error("Error fetching companies:", error);
+                        setData(prev => ({ ...prev, companies: [] }));
+                    } else {
+                        setData(prev => ({ ...prev, companies }));
+                    }
+                };
+
+                if (data.profile) {
+                    fetchCompanies();
+                }
+            }, [data.profile, setData]);
 
 
 
@@ -384,22 +427,32 @@ export default function AdminUserPage() {
                                                                 </Field>
 
                                                                 <Field>
-                                                                        <FieldLabel className="text-xs" htmlFor="currency">
-                                                                        Currency {requiredFields.includes("currency") ? (
+                                                                        <FieldLabel className="text-xs" htmlFor="currencies">
+                                                                        Currencies {requiredFields.includes("currencies") ? (
                                                                                         <><span className="text-red-500 ml-1">*</span></>
                                                                                 ) : (       '')}
                                                                         </FieldLabel>
-                                                                        <Select value={formData.currency} onValueChange={(value) => setFormData({ ...formData, currency: value })}>
-                                                                            <SelectTrigger className="w-full text-xs border rounded-lg">
-                                                                                <SelectValue placeholder="Select Currency" />
-                                                                            </SelectTrigger>
-                                                                            <SelectContent>
-                                                                                <SelectItem value="USD">USD - US Dollar</SelectItem>
-                                                                                <SelectItem value="EUR">EUR - Euro</SelectItem>
-                                                                                <SelectItem value="RWF">RWF - Rwandan Franc</SelectItem>
-                                                                                <SelectItem value="NGN">NGN - Naira</SelectItem>
-                                                                            </SelectContent>
-                                                                        </Select>
+                                                                        <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
+                                                                            {CURRENCIES.map((curr) => (
+                                                                                <div key={curr.code} className="flex items-center space-x-2">
+                                                                                    <Checkbox
+                                                                                        id={curr.code}
+                                                                                        checked={formData.currencies.includes(curr.code)}
+                                                                                        onCheckedChange={(checked) => {
+                                                                                            if (checked) {
+                                                                                                setFormData({ ...formData, currencies: [...formData.currencies, curr.code] });
+                                                                                            } else {
+                                                                                                setFormData({ ...formData, currencies: formData.currencies.filter(c => c !== curr.code) });
+                                                                                            }
+                                                                                        }}
+                                                                                    />
+                                                                                    <label htmlFor={curr.code} className="text-xs cursor-pointer flex items-center space-x-1">
+                                                                                        <img src={curr.flag} alt={curr.code} className="w-4 h-4 rounded-sm" />
+                                                                                        <span>{curr.name} ({curr.code})</span>
+                                                                                    </label>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
                                                                 </Field>
 
 
@@ -428,7 +481,7 @@ export default function AdminUserPage() {
                                             {label}
                                             {isRequired && <span className="text-red-500 ml-1">*</span>}:
                                         </strong>{" "}
-                                        {value || <span className="text-gray-400">Not provided</span>}
+                                        {Array.isArray(value) ? (value.length > 0 ? value.join(", ") : <span className="text-gray-400">None selected</span>) : (value || <span className="text-gray-400">Not provided</span>)}
                                         </p>
                                     );
                                     })}

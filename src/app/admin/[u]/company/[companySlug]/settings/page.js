@@ -16,12 +16,7 @@ export default function CompanySettingsPage() {
       icon: <Building2 className="w-5 h-5 text-gray-600" />,
       route: "company-info",
     },
-    {
-      title: "Modules Settings",
-      description: "Manage business modules, eg Sales, Inventory, etc.",
-      icon: <Users className="w-5 h-5 text-gray-600" />,
-      route: "modules",
-    },
+ 
     {
       title: "Fiscal & Tax Settings",
       description: "Manage tax details, fiscal year,  and default  tax rate.",
@@ -32,7 +27,7 @@ export default function CompanySettingsPage() {
       title: "Currency & Country",
       description: "Change default currency, country, and timezone.",
       icon: <Globe className="w-5 h-5 text-gray-600" />,
-      route: "currency-country",
+      route: "country&currency",
     },
     {
       title: "Security & Ownership",
