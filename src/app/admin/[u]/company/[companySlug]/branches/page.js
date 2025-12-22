@@ -52,19 +52,26 @@ export default function BranchesPage() {
     const updates = [];
 
     localBranches.forEach(branch => {
-      const branchCurrencies = branch.currencies || [];
+      const branchCurrencies = Object.keys(branch.currencies || {});
       const hasMismatch = !branch.base_currency || 
         !companyCurrencies.some(c => c.code === branch.base_currency) || 
-        branchCurrencies.some(c => !companyCurrencies.some(cc => cc.code === c));
+        branchCurrencies.some(c => !companyCurrencies.some(cc => cc.code === c)) ||
+        !branchCurrencies.includes(branch.base_currency);
 
       if (hasMismatch) {
         const newBase = companyCurrencies[0].code;
-        const newConfig = { [newBase]: { enabled: true, base: true, rate: 1 } };
+        const existingCurrencies = branch.currencies || {};
+        const updatedCurrencies = { ...existingCurrencies, [newBase]: { base: true, rate: 1 } };
+        // Remove invalid currencies
+        Object.keys(updatedCurrencies).forEach(code => {
+          if (!companyCurrencies.some(c => c.code === code)) {
+            delete updatedCurrencies[code];
+          }
+        });
         updates.push({
           id: branch.id,
           base_currency: newBase,
-          currencies: [newBase],
-          // exchange_rates: { [newBase]: 1 }
+          currencies: updatedCurrencies
         });
       }
     });
@@ -76,8 +83,7 @@ export default function BranchesPage() {
           .from("branches")
           .update({
             base_currency: u.base_currency,
-            currencies: u.currencies,
-            // exchange_rates: u.exchange_rates
+            currencies: u.currencies
           })
           .eq("id", u.id)
       );
@@ -106,7 +112,6 @@ export default function BranchesPage() {
         const isBase = code === editingBaseCurrency;
 
         newConfig[code] = {
-          enabled: true,
           base: isBase,
           rate: isBase
             ? 1
@@ -128,16 +133,16 @@ export default function BranchesPage() {
     setEditingName(b.name)
     setEditingAddress(b.address)
     setEditingBaseCurrency(b.base_currency || (companyCurrencies[0] ? companyCurrencies[0].code : ''))
-    const selected = b.currencies || [companyCurrencies[0] ? companyCurrencies[0].code : '']
+    const selected = [...new Set([...Object.keys(b.currencies || {}), b.base_currency])].filter(code => companyCurrencies.some(c => c.code === code))
     setEditingSelectedCurrencies(selected)
     // Build currency config from selected and rates
     const config = {};
     selected.forEach(code => {
       const isBase = code === b.base_currency;
-      config[code] = {
-        enabled: true,
+      const existing = b.currencies && b.currencies[code];
+      config[code] = existing ? existing : {
         base: isBase,
-        rate: isBase ? 1 : (b.exchange_rates && b.exchange_rates[code] ? b.exchange_rates[code] : 1)
+        rate: 1
       };
     });
     setEditingCurrencyConfig(config)
@@ -146,12 +151,7 @@ export default function BranchesPage() {
 
   const saveEdit = async () => {
     try {
-      const enabledCurrencies = Object.keys(editingCurrencyConfig).filter(code => editingCurrencyConfig[code].enabled);
-      const exchangeRates = Object.fromEntries(
-        Object.entries(editingCurrencyConfig)
-          .filter(([code, config]) => !config.base)
-          .map(([code, config]) => [code, config.rate])
-      );
+      const enabledCurrencies = Object.keys(editingCurrencyConfig);
 
       const { error } = await supabase
         .from('branches')
@@ -159,8 +159,7 @@ export default function BranchesPage() {
           name: editingName,
           address: editingAddress,
           base_currency: editingBaseCurrency,
-          currencies: enabledCurrencies,
-          exchange_rates: exchangeRates
+          currencies: editingCurrencyConfig
         })
         .eq('id', editingId)
 
@@ -176,8 +175,7 @@ export default function BranchesPage() {
         name: editingName, 
         address: editingAddress, 
         base_currency: editingBaseCurrency, 
-        currencies: enabledCurrencies, 
-        exchange_rates: exchangeRates 
+        currencies: editingCurrencyConfig 
       } : b))
       setEditingId(null)
       setIsEditMode(false)
@@ -404,7 +402,7 @@ export default function BranchesPage() {
                                         ...prev,
                                         [currCode]: {
                                           ...prev[currCode],
-                                          rate: parseFloat(e.target.value) || 1
+                                          rate: parseFloat(e.target.value) || 0
                                         }
                                       }))
                                     }
@@ -431,12 +429,32 @@ export default function BranchesPage() {
                         <p><strong>Address:</strong> {b.address}</p>
                       </div>
                       <div className="text-[10px]">
+                        <p><strong>Company Currencies:</strong></p>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {companyCurrencies.map((curr) => (
+                            <TooltipProvider key={curr.code}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="flex items-center gap-1 px-2 py-1 border rounded text-[10px]">
+                                    <img src={curr.flag} alt={curr.name} className="w-3 h-3" />
+                                    {curr.code}
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>{curr.name}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="text-[10px]">
                         <p><strong>Base Currency:</strong> {b.base_currency || 'N/A'}</p>
                       </div>
                       <div className="text-[10px]">
-                        <p><strong>Currencies:</strong></p>
+                        <p><strong>Branch Currencies:</strong></p>
                         <div className="flex flex-wrap gap-2 mt-1">
-                          {b.currencies?.map((currCode) => {
+                          {Object.keys(b.currencies || {}).map((currCode) => {
                             const curr = companyCurrencies.find(c => c.code === currCode);
                             return curr ? (
                               <TooltipProvider key={currCode}>
@@ -456,29 +474,9 @@ export default function BranchesPage() {
                           })}
                         </div>
                       </div>
-                      <div className="text-[10px]">
-                        <p><strong>Available Currencies:</strong></p>
-                        <div className="flex flex-wrap gap-2 mt-1">
-                          {companyCurrencies.map((curr) => (
-                            <TooltipProvider key={curr.code}>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div className="flex items-center gap-1 px-2 py-1 border rounded text-[10px]">
-                                    <img src={curr.flag} alt={curr.name} className="w-3 h-3" />
-                                    {curr.code}
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>{curr.name}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          ))}
-                        </div>
-                      </div>
-                      {b.exchange_rates && Object.keys(b.exchange_rates).length > 0 && (
+                      {b.currencies && Object.keys(b.currencies).length > 0 && (
                         <div className="text-[10px]">
-                          <p><strong>Exchange Rates:</strong> {Object.entries(b.exchange_rates).map(([curr, rate]) => `${curr}: ${rate}`).join(', ')}</p>
+                          <p><strong>Exchange Rates:</strong> {Object.entries(b.currencies).map(([curr, conf]) => `${curr}: ${conf.rate}`).join(', ')}</p>
                         </div>
                       )}
                     </div>
