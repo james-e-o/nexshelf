@@ -65,12 +65,6 @@ export default function CategoryTable() {
       const [newCollectionSlug, setNewCollectionSlug] = useState('')
       const [newCollectionDescription, setNewCollectionDescription] = useState('')
 
-      const [tagList, setTagList] = useState([])
-      const [selectedTagId, setSelectedTagId] = useState(null)
-      const [showTagInline, setShowTagInline] = useState(false)
-      const [newTagName, setNewTagName] = useState('')
-      const [newTagColor, setNewTagColor] = useState('blue')
-
       // header add-category form state
       const [categoryName, setCategoryName] = useState('')
       const [categorySlug, setCategorySlug] = useState('')
@@ -95,37 +89,27 @@ export default function CategoryTable() {
 
             try {
               const [
-                categoriesRes,
-                tagsRes,
-                collectionsRes,
+                 {data: categoriesRes, error: categoriesError},
+                 {data: collectionsRes, error: collectionsError},
               ] = await Promise.all([
                 supabase.from('categories').select('*').eq('branch', branch),
-                supabase.from('tags').select('*').eq('branch', branch),
                 supabase.from('collections').select('*').eq('branch', branch),
               ])
 
               // 🔹 Categories
-              if (categoriesRes.error) {
-                console.error(categoriesRes.error)
+              if (categoriesError) {
+                console.error(categoriesError)
                 toast.error('Failed to load categories')
               } else {
-                setFlatCategories(categoriesRes.data || [])
-              }
-
-              // 🔹 Tags → tagList
-              if (tagsRes.error) {
-                console.error(tagsRes.error)
-                toast.error('Failed to load tags')
-              } else {
-                setTagList(tagsRes.data || [])
+                setFlatCategories(categoriesRes || [])
               }
 
               // 🔹 Collections → collectionList
-              if (collectionsRes.error) {
-                console.error(collectionsRes.error)
+              if (collectionsError) {
+                console.error(collectionsError)
                 toast.error('Failed to load collections')
               } else {
-                setCollectionList(collectionsRes.data || [])
+                setCollectionList(collectionsRes || [])
               }
 
             } catch (e) {
@@ -168,6 +152,10 @@ export default function CategoryTable() {
 
           toast.error('Failed to create category')
         }finally{ setCategoryUploading(false) }
+      }
+
+      async function createCollection () {
+
       }
 
       
@@ -221,6 +209,7 @@ export default function CategoryTable() {
                 </div>
               </TabsContent>
 
+              {/* COLLECTIONS */}
               <TabsContent value="collections" className="space-y-4 overflow-hidden h-full">
                 <div className="border rounded-md flex flex-col h-full overflow-hidden bg-white dark:bg-neutral-900">
                   <div>
@@ -235,7 +224,7 @@ export default function CategoryTable() {
                         <div className="flex items-center gap-2">
                           {showCollectionInline && (
                             <div className=" flex items-center gap-2">
-                              <Input autoFocus value={newCollectionName} onChange={(e)=>{ setNewCollectionName(e.target.value); setNewCollectionSlug(slugify(e.target.value)) }} placeholder="Collection name" className="h-7 px-2 w-44 text-sm rounded-sm border" />
+                              <Input autoFocus value={newCollectionName} onChange={(e)=>{ setNewCollectionName(capitalize(e.target.value)); setNewCollectionSlug(slugify(e.target.value)) }} placeholder="Collection name" className="h-7 px-2 w-44 text-sm rounded-sm border" />
                               <Button size="icon" onClick={async ()=>{
                                 if(!newCollectionName) return
                                 const newId = Date.now().toString()
@@ -287,79 +276,6 @@ export default function CategoryTable() {
                   </div>
                 </div>
               </TabsContent>
-
-
-              {/* TAGS */}
-              {/* <TabsContent value="tags" className="space-y-4 overflow-hidden h-full">
-                <div className="border rounded-md bg-white flex flex-col h-full overflow-hidden dark:bg-neutral-900">
-                  <div>
-                  <div className="p-4 border-b flex items-center justify-between">
-                    <h3 className="text-sm font-semibold">Tags</h3>
-                    <Button onClick={() => { setShowTagInline(v=>!v); setNewTagName('') }} className="h-7 inline-flex items-center bg-core hover:bg-core/85 gap-2">
-                      <Plus size={14} />
-                      <span className="text-xs">Add Tag</span>
-                    </Button>
-                  </div>
-                  <div className="p-4 border-b">
-                        <div className="flex items-center gap-2">
-                          {showTagInline && (
-                            <div className="mt-3 flex items-center gap-2">
-                              <Input autoFocus value={newTagName} onChange={(e)=>setNewTagName(e.target.value)} placeholder="Tag name" className="h-7 px-2 w-44 text-sm rounded-sm border" />
-                              <select value={newTagColor} onChange={(e)=>setNewTagColor(e.target.value)} className="h-7 px-2 text-sm border rounded-sm">
-                                <option value="blue">Blue</option>
-                                <option value="green">Green</option>
-                                <option value="red">Red</option>
-                                <option value="yellow">Yellow</option>
-                                <option value="purple">Purple</option>
-                              </select>
-                              <Button size="icon" onClick={()=>{
-                                if(!newTagName) return
-                                const id = Date.now().toString()
-                                setTagList(prev => [...prev, { id, name: newTagName, color: newTagColor }])
-                                setNewTagName('')
-                                setShowTagInline(false)
-                              }} disabled={!newTagName} className="h-7 w-7 p-0 bg-army">
-                                <Rocket size={14} />
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                  </div>
-                  </div>
-                  <div className="flex grow overflow-hidden">
-                    <div className="flex-1 h-full overflow-y-scroll p-6">
-                      <div className="space-y-2">
-                        {(tagList.length ? tagList : [
-                          { id: 't1', name: 'New', color: 'blue' },
-                          { id: 't2', name: 'Sale', color: 'red' },
-                          { id: 't3', name: 'Limited', color: 'purple' }
-                        ]).map(tag => (
-                          <div key={tag.id} className={`py-2 cursor-pointer ${String(selectedTagId) === String(tag.id) ? 'font-semibold text-core' : 'text-sm text-zinc-700'}`} onClick={() => setSelectedTagId(tag.id)}>
-                            {tag.name}
-                          </div>
-                        ))}
-                      </div>
-
-                    </div>
-
-                    <div className="w-72 border-l p-4">
-                      {selectedTagId ? (
-                        (() => {
-                          const tag = (tagList.find(t => String(t.id) === String(selectedTagId)) || { name: '', color: '' })
-                          return (
-                            <div>
-                              <h4 className="text-sm font-medium">{tag.name}</h4>
-                              <div className="text-[13px] text-muted-foreground">Color: {tag.color || 'N/A'}</div>
-                            </div>
-                          )
-                        })()
-                      ) : (
-                        <div className="text-sm text-gray-500">Select a tag to see details</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </TabsContent> */}
 
           </div>
 
