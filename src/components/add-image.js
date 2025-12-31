@@ -414,12 +414,23 @@ const AddImage = () => {
              
      
 
-     useEffect(()=>{
-          const newfolder =  document.getElementById('newfolder')
-          newFolderState?newfolder.focus():""
-          setSelectedFiles(files.filter((item,index)=>item.selected))
-          setSelectedFolders(folders.filter((item,index)=>item.selected))
-     },[files,folders,newFolderState])   
+    useEffect(()=>{
+      const newfolder =  document.getElementById('newfolder')
+      newFolderState?newfolder.focus():""
+
+      // Derive selected files and folders from `selectedItems`.
+      // `selectedItems` contains file ids and folder ids prefixed with `folder-`.
+      const selectedFileIds = selectedItems.filter(id => typeof id === 'string' && !id.startsWith('folder-'));
+      const selectedFolderIds = selectedItems
+        .filter(id => typeof id === 'string' && id.startsWith('folder-'))
+        .map(id => id.replace('folder-', ''));
+
+      // Files that are either directly selected or belong to any selected folder
+      setSelectedFiles(files.filter(f => selectedFileIds.includes(f.id) || selectedFolderIds.includes(String(f.folderId))));
+
+      // Folders that are selected
+      setSelectedFolders(folders.filter(f => selectedFolderIds.includes(String(f.id))));
+    },[files,folders,newFolderState,selectedItems])
 
      useEffect(()=>{  
           Promise.all([
@@ -673,7 +684,26 @@ const AddImage = () => {
                     </div>
                      <AlertDialogFooter className={'p-3'}>
                                 <AlertDialogCancel className={'h-7 text-xs '} >Cancel</AlertDialogCancel>
-                                <AlertDialogAction className={'h-7 text-xs bg-core hover:bg-core/85'} >Continue</AlertDialogAction>
+                                <AlertDialogAction
+                                  disabled={selectedItems.length === 0}
+                                  className={'h-7 text-xs bg-core hover:bg-core/85 disabled:opacity-50 disabled:cursor-not-allowed'}
+                                  onClick={() => {
+                                    const selectedFileIds = selectedItems.filter(id => typeof id === 'string' && !id.startsWith('folder-'));
+                                    const selectedFolderIds = selectedItems
+                                      .filter(id => typeof id === 'string' && id.startsWith('folder-'))
+                                      .map(id => id.replace('folder-', ''));
+
+                                    const filesToSend = files.filter(f => selectedFileIds.includes(f.id) || selectedFolderIds.includes(String(f.folderId)));
+
+                                    // Dispatch a CustomEvent so parent pages (like create product) can listen
+                                    try {
+                                      window.dispatchEvent(new CustomEvent('nexshelf:selectedImages', { detail: filesToSend }));
+                                      toast.success(`${filesToSend.length} image(s) selected`);
+                                    } catch (e) {
+                                      console.error('Dispatch selected images failed', e);
+                                    }
+                                  }}
+                                ><ImageIcon className="w-4 h-4 mr-1" />Add selected images</AlertDialogAction>
                               </AlertDialogFooter>
                     </>) 
                   }

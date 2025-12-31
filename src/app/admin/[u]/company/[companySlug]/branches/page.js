@@ -9,13 +9,14 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { CompanyInfoContext } from '../layout'
+import { Input } from '@/components/ui/input'
 import { supabase } from '../../../../../../../config/supabaseClient'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 
 export default function BranchesPage() {
-  const { branches, info, currencies } = useContext(CompanyInfoContext)
+  const { branches, info, currencies, modules } = useContext(CompanyInfoContext)
   const router = useRouter()
   const params = useParams()
 
@@ -30,6 +31,7 @@ export default function BranchesPage() {
   const [editingBaseCurrency, setEditingBaseCurrency] = useState('')
   const [editingSelectedCurrencies, setEditingSelectedCurrencies] = useState([])
   const [editingCurrencyConfig, setEditingCurrencyConfig] = useState({})
+  const [editingSelectedModules, setEditingSelectedModules] = useState([])
   const [isEditMode, setIsEditMode] = useState(false)
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -127,74 +129,7 @@ export default function BranchesPage() {
     // TODO: Implement add branch to DB
     alert('Add branch functionality not implemented yet')
   }
-
-  const startEdit = (b) => {
-    setEditingId(b.id)
-    setEditingName(b.name)
-    setEditingAddress(b.address)
-    setEditingBaseCurrency(b.base_currency || (companyCurrencies[0] ? companyCurrencies[0].code : ''))
-    const selected = [...new Set([...Object.keys(b.currencies || {}), b.base_currency])].filter(code => companyCurrencies.some(c => c.code === code))
-    setEditingSelectedCurrencies(selected)
-    // Build currency config from selected and rates
-    const config = {};
-    selected.forEach(code => {
-      const isBase = code === b.base_currency;
-      const existing = b.currencies && b.currencies[code];
-      config[code] = existing ? existing : {
-        base: isBase,
-        rate: 1
-      };
-    });
-    setEditingCurrencyConfig(config)
-    // Don't set isEditMode to true here, let the Edit button do that
-  }
-
-  const saveEdit = async () => {
-    try {
-      const enabledCurrencies = Object.keys(editingCurrencyConfig);
-
-      const { error } = await supabase
-        .from('branches')
-        .update({
-          name: editingName,
-          address: editingAddress,
-          base_currency: editingBaseCurrency,
-          currencies: editingCurrencyConfig
-        })
-        .eq('id', editingId)
-
-      if (error) {
-        console.error('Failed to update branch:', error)
-        toast.error('Failed to update branch')
-        return
-      }
-
-      toast.success('Branch updated successfully')
-      setLocalBranches(prev => prev.map(b => b.id === editingId ? { 
-        ...b, 
-        name: editingName, 
-        address: editingAddress, 
-        base_currency: editingBaseCurrency, 
-        currencies: editingCurrencyConfig 
-      } : b))
-      setEditingId(null)
-      setIsEditMode(false)
-      // Refresh branches
-    } catch (err) {
-      console.error('Unexpected error:', err)
-      toast.error('Unexpected error occurred')
-    }
-  }
-
-  const cancelEdit = () => {
-    setEditingId(null)
-    setIsEditMode(false)
-  }
-
-  const handleBaseCurrencyChange = (newBase) => {
-    setEditingBaseCurrency(newBase)
-    setEditingSelectedCurrencies([newBase])
-  }
+  // Note: branch editing moved to per-branch settings pages.
 
   const removeBranch = async (id) => {
     try {
@@ -234,8 +169,8 @@ export default function BranchesPage() {
           {showAdd && (
             <div className="mb-4 p-3 border rounded bg-white dark:bg-neutral-900">
               <div className="grid grid-cols-2 gap-2">
-                <input className="p-2 border rounded text-[10px]" placeholder="Branch name" value={newName} onChange={(e) => setNewName(e.target.value)} />
-                <input className="p-2 border rounded text-[10px]" placeholder="Address" value={newAddress} onChange={(e) => setNewAddress(e.target.value)} />
+                <Input className="p-2 border rounded text-[10px]" placeholder="Branch name" value={newName} onChange={(e) => setNewName(e.target.value)} />
+                <Input className="p-2 border rounded text-[10px]" placeholder="Address" value={newAddress} onChange={(e) => setNewAddress(e.target.value)} />
               </div>
               <div className="flex gap-2 mt-2">
                 <Button className="h-7 text-[10px]" onClick={addBranch}>Add</Button>
@@ -256,11 +191,8 @@ export default function BranchesPage() {
                     <div className="text-[10px] text-zinc-500">{b.address}, {b.city}</div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Button variant={'outline'} className="h-6 shadow-none text-[10px]" onClick={() => {
-                      startEdit(b)
-                      setIsEditMode(true)
-                    }}>
+                    <div className="flex items-center gap-2">
+                    <Button variant={'outline'} className="h-6 shadow-none text-[10px]" onClick={() => router.push(`/admin/${params.u}/company/${params.companySlug}/branches/${b.id}/settings`)}>
                       Edit
                     </Button>
                     {!b.isheadoffice && (
@@ -271,160 +203,9 @@ export default function BranchesPage() {
                   </div>
                 </div>
 
-                {/* Branch Info / Edit Form */}
-                <div className="p-3 border-t overflow-hidden">
-                  {/* Edit Form */}
-                  <div className={`transition-all duration-300 overflow-hidden ${editingId === b.id && isEditMode ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0 pointer-events-none'}`}>
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <h4 className="text-[10px] font-medium">Edit Branch</h4>
-                        <Button className="h-7 text-[10px]" variant="outline" onClick={() => setIsEditMode(false)}>Cancel</Button>
-                      </div>
-
-                      {/* Branch Name and Address */}
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="text-[10px] font-medium">Branch Name</label>
-                          <input className="w-full p-2 border rounded text-[10px] mt-1" value={editingName} onChange={(e) => setEditingName(e.target.value)} />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-medium">Address</label>
-                          <input className="w-full p-2 border rounded text-[10px] mt-1" value={editingAddress} onChange={(e) => setEditingAddress(e.target.value)} />
-                        </div>
-                      </div>
-
-                      {/* Available Currencies */}
-                      <div>
-                        <h5 className="text-[10px] font-medium mb-2">Company Allowed Currencies</h5>
-                        <div className="flex flex-wrap gap-2">
-                          {companyCurrencies.map((curr) => (
-                            <TooltipProvider key={curr.code}>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div className="flex items-center gap-1 px-2 py-1 border rounded text-[10px]">
-                                    <img src={curr.flag} alt={curr.name} className="w-3 h-3" />
-                                    {curr.code}
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>{curr.name}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Base Currency */}
-                      <div>
-                        <label className="text-[10px] font-medium">Base Currency</label>
-                        <Select value={editingBaseCurrency} onValueChange={handleBaseCurrencyChange}>
-                          <SelectTrigger className="w-full mt-1 h-8 text-[10px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {companyCurrencies.map((curr) => (
-                              <SelectItem key={curr.code} value={curr.code} className="text-[10px]">
-                                <div className="flex items-center gap-2">
-                                  <img src={curr.flag} alt={curr.name} className="w-4 h-4" />
-                                  {curr.code} - {curr.name}
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {/* Select Currencies for the Branch */}
-                      <div>
-                        <h5 className="text-[10px] font-medium mb-2">Select Currencies for the Branch</h5>
-                        <div className="grid grid-cols-2 gap-2">
-                          {companyCurrencies.map((curr) => (
-                            <TooltipProvider key={curr.code}>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div className="flex items-center space-x-2">
-                                    <Checkbox
-                                      id={`curr-${curr.code}`}
-                                      checked={editingSelectedCurrencies.includes(curr.code)}
-                                      onCheckedChange={(checked) => {
-                                        if (checked) {
-                                          setEditingSelectedCurrencies([...editingSelectedCurrencies, curr.code]);
-                                        } else {
-                                          setEditingSelectedCurrencies(editingSelectedCurrencies.filter(c => c !== curr.code));
-                                        }
-                                      }}
-                                      disabled={curr.code === editingBaseCurrency}
-                                    />
-                                    <label htmlFor={`curr-${curr.code}`} className="flex items-center gap-1 text-[10px] cursor-pointer">
-                                      <img src={curr.flag} alt={curr.name} className="w-3 h-3" />
-                                      {curr.code}
-                                    </label>
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>{curr.name}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Exchange Rates */}
-                      <div>
-                        <h5 className="text-[10px] font-medium mb-2">
-                          Exchange Rates (against Base Currency)
-                        </h5>
-
-                        <div className="space-y-2">
-                          {editingSelectedCurrencies
-                            .filter(c => c !== editingBaseCurrency)
-                            .map((currCode) => {
-                              const curr = companyCurrencies.find(c => c.code === currCode);
-
-                              if (!curr) return null;
-
-                              return (
-                                <div key={currCode} className="flex items-center gap-2">
-                                  <img src={curr.flag} alt={curr.name} className="w-3 h-3" />
-                                  <span className="text-[10px] w-8">{curr.code}</span>
-                                  <span className="text-[10px]">
-                                    1 {editingBaseCurrency} =
-                                  </span>
-                                  <input
-                                    type="number"
-                                    step="0.01"
-                                    className="flex-1 p-1 border rounded text-[10px]"
-                                    value={editingCurrencyConfig[currCode]?.rate || ''}
-                                    onChange={(e) =>
-                                      setEditingCurrencyConfig(prev => ({
-                                        ...prev,
-                                        [currCode]: {
-                                          ...prev[currCode],
-                                          rate: parseFloat(e.target.value) || 0
-                                        }
-                                      }))
-                                    }
-                                    placeholder="0.00"
-                                  />
-                                  <span className="text-[10px]">{curr.code}</span>
-                                </div>
-                              );
-                            })}
-                        </div>
-                      </div>
-
-                      <div className="flex gap-2 mt-5">
-                        <Button className="h-7 text-[10px] bg-blue-600 hover:bg-army/85" onClick={saveEdit}>Save</Button>
-                        <Button variant="ghost" className="h-7 text-[10px]" onClick={() => setIsEditMode(false)}>Cancel</Button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Info */}
-                  <div className={`transition-all duration-300 overflow-hidden ${editingId === b.id && isEditMode ? 'max-h-0 opacity-0 pointer-events-none' : 'max-h-screen opacity-100'}`}>
-                    <div className="space-y-3">
+                {/* Branch Info */}
+                <div className="p-6 border-t">
+                  <div className="space-y-3">
                       <div className="text-[10px]">
                         <p><strong>Address:</strong> {b.address}</p>
                       </div>
@@ -480,7 +261,6 @@ export default function BranchesPage() {
                         </div>
                       )}
                     </div>
-                  </div>
                 </div>
               </div>
             ))}

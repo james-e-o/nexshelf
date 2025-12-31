@@ -1,8 +1,10 @@
 "use client";
+
 import Link from "next/link";
 import { usePathname, useParams } from "next/navigation";
-import { useContext } from "react";
-import {  Breadcrumb,  BreadcrumbList,  BreadcrumbItem,  BreadcrumbSeparator,  BreadcrumbLink,  BreadcrumbPage,} from "@/components/ui/breadcrumb";
+import { useContext, useEffect, useState } from "react";
+import {Breadcrumb,  BreadcrumbList,  BreadcrumbItem,  BreadcrumbSeparator,  BreadcrumbLink,  BreadcrumbPage,} from "@/components/ui/breadcrumb";
+
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { CompanyInfoContext } from "@/app/admin/[u]/company/[companySlug]/layout";
@@ -11,61 +13,128 @@ export default function BranchHeader({ children }) {
   const pathname = usePathname();
   const params = useParams();
   const { currentBranch } = useContext(CompanyInfoContext);
-  
+
+  const [isSmallScreen, setIsSmallScreen] = useState(false);
+
+  /* ------------------------------
+   Responsive breakpoint handling
+  ------------------------------- */
+  useEffect(() => {
+    const checkScreen = () => setIsSmallScreen(window.innerWidth < 640);
+    checkScreen();
+    window.addEventListener("resize", checkScreen);
+    return () => window.removeEventListener("resize", checkScreen);
+  }, []);
+
+  /* ------------------------------
+     Path parsing
+  ------------------------------- */
   const segments = pathname.split("/").filter(Boolean);
-  // Example: ["admin", "john", "company", "fedeco", "branches", "branch123"]
 
   const userId = segments[1];
   const companySlug = segments[3];
-  
-  // Check if we're in a branch route
+
   const isInBranch = segments.includes("branches");
   const isInModule = segments.includes("modules");
-  
-  let displaySegments;
-  if (isInModule && currentBranch) {
-    // For module routes under branch: show branch name + module name + any sub-routes
-    const modulesIndex = segments.indexOf("modules");
-    const moduleSegment = segments[modulesIndex + 1]; // Module name after "modules"
-    const subSegments = segments.slice(modulesIndex + 2); // Everything after module name
-    displaySegments = [currentBranch.name, moduleSegment, ...subSegments];
-  } else if (isInBranch && currentBranch) {
-    // For branch routes: show just the branch name
-    displaySegments = [currentBranch.name];
+    /* ------------------------------
+      URL builders and simple route predicates
+    ------------------------------- */
+    const baseCompany = `/admin/${userId}/company/${companySlug}`;
+    const branchBase = `${baseCompany}/branches/${params.branch}`;
+    const isAtCompanyRoot = segments.length === 4;
+
+    /* ------------------------------
+      Build breadcrumb items (label + href) from original segments
+      This ensures hrefs are correct and keys unique.
+    ------------------------------- */
+    const breadcrumbItems = [];
+
+  // Admin
+  breadcrumbItems.push({ label: "Admin", href: `/admin/${userId}` });
+
+  // Company
+  if (isAtCompanyRoot) {
+    breadcrumbItems.push({ label: companySlug, href: baseCompany, isCurrent: true });
   } else {
-    displaySegments = segments.slice(4); // Everything after company
+    breadcrumbItems.push({ label: companySlug, href: baseCompany });
+
+    if (isInBranch && currentBranch) {
+      // Branch root
+      breadcrumbItems.push({ label: currentBranch.name, href: branchBase });
+
+      if (isInModule) {
+        const modulesIndex = segments.indexOf("modules");
+        const moduleSlug = segments[modulesIndex + 1];
+
+        // Module root
+        breadcrumbItems.push({ label: moduleSlug, href: `${branchBase}/modules/${moduleSlug}` });
+
+        // Add each sub-route under the module progressively
+        for (let i = modulesIndex + 2; i < segments.length; i++) {
+          const subLabel = segments[i];
+          const subPath = segments.slice(modulesIndex + 2, i + 1).join("/");
+          breadcrumbItems.push({ label: subLabel, href: `${branchBase}/modules/${moduleSlug}/${subPath}` });
+        }
+      } else {
+        // Non-module branch sub-pages: everything after the branch id
+        const branchIndex = segments.indexOf("branches");
+        for (let i = branchIndex + 2; i < segments.length; i++) {
+          const subLabel = segments[i];
+          const subPath = segments.slice(branchIndex + 2, i + 1).join("/");
+          breadcrumbItems.push({ label: subLabel, href: `${branchBase}/${subPath}` });
+        }
+      }
+    } else {
+      // Not in a branch: build from company onward
+      for (let i = 4; i < segments.length; i++) {
+        const seg = segments[i];
+        const path = segments.slice(4, i + 1).join("/");
+        breadcrumbItems.push({ label: seg, href: `${baseCompany}/${path}` });
+      }
+    }
   }
 
-  const isAtCompanyRoot = segments.length === 4;
+    /* ------------------------------
+      Collapse breadcrumbs on mobile
+    ------------------------------- */
+    const collapsedItems =
+     isSmallScreen && breadcrumbItems.length > 3
+      ? [breadcrumbItems[0], { label: "..." }, breadcrumbItems[breadcrumbItems.length - 2], breadcrumbItems[breadcrumbItems.length - 1]]
+      : breadcrumbItems;
 
   return (
-    <header className="flex h-12 w-full overflow-x-hidden justify-between items-center gap-2 border-b px-4">
-      <div className="flex shrink-0 items-center gap-2">
+    <header className="flex h-12 w-full justify-between items-center gap-2 border-b px-4">
+      <div className="flex items-center gap-2 min-w-0">
         <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
+        <Separator
+          orientation="vertical"
+          className="mr-2 data-[orientation=vertical]:h-4"
+        />
 
         <Breadcrumb>
-          <BreadcrumbList className="flex items-center gap-1">
-            {/* Always show "Dashboard" */}
+          <BreadcrumbList className="flex items-center gap-1 text-xs sm:text-sm truncate">
+            {/* Admin */}
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link href={`/admin/${userId}`}>Admin Page</Link>
+                <Link href={`/admin/${userId}`}>Admin</Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
 
             <BreadcrumbSeparator />
 
-            {/* Company breadcrumb */}
+            {/* Company */}
             {isAtCompanyRoot ? (
               <BreadcrumbItem>
-                <BreadcrumbPage className="capitalize">{companySlug}</BreadcrumbPage>
+                <BreadcrumbPage className="capitalize">
+                  {companySlug}
+                </BreadcrumbPage>
               </BreadcrumbItem>
             ) : (
               <>
                 <BreadcrumbItem>
                   <BreadcrumbLink asChild>
                     <Link
-                      href={`/admin/${userId}/company/${companySlug}`}
+                      href={baseCompany}
                       className="capitalize"
                     >
                       {companySlug}
@@ -73,40 +142,33 @@ export default function BranchHeader({ children }) {
                   </BreadcrumbLink>
                 </BreadcrumbItem>
 
-                {/* Sub-page breadcrumbs */}
-                {displaySegments.map((segment, i) => {
-                  let href;
-                  if (isInBranch && currentBranch && i === 0) {
-                    // First segment is branch name, link to branch
-                    href = `/admin/${userId}/company/${companySlug}/branches/${params.branch}`;
-                  } else if (isInModule && i === 1) {
-                    // Second segment (i=1) is the module name, link to module
-                    const moduleSlug = displaySegments[1];
-                    href = `/admin/${userId}/company/${companySlug}/branches/${params.branch}/modules/${moduleSlug}`;
-                  } else if (isInModule && i > 1) {
-                    // Sub-routes under module (i > 1)
-                    const moduleSlug = displaySegments[1];
-                    const subPath = displaySegments.slice(2, i + 1).join("/");
-                    href = `/admin/${userId}/company/${companySlug}/branches/${params.branch}/modules/${moduleSlug}/${subPath}`;
-                  } else {
-                    // Fallback
-                    href = pathname;
+                {/* Dynamic breadcrumbs */}
+                {collapsedItems.map((item, i) => {
+                  if (item.label === "...") {
+                    return (
+                      <div key={`ellipsis-${i}`} className="flex items-center">
+                        <BreadcrumbSeparator className="mx-1" />
+                        <span className="text-muted-foreground">…</span>
+                      </div>
+                    );
                   }
-                  
-                  const isLast = i === displaySegments.length - 1;
+
+                  const isLast = i === collapsedItems.length - 1;
 
                   return (
-                    <div key={href} className="flex items-center">
-                      <BreadcrumbSeparator className="flex items-center mr-1.5 relative " />
+                    <div key={`${item.href ?? item.label}-${i}`} className="flex items-center">
+                      <BreadcrumbSeparator className="mx-1" />
                       {isLast ? (
                         <BreadcrumbItem>
-                          <BreadcrumbPage className="capitalize">{segment}</BreadcrumbPage>
+                          <BreadcrumbPage className="capitalize">
+                            {item.label}
+                          </BreadcrumbPage>
                         </BreadcrumbItem>
                       ) : (
                         <BreadcrumbItem>
                           <BreadcrumbLink asChild>
-                            <Link href={href} className="capitalize">
-                              {segment}
+                            <Link href={item.href} className="capitalize">
+                              {item.label}
                             </Link>
                           </BreadcrumbLink>
                         </BreadcrumbItem>
@@ -120,8 +182,10 @@ export default function BranchHeader({ children }) {
         </Breadcrumb>
       </div>
 
-      {/* Right side content (e.g. profile, buttons, etc.) */}
-      <div>{children}</div>
+      {/* Right-side slot */}
+      <div className="flex items-center gap-2">
+        {children}
+      </div>
     </header>
   );
 }

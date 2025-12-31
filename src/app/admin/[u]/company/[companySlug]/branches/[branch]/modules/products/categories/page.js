@@ -1,267 +1,677 @@
 "use client"
 
-import { useState } from "react"
-import { ChevronsUpDown, Plus } from "lucide-react"
+import { useState, useEffect, useRef } from "react"
+import { useRouter, useSearchParams, useParams } from "next/navigation"
+import { Plus, Trash2, Loader2, Check, Pencil, Rocket } from "lucide-react"
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { motion, AnimatePresence } from "framer-motion"
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent } from "@/components/ui/dropdown-menu"
+import { supabase } from "../../../../../../../../../../../config/supabaseClient"
+import { ca, se } from "date-fns/locale"
 
 // ======================================================================
 //  Category Table Component (JSX)
 // ======================================================================
 
-export default function CategoryTable() {
-  // Accordion states for each section - all start open by default
-  const [categoriesOpen, setCategoriesOpen] = useState(true)
-  const [collectionsOpen, setCollectionsOpen] = useState(true)
-  const [tagsOpen, setTagsOpen] = useState(true)
+    function buildCategoryTree(categories) {
+      const categoryMap = {};
+      const idMap = {};
+      const nameMap = {};
+      const roots = [];
+      categories.forEach(cat => {
+        categoryMap[cat.id] = { ...cat, children: [] };
+        idMap[String(cat.id)] = cat;
+        if (cat.name) nameMap[String(cat.name)] = cat;
+      });
+      categories.forEach(cat => {
+        const parentRaw = cat.parent;
+        if (parentRaw) {
+          // parent may be an id or a name; resolve
+          const parentCat = idMap[String(parentRaw)] || nameMap[String(parentRaw)];
+          if (parentCat && categoryMap[parentCat.id]) {
+            categoryMap[parentCat.id].children.push(categoryMap[cat.id]);
+            return;
+          }
+        }
+        roots.push(categoryMap[cat.id]);
+      });
+      return roots;
+    }
 
-  // Form states
-  const [showCategoryForm, setShowCategoryForm] = useState(false)
-  const [showCollectionForm, setShowCollectionForm] = useState(false)
-  const [showTagForm, setShowTagForm] = useState(false)
-
-  return (
-    <div className="space-y-4">
-      {/* Categories Section */}
-      <div className="border rounded-md bg-white dark:bg-neutral-900">
-        <div className="p-4 border-b">
-          <div className="flex items-center justify-between mb-4">
-            <button
-              onClick={() => {
-                setCategoriesOpen(!categoriesOpen)
-                setShowCategoryForm(false)
-              }}
-              className="flex items-center gap-2 text-sm font-semibold hover:bg-gray-50 px-2 py-1 rounded"
-            >
-              Categories
-              <ChevronsUpDown className="ml-0.5" size={14} />
-            </button>
-            <Button
-              onClick={() => {
-                setShowCategoryForm(!showCategoryForm)
-                setCategoriesOpen(false)
-              }}
-              className="h-7 inline-flex items-center bg-core hover:bg-core/85 gap-2"
-            >
-              <Plus size={14} />
-              <span className="text-xs">Add Category</span>
-            </Button>
-          </div>
-
-          <p className="text-xs text-army">
     
-            Categories define what the product is and where it belongs in the store. Choose the single category that best describes this product.<br />
-            <em>Example: Electronics → Phones → Smartphones</em><br />
+    
+
+export default function CategoryTable() {
+      const router = useRouter();
+      const searchParams = useSearchParams();
+      const params = useParams();
+      const toastShownRef = useRef(false);
+      const { branch } = params;
+
+      // Form states
+      // compact top inline form visibility
+      const [showTopInline, setShowTopInline] = useState(false)
+   
+      const [collectionList, setCollectionList] = useState([])
+      const [selectedCollectionId, setSelectedCollectionId] = useState(null)
+      const [showCollectionInline, setShowCollectionInline] = useState(false)
+      const [newCollectionName, setNewCollectionName] = useState('')
+      const [newCollectionSlug, setNewCollectionSlug] = useState('')
+      const [newCollectionDescription, setNewCollectionDescription] = useState('')
+
+      const [tagList, setTagList] = useState([])
+      const [selectedTagId, setSelectedTagId] = useState(null)
+      const [showTagInline, setShowTagInline] = useState(false)
+      const [newTagName, setNewTagName] = useState('')
+      const [newTagColor, setNewTagColor] = useState('blue')
+
+      // header add-category form state
+      const [categoryName, setCategoryName] = useState('')
+      const [categorySlug, setCategorySlug] = useState('')
+      const [categoryParent, setCategoryParent] = useState('')
+      const [categoryDescription, setCategoryDescription] = useState('')
+      const [categoryUploading, setCategoryUploading] = useState(false)
+      const [flatCategories, setFlatCategories] = useState([])
+      const [isLoading, setIsLoading] = useState(false)
+
+      function slugify(input){
+        return input.toString().toLowerCase().replace(/['"]/g, '').trim().replace(/\band\b/g, '&').replace(/[^a-z0-9\&-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').replace(/&/g, 'and')
+      }
+      function capitalize(input) {
+        let newValue = input.toString().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ').replace(/\bAnd\b/g, '&')
+        return newValue
+      }
+
+
+      const fetchData = async () => {
+            setIsLoading(true)
+
+            try {
+              const [
+                categoriesRes,
+                tagsRes,
+                collectionsRes,
+              ] = await Promise.all([
+                supabase.from('categories').select('*').eq('branch', branch),
+                supabase.from('tags').select('*').eq('branch', branch),
+                supabase.from('collections').select('*').eq('branch', branch),
+              ])
+
+              // 🔹 Categories
+              if (categoriesRes.error) {
+                console.error(categoriesRes.error)
+                toast.error('Failed to load categories')
+              } else {
+                setFlatCategories(categoriesRes.data || [])
+              }
+
+              // 🔹 Tags → tagList
+              if (tagsRes.error) {
+                console.error(tagsRes.error)
+                toast.error('Failed to load tags')
+              } else {
+                setTagList(tagsRes.data || [])
+              }
+
+              // 🔹 Collections → collectionList
+              if (collectionsRes.error) {
+                console.error(collectionsRes.error)
+                toast.error('Failed to load collections')
+              } else {
+                setCollectionList(collectionsRes.data || [])
+              }
+
+            } catch (e) {
+              console.error(e)
+              toast.error('Unexpected error occurred')
+            } finally {
+              setIsLoading(false)
+            }
+      }
+
+      async function refreshCategories(){
+        const r = toast.loading('Refreshing categories...')
+        await fetchData()
+        toast.dismiss(r)
+        toast.success('Categories refreshed', { id: r })
+        // return refreshdata
+      }
       
-          </p>
-        </div>
+      async function createTopCategory(){
+        if(!categoryName || !categorySlug) return
+        setCategoryUploading(true)
+        try{
+          const { data, error } = await supabase.from('categories').insert({ name: categoryName, parent: null , slug: categorySlug, description: categoryDescription ,branch: branch}).select().single()
+          if (error) {
+            toast(error)
+            throw error
+          }
+          // notify Categories to refresh
+          refreshCategories()
+          window.dispatchEvent(new CustomEvent('categories:refresh'))
+          setCategoryName('')
+          setCategorySlug('')
+          setCategoryParent('')
+          setCategoryDescription('')
+          // close compact top inline if open
+          setShowTopInline(false)
+          toast.success('Category created')
+        }catch(err){
+          console.error(err)
 
-        {/* Category Form */}
-        {showCategoryForm && (
-          <div className="p-4 border-b bg-gray-50">
-            <div className="space-y-4 max-w-md">
-              <div>
-                <label className="text-sm font-medium">Category Name</label>
-                <input
-                  type="text"
-                  placeholder="Enter category name"
-                  className="w-full mt-1 px-3 py-2 border rounded-md text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Parent Category</label>
-                <select className="w-full mt-1 px-3 py-2 border rounded-md text-sm">
-                  <option value="">None (Top Level)</option>
-                  <option value="electronics">Electronics</option>
-                  <option value="furniture">Furniture</option>
-                  <option value="kitchen-appliances">Kitchen Appliances</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-sm font-medium">Description</label>
-                <textarea
-                  placeholder="Enter category description"
-                  className="w-full mt-1 px-3 py-2 border rounded-md text-sm"
-                  rows={3}
-                />
+          toast.error('Failed to create category')
+        }finally{ setCategoryUploading(false) }
+      }
+
+      
+      useEffect(()=>{
+        fetchData()
+      },[])
+
+      return (
+        <Tabs defaultValue="categories" className="w-full flex-col font-WixMade flex  h-full overflow-hidden">
+          <div className="h-fit">
+            <TabsList className="grid w-fit gap-5 grid-cols-2">
+              <TabsTrigger value="categories">Categories</TabsTrigger>
+              <TabsTrigger value="collections">Collections</TabsTrigger>
+              {/* <TabsTrigger value="tags">Tags</TabsTrigger> */}
+            </TabsList>
+          </div>
+          <div className="mt-2 grow overflow-hidden ">
+              <TabsContent value="categories" className="space-y-4 overflow-hidden h-full">
+                {/* Categories Section */}
+                <div className="border rounded-md bg-white flex flex-col h-full overflow-hidden dark:bg-neutral-900">
+                  <div>
+                      <div className="p-4 border-b">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-sm font-semibold">Categories</h3>
+                          <Button size="sm" className="h-7 inline-flex items-center bg-core hover:bg-core/85 gap-2" onClick={() => { setShowTopInline(v => !v); setCategoryName(''); setCategorySlug('') }}>
+                            <Plus size={14} />
+                            <span className="text-xs">Add Category</span>
+                          </Button>
+
+                        </div>
+                        {/* Add Category control moved below the category tree */}
+                      
+                      </div>
+
+                      <div className="p-4 border-b">
+                        <div className="flex items-center gap-2">
+                        
+                          {showTopInline && (
+                            <div className="flex items-center gap-2">
+                              <Label>Top level category:</Label>
+                              <Input autoFocus value={categoryName} onChange={(e)=>{ setCategoryName(capitalize(e.target.value)); setCategorySlug(slugify(e.target.value)) }} placeholder="Category name" className="h-7 px-2 w-44 text-sm rounded-sm border" />
+                              <Button size="icon" onClick={createTopCategory} className="h-7 w-7 p-0 bg-army" disabled={categoryUploading || !categoryName}>
+                                <Rocket size={14} />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                  </div>
+                  <Categories refresh={refreshCategories} isLoading={isLoading} categoryList={flatCategories}/>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="collections" className="space-y-4 overflow-hidden h-full">
+                <div className="border rounded-md flex flex-col h-full overflow-hidden bg-white dark:bg-neutral-900">
+                  <div>
+                  <div className="p-4 border-b flex items-center justify-between">
+                    <h3 className="text-sm font-semibold">Collections</h3>
+                    <Button onClick={() => { setShowCollectionInline(v=>!v); setNewCollectionName(''); setNewCollectionSlug('') }} className="h-7 inline-flex items-center bg-core hover:bg-core/85 gap-2">
+                      <Plus size={14} />
+                      <span className="text-xs">Add Collection</span>
+                    </Button>
+                  </div>
+                  <div className="p-4 border-b">
+                        <div className="flex items-center gap-2">
+                          {showCollectionInline && (
+                            <div className=" flex items-center gap-2">
+                              <Input autoFocus value={newCollectionName} onChange={(e)=>{ setNewCollectionName(e.target.value); setNewCollectionSlug(slugify(e.target.value)) }} placeholder="Collection name" className="h-7 px-2 w-44 text-sm rounded-sm border" />
+                              <Button size="icon" onClick={async ()=>{
+                                if(!newCollectionName) return
+                                const newId = Date.now().toString()
+                                const newCol = { id: newId, name: newCollectionName, slug: newCollectionSlug, description: newCollectionDescription }
+                                setCollectionList(prev => [...prev, newCol])
+                                setNewCollectionName('')
+                                setNewCollectionSlug('')
+                                setShowCollectionInline(false)
+                              }} disabled={!newCollectionName} className="h-7 w-7 p-0 bg-army">
+                                <Rocket size={14} />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                  </div>
+                  </div>
+
+                  <div className="flex grow overflow-hidden ">
+                    <div className="flex-1 h-full overflow-y-scroll p-6">
+                      <div className="space-y-2">
+                        {(collectionList.length ? collectionList : [
+                          { id: 'c1', name: 'New Arrivals', description: 'Latest products' },
+                          { id: 'c2', name: 'Best Sellers', description: 'Top selling items' },
+                          { id: 'c3', name: 'Summer', description: 'Seasonal items' }
+                        ]).map(col => (
+                          <div key={col.id} className={`py-2 cursor-pointer ${String(selectedCollectionId) === String(col.id) ? 'font-semibold text-core' : 'text-sm text-zinc-700'}`} onClick={() => setSelectedCollectionId(col.id)}>
+                            {col.name}
+                          </div>
+                        ))}
+                      </div>
+
+                    </div>
+
+                    <div className="w-72 border-l p-4">
+                      {selectedCollectionId ? (
+                        (() => {
+                          const col = (collectionList.find(c => String(c.id) === String(selectedCollectionId)) || { name: '', description: '' })
+                          return (
+                            <div>
+                              <h4 className="text-sm font-medium">{col.name}</h4>
+                              <div className="text-[13px] text-muted-foreground">{col.description || 'No description provided.'}</div>
+                            </div>
+                          )
+                        })()
+                      ) : (
+                        <div className="text-sm text-gray-500">Select a collection to see details</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
+
+
+              {/* TAGS */}
+              {/* <TabsContent value="tags" className="space-y-4 overflow-hidden h-full">
+                <div className="border rounded-md bg-white flex flex-col h-full overflow-hidden dark:bg-neutral-900">
+                  <div>
+                  <div className="p-4 border-b flex items-center justify-between">
+                    <h3 className="text-sm font-semibold">Tags</h3>
+                    <Button onClick={() => { setShowTagInline(v=>!v); setNewTagName('') }} className="h-7 inline-flex items-center bg-core hover:bg-core/85 gap-2">
+                      <Plus size={14} />
+                      <span className="text-xs">Add Tag</span>
+                    </Button>
+                  </div>
+                  <div className="p-4 border-b">
+                        <div className="flex items-center gap-2">
+                          {showTagInline && (
+                            <div className="mt-3 flex items-center gap-2">
+                              <Input autoFocus value={newTagName} onChange={(e)=>setNewTagName(e.target.value)} placeholder="Tag name" className="h-7 px-2 w-44 text-sm rounded-sm border" />
+                              <select value={newTagColor} onChange={(e)=>setNewTagColor(e.target.value)} className="h-7 px-2 text-sm border rounded-sm">
+                                <option value="blue">Blue</option>
+                                <option value="green">Green</option>
+                                <option value="red">Red</option>
+                                <option value="yellow">Yellow</option>
+                                <option value="purple">Purple</option>
+                              </select>
+                              <Button size="icon" onClick={()=>{
+                                if(!newTagName) return
+                                const id = Date.now().toString()
+                                setTagList(prev => [...prev, { id, name: newTagName, color: newTagColor }])
+                                setNewTagName('')
+                                setShowTagInline(false)
+                              }} disabled={!newTagName} className="h-7 w-7 p-0 bg-army">
+                                <Rocket size={14} />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                  </div>
+                  </div>
+                  <div className="flex grow overflow-hidden">
+                    <div className="flex-1 h-full overflow-y-scroll p-6">
+                      <div className="space-y-2">
+                        {(tagList.length ? tagList : [
+                          { id: 't1', name: 'New', color: 'blue' },
+                          { id: 't2', name: 'Sale', color: 'red' },
+                          { id: 't3', name: 'Limited', color: 'purple' }
+                        ]).map(tag => (
+                          <div key={tag.id} className={`py-2 cursor-pointer ${String(selectedTagId) === String(tag.id) ? 'font-semibold text-core' : 'text-sm text-zinc-700'}`} onClick={() => setSelectedTagId(tag.id)}>
+                            {tag.name}
+                          </div>
+                        ))}
+                      </div>
+
+                    </div>
+
+                    <div className="w-72 border-l p-4">
+                      {selectedTagId ? (
+                        (() => {
+                          const tag = (tagList.find(t => String(t.id) === String(selectedTagId)) || { name: '', color: '' })
+                          return (
+                            <div>
+                              <h4 className="text-sm font-medium">{tag.name}</h4>
+                              <div className="text-[13px] text-muted-foreground">Color: {tag.color || 'N/A'}</div>
+                            </div>
+                          )
+                        })()
+                      ) : (
+                        <div className="text-sm text-gray-500">Select a tag to see details</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </TabsContent> */}
+
+          </div>
+
+        </Tabs>
+      )
+    }
+
+    const Categories = ({refresh,isLoading,categoryList}) => {
+          const [ setCategoryList] = useState([])
+          const [category, setCategory] = useState('')
+          const [selectedCategory, setSelectedCategory] = useState('')
+
+          const categoryTree = buildCategoryTree(categoryList);
+
+          const selected = categoryList.find(c => String(c.id) === String(selectedCategory))
+          const parentCategory = selected?.parent
+            ? categoryList.find(c => String(c.id) === String(selected.parent))
+            : null
+
+          const parentName = parentCategory?.name || ''
+
+          return (
+            <div className="grow overflow-hidden">
+              {categoryList.length ? (
+                <div className="flex justify-between gap-6 h-full pb-8 overflow-hidden">
+                  <div className="flex-1 h-full overflow-y-scroll px-6 ml-6">
+                    <CheckboxTree
+                      categoryList={categoryList}
+                      setCategoryList={setCategoryList}
+                      handleCheckboxChange={(id) => { setSelectedCategory(id) }}
+                      checked={selectedCategory}
+                      categories={categoryTree}
+                      refresh={refresh}
+                    />
+                  </div>
+                  <div className="w-72 border-l p-4">
+                    <p className="text-xs font-semibold text-army">
+                          Categories define what the product is and where it belongs in the store. Create the single category that best describes this product.<br />
+                          <em>Example: Electronics → Phones → Smartphones</em><br />
+                        </p>
+                    {selected ? (
+                      <CategoryDetails  selected={selected} refresh={refresh}  parentName={parentName}/>
+                    ) : (
+                      <div className="text-sm text-gray-500">Select a category to see details</div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <p className="h-12 flex justify-center items-center text-center">{isLoading ? "Loading..." : "No results."}</p>
+              )}
+            </div>
+          )
+    }
+
+  const CheckboxTree = ({ categories, handleCheckboxChange, checked,refresh }) => {
+      const params = useParams()
+      const [subCategoryName, setSubCategoryName] = useState('')
+        const [subCategorySlug, setSubCategorySlug] = useState('')
+        const [subCategoryDescription, setSubCategoryDescription] = useState('')
+        const [subCategoryParent, setSubCategoryParent] = useState('')
+        const [uploading, setUploading] = useState(false)
+        const [deleting, setDeleting] = useState(false)
+        const [addingFor, setAddingFor] = useState(null)
+        const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+        const [deleteTarget, setDeleteTarget] = useState(null)
+
+        function convertToSlug(input) {
+          let newValue = input.toString().toLowerCase().replace(/['"]/g, '').trim().replace(/\band\b/g, '&').replace(/[^a-z0-9\&-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').replace(/&/g, 'and')
+          return newValue
+        }
+        function capitalize(input) {
+          let newValue = input.toString().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ').replace(/\bAnd\b/g, '&')
+          return newValue
+        }
+
+        async function createCategory(parentId) {
+          if (!subCategoryName) return
+          setUploading(true)
+          const slug = subCategorySlug || convertToSlug(subCategoryName)
+          // show checking toast
+          const t = toast.loading('Checking for existing category...')
+          try{
+            const { data: existing, error: existingErr } = await supabase.from('categories').select('id').eq('slug', slug).limit(1)
+            if (existingErr) {
+              console.error(existingErr)
+              toast.error('Failed to check existing category', { id: t })
+              setUploading(false)
+              return
+            }
+            if (existing && existing.length > 0) {
+              toast.error('Category already exists', { id: t })
+              setUploading(false)
+              return
+            }
+            // slug available
+            toast.dismiss(t)
+            const branchId = params?.branch || null
+            const insertObj = { name: subCategoryName, slug, parent: parentId ? parentId : null, description: '', branch: branchId }
+            const { data, error } = await supabase.from('categories').insert(insertObj).select().single()
+            if (error) {
+              console.error(error)
+              toast.error('Failed to create category')
+              setUploading(false)
+              return
+            }
+            // notify Categories to refresh
+            refresh()
+            window.dispatchEvent(new CustomEvent('categories:refresh'))
+            setSubCategoryName('')
+            setSubCategorySlug('')
+            setAddingFor(null)
+            toast.success('Category created')
+          }catch(err){ console.error(err); toast.error('Failed to create category') }
+          finally{ setUploading(false) }
+        }
+
+        function blurOut() {
+          console.log(subCategoryName, slug)
+          // setsubCategoryName('')
+          // setSlug('')
+        }
+        
+        const renderCategories = (categories, level = 0) => {
+          return categories.map((category) => (
+            <div key={category.id} style={{ marginLeft: `${level * 28}px`, marginTop: '13px', marginBottom: '13px' }}>
+                <div className="inline-flex items-center gap-3 text-sm">
+                  <span onClick={() => handleCheckboxChange(category.id)} className={`mx-2 cursor-pointer ${String(checked) === String(category.id) ? 'font-semibold text-core' : ''}`}>{category.name}</span>
+                  <div className="relative inline-flex items-center gap-2 bg-armylight dark:bg-red-800/10 p-[3px] rounded-sm h-5 border border-core/20">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      title="Add subcategory"
+                      aria-label="Add subcategory"
+                      onClick={() => { setAddingFor(addingFor === category.id ? null : category.id); setSubCategoryName(''),setSubCategorySlug('') }}
+                      className="h-5 w-5 p-0"
+                    >
+                      <Plus className="size-3.5" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      title="Delete category"
+                      aria-label="Delete category"
+                      onClick={() => { setDeleteTarget({ id: category.id, name: category.name }); setDeleteDialogOpen(true) }}
+                      className="h-5 w-5 p-0"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+
+                    {addingFor === category.id && (
+                      <div className="absolute left-full ml-2 flex items-center gap-1">
+                        <Input autoFocus value={subCategoryName} onChange={({target})=>{setSubCategoryName(capitalize(target.value)),setSubCategorySlug(convertToSlug(target.value))}} onBlur={()=>{ if(subCategoryName==='') setAddingFor(null)}} placeholder="name" className="h-6 px-2 w-36 text-sm rounded-sm border" />
+                        <Button size="icon" onClick={() => {createCategory(category.id) }} disabled={!subCategoryName||uploading} className="h-6 w-7 bg-army p-0">
+                          <Rocket size={12} />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              {category.children && renderCategories(category.children, level + 1)}
+            </div>
+          ));
+    };
+
+          // remove a category and its descendants from the flat list
+
+
+          async function deleteCategory(id){
+          (async ()=>{
+            try{
+              setDeleting(true)
+              // collect all descendant ids (including the root id)
+              const toDelete = new Set()
+              const queue = [id]
+              while(queue.length){
+                const current = queue.shift()
+                toDelete.add(current)
+                const { data: children, error: childErr } = await supabase.from('categories').select('id').eq('parent', current)
+                if (childErr) throw childErr
+                if (children && children.length){
+                  children.forEach(c => { if (c && c.id) queue.push(c.id) })
+                }
+              }
+              const ids = Array.from(toDelete)
+              const { error } = await supabase.from('categories').delete().in('id', ids)
+              if (error) throw error
+              window.dispatchEvent(new CustomEvent('categories:refresh'))
+              toast.success(`Deleted ${ids.length} category(ies)`)
+              refresh()
+            }catch(err){ console.error(err); toast.error('Failed to delete category') }
+            finally{ setDeleting(false) }
+          })()
+          }
+          
+        return (
+          <>
+            <div className="-ml-4 pb-20 pt4">{renderCategories(categories)}</div>
+
+            {/* Delete confirmation dialog */}
+            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete category</AlertDialogTitle>
+                  <AlertDialogDescription>Are you sure you want to delete "{deleteTarget?.name}"? This will also delete any subcategories that have this category as their parent. This action cannot be undone.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="h-7">Cancel</AlertDialogCancel>
+                  <AlertDialogAction className="h-7 bg-red-600 text-white" onClick={async ()=>{ if(!deleteTarget) return; await deleteCategory(deleteTarget.id); setDeleteDialogOpen(false); setDeleteTarget(null)}}>Delete</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </>
+        );
+}
+
+function CategoryDetails({ selected,parentName, refresh,children }) {
+      const [editing, setEditing] = useState(false)
+      const [name, setName] = useState(selected.name)
+      const [slug, setSlug] = useState(selected.slug || '')
+      const [description, setDescription] = useState(selected.description || '')
+      const [parentDisplayName, setParentDisplayName] = useState(parentName)
+      const [saving, setSaving] = useState(false)
+      const [updateDialogOpen, setUpdateDialogOpen] = useState(false)
+      const [pendingUpdates, setPendingUpdates] = useState(null)
+
+      useEffect(()=>{
+        setName(selected.name)
+        setSlug(selected.slug || '')
+        setDescription(selected.description || '')
+        setParentDisplayName(parentName)
+      },[selected,parentName])
+
+      return (
+        <div>
+          <div>{children}</div>
+          <div className="flex my-1.5 items-center justify-between">
+            <h4 className="text-sm font-semibold">Details</h4>
+            <Button size="icon" variant="ghost" onClick={() => setEditing(v=>!v)} className="h-6 w-6 p-0"><Pencil size={14} /></Button>
+          </div>
+          {!editing ? (
+            <div className="space-y-2 mt-3">
+              <div className="text-sm font-medium">{selected.name}</div>
+              <div className="text-[13px] text-muted-foreground">Slug: {selected.slug || '-'}</div>
+              <div className="text-[13px] text-muted-foreground">Parent: {parentName || 'None'}</div>
+              
+              <div className="pt-2 italic text-xs">description: {selected.description || 'No description provided.'}</div>
+            </div>
+          ) : (
+            <div className="space-y-2 mt-3">
+              <div className="flex gap-2">
+                <Label>Name:</Label>
+                <Input placeholder="Name" value={name} onChange={e=>setName(e.target.value)} className="w-full mt-1 px-2 py-1 border h-7 rounded-sm text-sm" />
               </div>
               <div className="flex gap-2">
-                <Button size="sm" className="bg-army hover:bg-army/85">
-                  Create Category
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowCategoryForm(false)}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className={categoriesOpen ? "grid grid-rows-[1fr] transition-all duration-300" : "grid grid-rows-[0fr] transition-all duration-300"}>
-          <div className="overflow-hidden">
-            <div className="p-4 text-center text-gray-500">
-              This is the categories section. Here you can manage your product categories.
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Collections Section */}
-      <div className="border rounded-md bg-white dark:bg-neutral-900">
-        <div className="p-4 border-b">
-          <div className="flex items-center justify-between mb-4">
-            <button
-              onClick={() => {
-                setCollectionsOpen(!collectionsOpen)
-                setShowCollectionForm(false)
-              }}
-              className="flex items-center gap-2 text-sm font-bold hover:bg-gray-50 px-2 py-1 rounded"
-            >
-              Collections
-              <ChevronsUpDown className="ml-0.5" size={14} />
-            </button>
-            <Button
-              onClick={() => {
-                setShowCollectionForm(!showCollectionForm)
-                setCollectionsOpen(false)
-              }}
-              className="h-7 inline-flex items-center bg-core hover:bg-core/85 gap-2"
-            >
-              <Plus size={14} />
-              <span className="text-xs">Add Collection</span>
-            </Button>
-          </div>
-
-          <p className="text-xs text-army">
-            Collections group products together for display, promotions, or campaigns (for example: New Arrivals, Best Sellers, Back to School).<br />
-          </p>
-        </div>
-
-        {/* Collection Form */}
-        {showCollectionForm && (
-          <div className="p-4 border-b bg-gray-50">
-            <div className="space-y-4 max-w-md">
-              <div>
-                <label className="text-sm font-medium">Collection Name</label>
-                <input
-                  type="text"
-                  placeholder="Enter collection name"
-                  className="w-full mt-1 px-3 py-2 border rounded-md text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Description</label>
-                <textarea
-                  placeholder="Enter collection description"
-                  className="w-full mt-1 px-3 py-2 border rounded-md text-sm"
-                  rows={3}
-                />
-              </div>
+                <Label>Slug:</Label>
+                <Input placeholder="Slug" value={slug} onChange={e=>setSlug(e.target.value)} className="w-full mt-1 px-2 py-1 border h-7 rounded-sm text-sm" />
+              </div>              
               <div className="flex gap-2">
-                <Button size="sm" className="bg-army hover:bg-army/85">
-                  Create Collection
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowCollectionForm(false)}
-                >
-                  Cancel
-                </Button>
+                <Label>Description:</Label>
+                <Textarea placeholder="Description" value={description} onChange={e=>setDescription(e.target.value)} className="w-full mt-1 px-2 py-1 border rounded-sm text-sm" rows={3} />
+              </div>
+              <div className="flex mt-3 gap-2">
+                <Button className="bg-army h-6 text-xs font-medium  hover:bg-army/85" onClick={async () => {
+                  // detect changes
+                  const updates = {}
+                  if (name !== selected.name) updates.name = name
+                  if (slug !== (selected.slug || '')) updates.slug = slug
+                  if (description !== (selected.description || '')) updates.description = description
+                  if (Object.keys(updates).length === 0) { setEditing(false); toast('No changes'); return }
+                  // open confirmation dialog
+                  setPendingUpdates(updates)
+                  setUpdateDialogOpen(true)
+                }}>Save</Button>
+                <Button variant="secondary" className={'h-6 font-medium text-xs'} onClick={() => { setName(selected.name); setSlug(selected.slug||''); setDescription(selected.description||''); setEditing(false) }}>Cancel</Button>
+              {/** Update confirmation dialog */}
+              <AlertDialog open={updateDialogOpen} onOpenChange={setUpdateDialogOpen}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Confirm update</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      You're about to update the category. The following changes will be applied:
+                      <p className="mt-2 text-xs">
+                        {pendingUpdates && Object.keys(pendingUpdates).map(k => (
+                          <span key={k}><strong>{k}</strong>: {String(selected[k]||'')} → {String(pendingUpdates[k]||'')}</span>
+                        ))}
+                      </p>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel className="h-7">Cancel</AlertDialogCancel>
+                    <AlertDialogAction className="h-7 bg-army hover:bg-army/80 text-white" onClick={async ()=>{
+                      if (!pendingUpdates) return
+                      try{
+                        setSaving(true)
+                        const { data, error } = await supabase.from('categories').update(pendingUpdates).eq('id', selected.id).select().single()
+                        if (error) throw error
+                        window.dispatchEvent(new CustomEvent('categories:refresh'))
+                        refresh()
+                        setEditing(false)
+                        setUpdateDialogOpen(false)
+                        setPendingUpdates(null)
+                        toast.success('Saved')
+                      }catch(err){ console.error(err); toast.error('Failed to save') }
+                      finally{ setSaving(false) }
+                    }}>Confirm</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
               </div>
             </div>
-          </div>
-        )}
-
-        <div className={collectionsOpen ? "grid grid-rows-[1fr] transition-all duration-300" : "grid grid-rows-[0fr] transition-all duration-300"}>
-          <div className="overflow-hidden">
-            <div className="p-4 text-center text-gray-500">
-              This is the collections section. Here you can manage your product collections.
-            </div>
-          </div>
+          )}
         </div>
-      </div>
-
-      {/* Tags Section */}
-      <div className="border rounded-md bg-white dark:bg-neutral-900">
-        <div className="p-4 border-b">
-          <div className="flex items-center justify-between mb-4">
-            <button
-              onClick={() => {
-                setTagsOpen(!tagsOpen)
-                setShowTagForm(false)
-              }}
-              className="flex items-center gap-2 text-sm font-semibold hover:bg-gray-50 px-2 py-1 rounded"
-            >
-              Tags
-              <ChevronsUpDown size={14} />
-            </button>
-            <Button
-              onClick={() => {
-                setShowTagForm(!showTagForm)
-                setTagsOpen(false)
-              }}
-              className="h-7 inline-flex items-center bg-core hover:bgcorey/85 gap-2"
-            >
-              <Plus size={14} />
-              <span className="text-xs">Add Tag</span>
-            </Button>
-          </div>
-
-          <p className="text-xs text-army">
-            Tags are keywords used for search, filters, and automatic grouping (such as color, size, material, trend, or special flags).
-          </p>
-        </div>
-
-        {/* Tag Form */}
-        {showTagForm && (
-          <div className="p-4 border-b bg-gray-50">
-            <div className="space-y-4 max-w-md">
-              <div>
-                <label className="text-sm font-medium">Tag Name</label>
-                <input
-                  type="text"
-                  placeholder="Enter tag name"
-                  className="w-full mt-1 px-3 py-2 border rounded-md text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Color</label>
-                <select className="w-full mt-1 px-3 py-2 border rounded-md text-sm">
-                  <option value="blue">Blue</option>
-                  <option value="green">Green</option>
-                  <option value="red">Red</option>
-                  <option value="yellow">Yellow</option>
-                  <option value="purple">Purple</option>
-                </select>
-              </div>
-              <div className="flex gap-2">
-                <Button size="sm" className="bg-army hover:bg-army/85">
-                  Create Tag
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowTagForm(false)}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className={tagsOpen ? "grid grid-rows-[1fr] transition-all duration-300" : "grid grid-rows-[0fr] transition-all duration-300"}>
-          <div className="overflow-hidden">
-            <div className="p-4 text-center text-gray-500">
-              This is the tags section. Here you can manage your product tags.
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
+      )
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useContext } from "react"
+import { useEffect, useState, useContext, createContext } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { supabase } from "../../../../../../../../config/supabaseClient"
 import { toast } from "sonner"
@@ -12,6 +12,10 @@ import { Button } from "@/components/ui/button"
 import { Bell } from "lucide-react"
 import { CompanyInfoContext } from "../../layout"
 import { RefreshContext } from "@/app/admin/[u]/layout"
+
+export const BranchContext = createContext();
+
+
 
 export default function CompanyLayout({ children }) {
   const router = useRouter()
@@ -96,16 +100,10 @@ export default function CompanyLayout({ children }) {
 
   if (!currentBranch) return null
 
-  // Extend parent context with currentBranch and filtered branchModules
-  const extendedContext = {
-    ...parentContext,
-    currentBranch,
-    modules: branchModules  // Override modules with branch-level modules
-  }
-
   return (
-    <CompanyInfoContext.Provider value={extendedContext}>
-       <SidebarProvider className="relative">
+    <BranchContext.Provider value={{ currentBranch, modules: branchModules }}>
+      <CompanyInfoContext.Provider value={parentContext}>
+        <SidebarProvider className="relative">
         <BranchSidebar company={parentContext.info} modules={branchModules} /> 
 
         <SidebarInset className="h-svh overflow-hidden static">
@@ -130,6 +128,7 @@ export default function CompanyLayout({ children }) {
         </SidebarInset>
       </SidebarProvider>
     </CompanyInfoContext.Provider>
+    </BranchContext.Provider>
   )
 }
 
