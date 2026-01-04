@@ -7,12 +7,12 @@ import {Breadcrumb,  BreadcrumbList,  BreadcrumbItem,  BreadcrumbSeparator,  Bre
 
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { CompanyInfoContext } from "@/app/admin/[u]/company/[companySlug]/layout";
+import { BranchContext } from "@/app/admin/[u]/company/[companySlug]/branches/[branch]/layout";
 
 export default function BranchHeader({ children }) {
   const pathname = usePathname();
   const params = useParams();
-  const { currentBranch } = useContext(CompanyInfoContext);
+  const { currentBranch } = useContext(BranchContext);
 
   const [isSmallScreen, setIsSmallScreen] = useState(false);
 
@@ -25,6 +25,7 @@ export default function BranchHeader({ children }) {
     window.addEventListener("resize", checkScreen);
     return () => window.removeEventListener("resize", checkScreen);
   }, []);
+  // console.log(currentBranch)
 
   /* ------------------------------
      Path parsing

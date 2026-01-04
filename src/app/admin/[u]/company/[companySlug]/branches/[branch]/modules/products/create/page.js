@@ -6,6 +6,7 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 import { useReactTable, getCoreRowModel, flexRender } from "@tanstack/react-table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs,TabsTrigger,TabsList,TabsContent } from "@/components/ui/tabs"
+import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea";
@@ -26,6 +27,7 @@ import { VariantTable } from '@/components/variants';
 import { supabase } from "../../../../../../../../../../../config/supabaseClient";
 import { BranchContext } from "../../../layout";
 import { set } from "date-fns";
+import { fi } from "date-fns/locale";
 
 // Helper: build category tree
 function buildCategoryTree(categories) {
@@ -40,303 +42,17 @@ function buildCategoryTree(categories) {
 }
 
 // Utility: create URL-friendly slug
-function convertToSlug(input) {
-  if (!input) return ''
-  return input.toString().toLowerCase().replace(/['"]/g, '').trim().replace(/\band\b/g, '&').replace(/[^a-z0-9\&-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').replace(/&/g, 'and')
-}
-
-// Category selection sheet component
-function CategorySheet({ open, onOpenChange, onConfirm, initialSelected }) {
-  const [list, setList] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [selected, setSelected] = useState(initialSelected || '')
-  const [addingFor, setAddingFor] = useState(null)
-  const [inlineName, setInlineName] = useState('')
-  const [inlineSlug, setInlineSlug] = useState('')
-  const [inlineDescription, setInlineDescription] = useState('')
-
-  useEffect(() => {
-    if (!open) return
-    const fetch = async () => {
-      setLoading(true)
-      try {
-        const { data, error } = await supabase.from('categories').select('*')
-        if (error || !data || data.length === 0) {
-          setList([
-            { id: '1', name: 'Electronics', parent: null },
-            { id: '2', name: 'Phones', parent: '1' },
-            { id: '3', name: 'Smartphones', parent: '2' },
-            { id: '4', name: 'Furniture', parent: null },
-            { id: '5', name: 'Clothing', parent: null },
-            { id: '6', name: 'Shirts', parent: '5' },
-          ])
-        } else setList(data)
-      } catch (err) {
-        console.error(err)
-      }
-      setLoading(false)
-    }
-    fetch()
-  }, [open])
-
-  const tree = buildCategoryTree(list)
-
-  const render = (nodes, level = 0) => nodes.map(n => (
-    <div key={n.id} style={{ marginLeft: `${level * 16}px` }} className="py-1">
-      <div className="flex items-center gap-2">
-        <label className="inline-flex items-center gap-2 flex-1">
-          <Checkbox checked={selected === n.id} onCheckedChange={(v)=>{ if (v) setSelected(n.id); else setSelected('') }} className="w-4 h-4" />
-          <span className="text-sm">{n.name}</span>
-        </label>
-        <Button size="icon" variant="ghost" className="h-6 w-6 p-0" title="Add subcategory" onClick={() => { setAddingFor(addingFor === n.id ? null : n.id); setInlineName(''); setInlineSlug('') }}>
-          <Plus className="size-3.5" />
-        </Button>
-      </div>
-      {addingFor === n.id && (
-        <div className="mt-2 ml-6 flex items-center gap-2">
-          <Input autoFocus value={inlineName} onChange={(e)=>{ setInlineName(e.target.value); setInlineSlug(convertToSlug(e.target.value)) }} placeholder="name" className="h-7 px-2 w-44 text-sm rounded-sm border" />
-          <Button size="icon" onClick={async () => {
-            if (!inlineName) return
-            const parentName = n.name
-            try {
-              const { data, error } = await supabase.from('categories').insert({ name: inlineName, parent: parentName, slug: inlineSlug || convertToSlug(inlineName), description: inlineDescription || '' }).select().single()
-              if (error) throw error
-              setList(prev => [...prev, data])
-              setInlineName('')
-              setInlineSlug('')
-              setInlineDescription('')
-              setAddingFor(null)
-              toast.success('Category created')
-            } catch (err) {
-              console.error(err)
-              toast.error('Failed to create category')
-            }
-          }} disabled={!inlineName} className="h-7 w-7 p-0 bg-army"><Rocket size={14} /></Button>
-        </div>
-      )}
-      {n.children && render(n.children, level + 1)}
-    </div>
-  ))
-
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent>
-        <SheetHeader>
-          <SheetTitle>Select Category</SheetTitle>
-          <SheetDescription>Select a single category for the product.</SheetDescription>
-        </SheetHeader>
-
-        <div className="p-4 overflow-y-auto max-h-[60vh]">
-          {loading ? <div className="text-sm">Loading...</div> : render(tree)}
-
-          <div className="mt-4 border-t pt-3">
-            <div className="text-sm font-medium mb-2">Add top-level category</div>
-            <div className="flex items-center gap-2">
-              <Input value={inlineName} onChange={(e)=>{ setInlineName(e.target.value); setInlineSlug(convertToSlug(e.target.value)) }} placeholder="Category name" className="h-7 px-2 w-44 text-sm rounded-sm border" />
-              <Button onClick={async ()=>{
-                if(!inlineName) return
-                try{
-                  const { data, error } = await supabase.from('categories').insert({ name: inlineName, parent: null, slug: inlineSlug || convertToSlug(inlineName), description: inlineDescription || '' }).select().single()
-                  if(error) throw error
-                  setList(prev=>[...prev, data])
-                  setInlineName('')
-                  setInlineSlug('')
-                  toast.success('Category created')
-                }catch(err){ console.error(err); toast.error('Failed to create category') }
-              }} disabled={!inlineName} className="h-7 bg-army">Create</Button>
-            </div>
-          </div>
-        </div>
-
-        <SheetFooter>
-          <div className="flex w-full justify-end gap-2">
-            <SheetClose asChild>
-              <Button variant="outline" className="h-8 text-xs">Cancel</Button>
-            </SheetClose>
-            <Button className="h-8 text-xs" onClick={() => { const selNode = list.find(x=>x.id===selected); onConfirm(selected, selNode?.name || ''); onOpenChange(false) }}>Confirm</Button>
-          </div>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
-  )
-}
-
-
-// Collection selection sheet (flat list)
-function CollectionSheet({ open, onOpenChange, onConfirm, initialSelected }) {
-  const [list, setList] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [selected, setSelected] = useState(initialSelected || '')
-
-  useEffect(() => {
-    if (!open) return
-    const fetch = async () => {
-      setLoading(true)
-      try {
-        const { data, error } = await supabase.from('collections').select('*')
-        if (error || !data || data.length === 0) {
-          setList([
-            { id: '1', name: 'New Arrivals' },
-            { id: '2', name: 'Best Sellers' },
-            { id: '3', name: 'Summer' }
-          ])
-        } else setList(data)
-      } catch (err) { console.error(err) }
-      setLoading(false)
-    }
-    fetch()
-  }, [open])
-
-  const [newName, setNewName] = useState('')
-
-
-
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent>
-        <SheetHeader>
-          <SheetTitle>Select Collection</SheetTitle>
-          <SheetDescription>Select a single collection for the product.</SheetDescription>
-        </SheetHeader>
-        <div className="p-4 overflow-y-auto max-h-[60vh]">
-          <div className="mb-3">
-            <div className="text-sm font-medium mb-2">Add collection</div>
-            <div className="flex items-center gap-2">
-              <Input value={newName} onChange={(e)=>setNewName(e.target.value)} placeholder="Collection name" className="h-7 px-2 w-44 text-sm rounded-sm border" />
-              <Button disabled={!newName} className="h-7 bg-army" onClick={async ()=>{
-                if(!newName) return
-                try{
-                  const { data, error } = await supabase.from('collections').insert({ name: newName, slug: convertToSlug(newName) }).select().single()
-                  if(error) throw error
-                  setList(prev => [...prev, data])
-                  setNewName('')
-                  toast.success('Collection created')
-                }catch(err){ console.error(err); toast.error('Failed to create collection') }
-              }}>Create</Button>
-            </div>
-          </div>
-          {loading ? <div className="text-sm">Loading...</div> : (
-            <div className="space-y-2">
-              {list.map(n => (
-                <div key={n.id} className="py-1">
-                  <label className="inline-flex items-center gap-2">
-                    <Checkbox checked={selected === n.id} onCheckedChange={(v)=>{ if (v) setSelected(n.id); else setSelected('') }} className="w-4 h-4" />
-                    <span className="text-sm">{n.name}</span>
-                  </label>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <SheetFooter>
-          <div className="flex w-full justify-end gap-2">
-            <SheetClose asChild>
-              <Button variant="outline" className="h-8 text-xs">Cancel</Button>
-            </SheetClose>
-            <Button className="h-8 text-xs" onClick={() => { const sel = list.find(x=>x.id===selected); onConfirm(selected, sel?.name || ''); onOpenChange(false) }}>Confirm</Button>
-          </div>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
-  )
-}
-
-// Tag selection sheet (multi-select)
-function TagSheet({ open, onOpenChange, onConfirm, initialSelected = [] }) {
-  const [list, setList] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [selected, setSelected] = useState(initialSelected || [])
-  const [newTagName, setNewTagName] = useState('')
-
-  useEffect(() => { if (!open) return; const fetch = async () => { setLoading(true); try { const { data } = await supabase.from('tags').select('*'); if (!data || data.length===0) setList([{id:'1',name:'New'},{id:'2',name:'Sale'},{id:'3',name:'Limited'}]); else setList(data);} catch(e){console.error(e)} setLoading(false);} ; fetch() }, [open])
-
-  const toggle = (id, checked) => {
-    if (checked) setSelected(prev => [...new Set([...(prev||[]), id])])
-    else setSelected(prev => (prev||[]).filter(x=>x!==id))
+  function convertToSlug(input) {
+    let newValue = input.toString().toLowerCase().replace(/['"]/g, '').trim().replace(/\band\b/g, '&').replace(/[^a-z0-9\&-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').replace(/&/g, 'and')
+    return newValue
+  }
+  function capitalize(input) {
+    let newValue = input.toString().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ').replace(/\bAnd\b/g, '&')
+    return newValue
   }
 
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent>
-        <SheetHeader>
-          <SheetTitle>Select Tags</SheetTitle>
-          <SheetDescription>Select one or more tags for the product.</SheetDescription>
-        </SheetHeader>
-        <div className="p-4 overflow-y-auto max-h-[60vh]">
-          <div className="mb-3">
-            <div className="text-sm font-medium mb-2">Add tag</div>
-            <div className="flex items-center gap-2">
-              <Input value={newTagName} onChange={(e)=>setNewTagName(e.target.value)} placeholder="Tag name" className="h-7 px-2 w-44 text-sm rounded-sm border" />
-              <Button disabled={!newTagName} className="h-7 bg-army" onClick={async ()=>{
-                if(!newTagName) return
-                try{
-                  const { data, error } = await supabase.from('tags').insert({ name: newTagName }).select().single()
-                  if(error) throw error
-                  setList(prev=>[...prev, data])
-                  setNewTagName('')
-                  toast.success('Tag created')
-                }catch(err){ console.error(err); toast.error('Failed to create tag') }
-              }}>Create</Button>
-            </div>
-          </div>
-          {loading ? <div className="text-sm">Loading...</div> : (
-            <div className="space-y-2">
-              {list.map(n => (
-                <div key={n.id} className="py-1">
-                  <label className="inline-flex items-center gap-2">
-                    <Checkbox checked={(selected||[]).includes(n.id)} onCheckedChange={(v)=>toggle(n.id, v)} className="w-4 h-4" />
-                    <span className="text-sm">{n.name}</span>
-                  </label>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <SheetFooter>
-          <div className="flex w-full justify-end gap-2">
-            <SheetClose asChild>
-              <Button variant="outline" className="h-8 text-xs">Cancel</Button>
-            </SheetClose>
-            <Button className="h-8 text-xs" onClick={() => { onConfirm(selected); onOpenChange(false) }}>Confirm</Button>
-          </div>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
-  )
-}
-
-const DraggableImage = ({ img, index, moveImage, isFirst, onClick }) => {
-  const ref = useRef(null);
-  const [{ isDragging }, drag] = useDrag({
-    type: 'image',
-    item: { index },
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
-  });
-  const [, drop] = useDrop({
-    accept: 'image',
-    hover: (item) => {
-      if (item.index !== index) {
-        moveImage(item.index, index);
-        item.index = index;
-      }
-    },
-  });
-  drag(drop(ref));
-  return (
-    <div
-      ref={ref}
-      className={`relative flex-none bg-gray-50 rounded-sm overflow-hidden border cursor-pointer ${isDragging ? 'opacity-50' : ''} ${isFirst ? 'w-32 h-32' : 'w-32 h-16'}`}
-      onClick={onClick}
-    >
-      <img src={img.url} alt={img.name} className="w-full h-full object-contain" />
-      <div className="absolute top-1 right-1 w-5 h-5 bg-black rounded-full flex items-center justify-center text-white text-xs font-medium">
-        {index + 1}
-      </div>
-    </div>
-  );
-};
+// Category selection sheet component
 
 const CreateProductPage = () => {
     const [activeTab, setActiveTab] = useState("details");
@@ -344,17 +60,19 @@ const CreateProductPage = () => {
     const router = useRouter();
     const { u, companySlug,branch } = params;
     const { currentBranch } = useContext(BranchContext);
+  
+  // Product state
+    const [collectionSheetOpen, setCollectionSheetOpen] = useState(false)
+    const [tagSheetOpen, setTagSheetOpen] = useState(false)
+    const [categorySheetOpen, setCategorySheetOpen] = useState(false)
     const [hasVariants, setHasVariants] = useState(false);
     const [selectedImages, setSelectedImages] = useState([]);
     const [variantCombinations, setVariantCombinations] = useState([]);
     const [selectedCategoryId, setSelectedCategoryId] = useState('')
     const [selectedCategoryName, setSelectedCategoryName] = useState('')
-    const [categorySheetOpen, setCategorySheetOpen] = useState(false)
     const [selectedCollectionId, setSelectedCollectionId] = useState('')
     const [selectedCollectionName, setSelectedCollectionName] = useState('')
-    const [collectionSheetOpen, setCollectionSheetOpen] = useState(false)
     const [selectedTags, setSelectedTags] = useState([])
-    const [tagSheetOpen, setTagSheetOpen] = useState(false)
     const [selectedImage, setSelectedImage] = useState(null);
     const [imageDialogOpen, setImageDialogOpen] = useState(false);
     const [currencies, setCurrencies] = useState([]); // Get from branch context
@@ -363,31 +81,7 @@ const CreateProductPage = () => {
     const [manualPricing, setManualPricing] = useState(false);
     const [basePrice, setBasePrice] = useState('');
     const [discountable, setDiscountable] = useState(true);
-
-    // Get currencies from branch context
-    useEffect(() => {
-      if (currentBranch?.currencies) {
-        const branchCurrencies = Object.keys(currentBranch.currencies);
-        const base = branchCurrencies.find(c => currentBranch.currencies[c].base);
-        setBaseCurrency(base || '');
-        setExchangeRates(currentBranch.currencies);
-        // Sort currencies with base first
-        // const sortedCurrencies = branchCurrencies.sort((a, b) => {
-        //   if (a === base) return -1;
-        //   if (b === base) return 1;
-        //   return 0;
-        // });
-        const sortedCurrencies = [...branchCurrencies].sort((a, b) => {
-          if (a === base) return -1;
-          if (b === base) return 1;
-          return 0;
-        });
-        setCurrencies(sortedCurrencies);
-      }
-    }, [currentBranch]);
-
-    // (removed localStorage-based draft restore — creation now stays in-page)
-
+    
     // Options state
     const [options, setOptions] = useState([]);
     const [justAdded, setJustAdded] = useState(false);
@@ -400,6 +94,25 @@ const CreateProductPage = () => {
     const [subtitle, setSubtitle] = useState('');
     const [handle, setHandle] = useState('');
     const [description, setDescription] = useState('');
+
+    // Get currencies from branch context
+    useEffect(() => {
+      if (currentBranch?.currencies) {
+        const branchCurrencies = Object.keys(currentBranch.currencies);
+        const base = branchCurrencies.find(c => currentBranch.currencies[c].base);
+        setBaseCurrency(base || '');
+        setExchangeRates(currentBranch.currencies);
+        const sortedCurrencies = [...branchCurrencies].sort((a, b) => {
+          if (a === base) return -1;
+          if (b === base) return 1;
+          return 0;
+        });
+        setCurrencies(sortedCurrencies);
+      }
+    }, [currentBranch]);
+
+    // (removed localStorage-based draft restore — creation now stays in-page)
+
 
     // Generate combinations
     const generateCombinations = (optionsets) => {
@@ -432,7 +145,7 @@ const CreateProductPage = () => {
     useEffect(() => {
         let combos;
         if (hasVariants) {
-            combos = generateCombinations(options);
+          combos = generateCombinations(options);
         } else {
             combos = [{ combination: [], id: 'default' }];
         }
@@ -652,17 +365,13 @@ const CreateProductPage = () => {
                               <label className="text-xs font-medium">
                                   Description <span className="text-neutral-400">(Optional)</span>
                               </label>
-                              <Textarea
-                                  rows={5}
-                                  className="border rounded-sm px-2 py-2 text-xs"
-                                  placeholder="A warm and cozy jacket"
-                              ></Textarea>
+                              <Textarea rows={5} value={description} onChange={(e) => setDescription(e.target.value)} className="border rounded-sm px-2 py-2 text-xs" placeholder="A warm and cozy jacket"></Textarea>
                             </div>
 
                             {/* Media uploader */}
                             <div>
                                 <label className="text-xs font-medium">
-                                    Media <span className="text-neutral-400">(Optional)</span>
+                                    Media <span className="text-neutral-400">(Required if product will appear on e-commerce)</span>
                                 </label>
                                 {hasVariants && selectedImages.length > 0 && variantCombinations.length > 0 && (
                                   <p className="text-[10px] text-neutral-500 mt-1">
@@ -836,7 +545,7 @@ const CreateProductPage = () => {
                                 <div className="flex gap-2 mt-1 items-center">
                                   <input className="flex-1 border rounded-sm p-2 text-xs" value={selectedCollectionName || ''} readOnly placeholder="Select collection" />
                                   <Button variant="outline" className="h-8 px-2 text-xs" onClick={()=>setCollectionSheetOpen(true)}>Choose</Button>
-                                  <CollectionSheet open={collectionSheetOpen} onOpenChange={setCollectionSheetOpen} onConfirm={(id,name)=>{ setSelectedCollectionId(id); setSelectedCollectionName(name || ''); setCollectionSheetOpen(false) }} initialSelected={selectedCollectionId} />
+                                  <CollectionSheet branch={branch} open={collectionSheetOpen} onOpenChange={setCollectionSheetOpen} onConfirm={(id,name)=>{ setSelectedCollectionId(id); setSelectedCollectionName(name || ''); setCollectionSheetOpen(false) }} initialSelected={selectedCollectionId} />
                                 </div>
                                 </div>
                             </div>
@@ -846,11 +555,11 @@ const CreateProductPage = () => {
                             <div className=" rounded-sm bg-white p-4 space-y-4">
                             <div className="flex gap-4">
                                 <div className="flex-1">
-                                <label className="text-gray-600 text-xs">Categories (Optional)</label>
+                                <label className="text-gray-600 text-xs">Categories </label>
                                 <div className="flex gap-2 mt-1 items-center">
                                     <input className="flex-1 border rounded-sm p-2 text-xs" value={selectedCategoryName || ''} readOnly placeholder="Select category" />
-                                    <Button variant="outline" className="h-8 px-2 text-xs" onClick={()=>setCategorySheetOpen(true)}>Choose</Button>
-                                    <CategorySheet open={categorySheetOpen} onOpenChange={setCategorySheetOpen} onConfirm={(id,name)=>{ setSelectedCategoryId(id); setSelectedCategoryName(name || ''); setCategorySheetOpen(false) }} initialSelected={selectedCategoryId} />
+                                    <Button variant="outline" className="h-8 px-2 text-xs" onClick={()=>setCategorySheetOpen(true)}>Select</Button>
+                                    <CategorySheet branch={branch} open={categorySheetOpen} onOpenChange={setCategorySheetOpen} onConfirm={(id,name)=>{ setSelectedCategoryId(id); setSelectedCategoryName(name || ''); setCategorySheetOpen(false) }} initialSelected={selectedCategoryId} />
                                 </div>
                                 </div>
 
@@ -1044,3 +753,308 @@ function DraggableCombination({ combo, index, moveCombination }) {
     </div>
   );
 }
+  
+
+
+
+
+function CategorySheet({ branch, open, onOpenChange, onConfirm, initialSelected }) {
+      const [list, setList] = useState([])
+      const [loading, setLoading] = useState(false)
+      const [uploading, setUploading] = useState(false)
+      const [selected, setSelected] = useState(initialSelected || '')
+      const [addingFor, setAddingFor] = useState(null)
+
+      const [inlineName, setInlineName] = useState('')
+      const [inlineSlug, setInlineSlug] = useState('')
+      const [inlineDescription, setInlineDescription] = useState('')
+
+        const [categoryName, setCategoryName] = useState('')
+        const [categorySlug, setCategorySlug] = useState('')
+        const [categoryDescription, setCategoryDescription] = useState('')
+    
+      const fetch = async () => {
+        if (!open) return
+        setLoading(true)
+        try {
+          const { data, error } = await supabase.from('categories').select('*').eq('branch', branch)
+          if (error || !data || data.length === 0) {
+           toast.error('No categories found')
+           return
+          } else setList(data)
+        } catch (err) {
+          console.error(err)
+        }
+        setLoading(false)
+      }
+
+      async function refreshCategories(){
+        const r = toast.loading('Refreshing categories...')
+        await fetch()
+        toast.dismiss(r)
+        toast.success('Categories refreshed', { id: r })
+        // return refreshdata
+      }
+
+      useEffect(() => {
+        fetch()
+      }, [open])
+    
+      const tree = buildCategoryTree(list)
+    
+      const render = (nodes, level = 0) => nodes.map(n => (
+        <div key={n.id} style={{ marginLeft: `${level * 16}px` }} className="py-1">
+          <div className="flex items-center gap-2">
+            <label className="inline-flex items-center gap-2 flex-1">
+              <Checkbox checked={selected === n.id} onCheckedChange={(v)=>{ if (v) setSelected(n.id); else setSelected('') }} className="w-4 h-4" />
+              <span className="text-sm">{n.name}</span>
+            </label>
+            <Button size="icon" variant="ghost" className="h-6 w-6 p-0" title="Add subcategory" onClick={() => { setAddingFor(addingFor === n.id ? null : n.id); setInlineName(''); setInlineSlug('') }}>
+              <Plus className="size-3.5" />
+            </Button>
+          </div>
+          {addingFor === n.id && (
+            <div className="mt-2 ml-6 flex items-center gap-2">
+              <Input autoFocus value={inlineName} onChange={(e)=>{ setInlineName(capitalize(e.target.value)); setInlineSlug(convertToSlug(e.target.value)) }} placeholder="name" className="h-7 px-2 w-44 text-sm rounded-sm border" />
+              <Button size="icon" onClick={async () => {
+                if (!inlineName) return
+                const parentName = n.name
+                try {
+                  const r = toast.loading(`Creating category under ${parentName}...`)
+                  const { data, error } = await supabase.from('categories').insert({ name: inlineName, parent: n.id, slug: inlineSlug || convertToSlug(inlineName), description: inlineDescription || '',branch }).select().single()
+                  if (error) throw error
+                  refreshCategories()
+                  setInlineName('')
+                  setInlineSlug('')
+                  setInlineDescription('')
+                  setAddingFor(null)
+                  toast.dismiss(r)
+                  toast.success('Category created')
+                } catch (err) {
+                  console.error(err)
+                  toast.error('Failed to create category')
+                }
+              }} disabled={!inlineName} className="h-7 w-7 p-0 bg-army"><Rocket size={14} /></Button>
+            </div>
+          )}
+          {n.children && render(n.children, level + 1)}
+        </div>
+      ))
+    
+      return (
+        <Sheet open={open} onOpenChange={onOpenChange}>
+          <SheetContent>
+            <SheetHeader>
+              <SheetTitle>Select Category</SheetTitle>
+              <SheetDescription className={'text-xs text-core font-medium leading-tight'}> Categories define what the product is and where it belongs in the store. Create the single category that best describes this product.<br />
+                          <em>Example: Electronics → Phones → Smartphones</em><br /></SheetDescription>
+            </SheetHeader>
+    
+            <div className="p-4 overflow-y-auto max-h-[60vh]">
+              <div className=" border-b py-3">
+                <p className="text-sm font-medium mb-2">Add top-level category</p>
+                <div className="flex items-center gap-2">
+                  <Input value={categoryName} onChange={(e)=>{ setCategoryName(capitalize(e.target.value)); setCategorySlug(convertToSlug(e.target.value)) }} placeholder="Category name" className="h-7 px-2 w-44 text-sm rounded-sm border" />
+                  <Button onClick={async ()=>{
+                    if(!categoryName) return
+                    setUploading(true)
+                    try{
+                      const { data, error } = await supabase.from('categories').insert({ name: categoryName, parent: null, slug: categorySlug || convertToSlug(categoryName), description: categoryDescription || '' ,branch:branch}).select().single()
+                      if(error) throw error
+                      refreshCategories()
+                      setCategoryName('')
+                      setCategorySlug('')
+                      toast.success('Category created')
+                    }catch(err){ console.error(err); toast.error('Failed to create category') }finally{ setUploading(false) }
+                  }} disabled={!categoryName || uploading} className="h-7 text-xs bg-army">{uploading ? <><Spinner spinning={uploading} className="h-4 w-4" /> Creating</> : 'Create'}</Button>
+                </div>
+              </div>
+              {loading ? <div className="text-sm">Loading...</div> : render(tree)}
+            </div>
+    
+            <SheetFooter>
+              <div className="flex w-full mb-4 justify-start gap-2">
+                <Button className="h-7 bg-core hover:bg-core/80 text-xs" onClick={() => { const selNode = list.find(x=>x.id===selected); onConfirm(selected, selNode?.name || ''); onOpenChange(false) }}>Confirm</Button>
+                <SheetClose asChild>
+                  <Button variant="outline" className="h-7 text-xs">Cancel</Button>
+                </SheetClose>
+              </div>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
+      )
+    }
+    
+    
+    // Collection selection sheet (flat list)
+  function CollectionSheet({ branch,open, onOpenChange, onConfirm, initialSelected }) {
+      const [list, setList] = useState([])
+      const [loading, setLoading] = useState(false)
+      const [selected, setSelected] = useState(initialSelected || '')
+    
+      useEffect(() => {
+        if (!open) return
+        const fetch = async () => {
+          setLoading(true)
+          try {
+            const { data, error } = await supabase.from('collections').select('*').eq('branch', branch)
+            if (error || !data || data.length === 0) {
+              toast.error('No collections found')
+              return
+            } else setList(data)
+          } catch (err) { console.error(err) }
+          setLoading(false)
+        }
+        fetch()
+      }, [open])
+    
+      const [newName, setNewName] = useState('')
+    
+    
+    
+      return (
+        <Sheet open={open} onOpenChange={onOpenChange}>
+          <SheetContent>
+            <SheetHeader>
+              <SheetTitle>Select Collection</SheetTitle>
+              <SheetDescription>Select a single collection for the product.</SheetDescription>
+            </SheetHeader>
+            <div className="p-4 overflow-y-auto max-h-[60vh]">
+              <div className="mb-3">
+                <div className="text-sm font-medium mb-2">Add collection</div>
+                <div className="flex items-center gap-2">
+                  <Input value={newName} onChange={(e)=>setNewName(capitalize(e.target.value))} placeholder="Collection name" className="h-7 px-2 w-44 text-sm rounded-sm border" />
+                  <Button disabled={!newName} className="h-7 bg-army" onClick={async ()=>{
+                    if(!newName) return
+                    try{
+                      const { data, error } = await supabase.from('collections').insert({ name: newName, slug: convertToSlug(newName), branch }).select().single()
+                      if(error) throw error
+                      setList(prev => [...prev, data])
+                      setNewName('')
+                      toast.success('Collection created')
+                    }catch(err){ console.error(err); toast.error('Failed to create collection') }
+                  }}>Create</Button>
+                </div>
+              </div>
+              {loading ? <div className="text-sm">Loading...</div> : (
+                <div className="space-y-2">
+                  {list.map(n => (
+                    <div key={n.id} className="py-1">
+                      <label className="inline-flex items-center gap-2">
+                        <Checkbox checked={selected === n.id} onCheckedChange={(v)=>{ if (v) setSelected(n.id); else setSelected('') }} className="w-4 h-4" />
+                        <span className="text-sm">{n.name}</span>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <SheetFooter>
+              <div className="flex w-full justify-end gap-2">
+                <SheetClose asChild>
+                  <Button variant="outline" className="h-8 text-xs">Cancel</Button>
+                </SheetClose>
+                <Button className="h-8 text-xs" onClick={() => { const sel = list.find(x=>x.id===selected); onConfirm(selected, sel?.name || ''); onOpenChange(false) }}>Confirm</Button>
+              </div>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
+      )
+    }
+    
+    // Tag selection sheet (multi-select)
+    function TagSheet({ open, onOpenChange, onConfirm, initialSelected = [] }) {
+      const [list, setList] = useState([])
+      const [loading, setLoading] = useState(false)
+      const [selected, setSelected] = useState(initialSelected || [])
+      const [newTagName, setNewTagName] = useState('')
+    
+      useEffect(() => { if (!open) return; const fetch = async () => { setLoading(true); try { const { data } = await supabase.from('tags').select('*'); if (!data || data.length===0) setList([{id:'1',name:'New'},{id:'2',name:'Sale'},{id:'3',name:'Limited'}]); else setList(data);} catch(e){console.error(e)} setLoading(false);} ; fetch() }, [open])
+    
+      const toggle = (id, checked) => {
+        if (checked) setSelected(prev => [...new Set([...(prev||[]), id])])
+        else setSelected(prev => (prev||[]).filter(x=>x!==id))
+      }
+    
+      return (
+        <Sheet open={open} onOpenChange={onOpenChange}>
+          <SheetContent>
+            <SheetHeader>
+              <SheetTitle>Select Tags</SheetTitle>
+              <SheetDescription>Select one or more tags for the product.</SheetDescription>
+            </SheetHeader>
+            <div className="p-4 overflow-y-auto max-h-[60vh]">
+              <div className="mb-3">
+                <div className="text-sm font-medium mb-2">Add tag</div>
+                <div className="flex items-center gap-2">
+                  <Input value={newTagName} onChange={(e)=>setNewTagName(e.target.value)} placeholder="Tag name" className="h-7 px-2 w-44 text-sm rounded-sm border" />
+                  <Button disabled={!newTagName} className="h-7 bg-army" onClick={async ()=>{
+                    if(!newTagName) return
+                    try{
+                      const { data, error } = await supabase.from('tags').insert({ name: newTagName }).select().single()
+                      if(error) throw error
+                      setList(prev=>[...prev, data])
+                      setNewTagName('')
+                      toast.success('Tag created')
+                    }catch(err){ console.error(err); toast.error('Failed to create tag') }
+                  }}>Create</Button>
+                </div>
+              </div>
+              {loading ? <div className="text-sm">Loading...</div> : (
+                <div className="space-y-2">
+                  {list.map(n => (
+                    <div key={n.id} className="py-1">
+                      <label className="inline-flex items-center gap-2">
+                        <Checkbox checked={(selected||[]).includes(n.id)} onCheckedChange={(v)=>toggle(n.id, v)} className="w-4 h-4" />
+                        <span className="text-sm">{n.name}</span>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <SheetFooter>
+              <div className="flex w-full justify-end gap-2">
+                <SheetClose asChild>
+                  <Button variant="outline" className="h-8 text-xs">Cancel</Button>
+                </SheetClose>
+                <Button className="h-8 text-xs" onClick={() => { onConfirm(selected); onOpenChange(false) }}>Confirm</Button>
+              </div>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
+      )
+    }
+    
+    const DraggableImage = ({ img, index, moveImage, isFirst, onClick }) => {
+      const ref = useRef(null);
+      const [{ isDragging }, drag] = useDrag({
+        type: 'image',
+        item: { index },
+        collect: (monitor) => ({
+          isDragging: monitor.isDragging(),
+        }),
+      });
+      const [, drop] = useDrop({
+        accept: 'image',
+        hover: (item) => {
+          if (item.index !== index) {
+            moveImage(item.index, index);
+            item.index = index;
+          }
+        },
+      });
+      drag(drop(ref));
+      return (
+        <div
+          ref={ref}
+          className={`relative flex-none bg-gray-50 rounded-sm overflow-hidden border cursor-pointer ${isDragging ? 'opacity-50' : ''} ${isFirst ? 'w-32 h-32' : 'w-32 h-16'}`}
+          onClick={onClick}
+        >
+          <img src={img.url} alt={img.name} className="w-full h-full object-contain" />
+          <div className="absolute top-1 right-1 w-5 h-5 bg-black rounded-full flex items-center justify-center text-white text-xs font-medium">
+            {index + 1}
+          </div>
+        </div>
+      );
+    };
