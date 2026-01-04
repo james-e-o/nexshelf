@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef,useContext, useCallback } from "react";
-import { DndProvider, useDrag, useDrop } from 'react-dnd';
+import { DndProvider, useDrag, useDrop, useDragLayer } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { useReactTable, getCoreRowModel, flexRender } from "@tanstack/react-table";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -28,6 +28,8 @@ import { supabase } from "../../../../../../../../../../../config/supabaseClient
 import { BranchContext } from "../../../layout";
 import { set } from "date-fns";
 import { fi } from "date-fns/locale";
+import { motion, AnimatePresence } from 'framer-motion';
+
 
 // Helper: build category tree
 function buildCategoryTree(categories) {
@@ -85,6 +87,7 @@ const CreateProductPage = () => {
     // Options state
     const [options, setOptions] = useState([]);
     const [justAdded, setJustAdded] = useState(false);
+    const [draggedIndex, setDraggedIndex] = useState(null);
     const lastOptionRef = useRef(null);
     const InputRefs = useRef([]);
 
@@ -137,7 +140,7 @@ const CreateProductPage = () => {
             const newCombos = [...prev];
             if (!newCombos[rowIndex]) return prev;
             newCombos[rowIndex] = { ...newCombos[rowIndex], [columnId]: value };
-
+            console.log(newCombos);
             return newCombos;
         });
     }, []);
@@ -198,6 +201,7 @@ const CreateProductPage = () => {
         const [moved] = newCombos.splice(fromIndex, 1);
         newCombos.splice(toIndex, 0, moved);
         setVariantCombinations(newCombos);
+        setDraggedIndex(toIndex);
     };
 
     // Functions for images
@@ -455,6 +459,7 @@ const CreateProductPage = () => {
                                           <div className="flex items-center justify-between px-4 py-3 border-b">
                                             <Input
                                               type="text"
+                                              autoFocus={justAdded}
                                               defaultValue={option.name}
                                               onInput={(e) => {
                                                 e.target.value = e.target.value.toUpperCase();
@@ -506,16 +511,47 @@ const CreateProductPage = () => {
                                 <div className="mt-4">
                                   <h3 className="text-xs mb-2 font-medium">Variant Combinations <span className="text-[10px] ml-1 text-core italic">{`(drag and drop to modify hierarchy)`}</span></h3>
                                   <DndProvider backend={HTML5Backend}>
-                                    <div className="space-y-2">
-                                      {variantCombinations.map((combo, index) => (
-                                        <DraggableCombination
-                                          key={combo.id}
-                                          combo={combo}
-                                          index={index}
-                                          moveCombination={moveCombination}
-                                        />
-                                      ))}
-                                    </div>
+                                    <CombinationDragPreview />
+                                    <AnimatePresence mode="popLayout">
+                                      <div className="space-y-2">
+                                        {variantCombinations.map((combo, index) => (
+                                          <DraggableCombination
+                                            key={combo.id}
+                                            combo={combo}
+                                            index={index}
+                                            moveCombination={moveCombination}
+                                            draggedIndex={draggedIndex}
+                                            onDragStart={() => setDraggedIndex(index)}
+                                            onDragEnd={() => setDraggedIndex(null)}
+                                            selectedImages={selectedImages}
+                                            updateCombinationImages={(idx, images) => {
+                                              setVariantCombinations(prev => {
+                                                const updated = [...prev];
+                                                updated[idx] = { ...updated[idx], images };
+                                                return updated;
+                                              });
+                                            }}
+                                            onRemoveImage={(idx, imgIdx) => {
+                                              setVariantCombinations(prev => {
+                                                const updated = [...prev];
+                                                updated[idx].images = updated[idx].images?.filter((_, i) => i !== imgIdx) || [];
+                                                return updated;
+                                              });
+                                            }}
+                                            onMoveImage={(idx, fromIdx, toIdx) => {
+                                              setVariantCombinations(prev => {
+                                                const updated = [...prev];
+                                                const images = [...(updated[idx].images || [])];
+                                                const [moved] = images.splice(fromIdx, 1);
+                                                images.splice(toIdx, 0, moved);
+                                                updated[idx] = { ...updated[idx], images };
+                                                return updated;
+                                              });
+                                            }}
+                                          />
+                                        ))}
+                                      </div>
+                                    </AnimatePresence>
                                   </DndProvider>
                                 </div>
                               )}
@@ -712,17 +748,59 @@ export default CreateProductPage
 
 
 
+// Custom Drag Layer for Preview Styling
+function CombinationDragPreview() {
+  const { item, isDragging, currentOffset } = useDragLayer((monitor) => ({
+    item: monitor.getItem(),
+    isDragging: monitor.isDragging(),
+    currentOffset: monitor.getSourceClientOffset(),
+  }));
+
+  if (!isDragging || !currentOffset || !item) return null;
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        pointerEvents: 'none',
+        left: `${currentOffset.x}px`,
+        top: `${currentOffset.y}px`,
+        zIndex: 1000,
+        transform: 'translate(-50%, -50%)',
+      }}
+    >
+      <div className="border-2 border-green-500 bg-green-50 rounded p-2 shadow-lg">
+        <div className="text-sm font-medium text-green-700">Dragging combination...</div>
+      </div>
+    </div>
+  );
+}
+
 // Draggable Combination Component
-function DraggableCombination({ combo, index, moveCombination }) {
+function DraggableCombination({ combo, index, moveCombination, draggedIndex, onDragStart, onDragEnd, selectedImages, updateCombinationImages, onRemoveImage, onMoveImage }) {
   const ref = useRef(null);
+  const [imageSheetOpen, setImageSheetOpen] = useState(false);
+  const [comboImages, setComboImages] = useState(combo.images || []);
+  
   const [{ isDragging }, drag] = useDrag({
     type: 'COMBINATION',
-    item: { index },
+    item: () => {
+      // Reset draggedIndex when a new drag begins to ensure clean state
+      if (onDragEnd) onDragEnd();
+      return { index };
+    },
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
+    end: (item, monitor) => {
+      // Always clear draggedIndex when drag ends, regardless of drop status
+      if (onDragEnd) {
+        // Use a small timeout to let animations complete
+        setTimeout(() => onDragEnd(), 100);
+      }
+    },
   });
-  const [, drop] = useDrop({
+  const [{ isOver }, drop] = useDrop({
     accept: 'COMBINATION',
     hover(item, monitor) {
       if (!ref.current) return;
@@ -739,18 +817,135 @@ function DraggableCombination({ combo, index, moveCombination }) {
       item.index = hoverIndex;
     },
   });
+  
   drag(drop(ref));
+  
+  // Use parent-level draggedIndex for consistent visual feedback in both directions
+  let isCurrentlyDragged = draggedIndex === index || isDragging;
+
+  const handleAddImage = (imageId) => {
+    const image = selectedImages.find(img => img.id === imageId);
+    if (image) {
+      const newImageUrls = [...comboImages, image.url];
+      setComboImages(newImageUrls);
+      updateCombinationImages(index, newImageUrls);
+    }
+  };
+
+  const handleRemoveComboImage = (imgIndex) => {
+    const newImageUrls = comboImages.filter((_, i) => i !== imgIndex);
+    setComboImages(newImageUrls);
+    updateCombinationImages(index, newImageUrls);
+  };
+
+  const handleMoveComboImage = (fromIdx, toIdx) => {
+    const newImageUrls = [...comboImages];
+    const [moved] = newImageUrls.splice(fromIdx, 1);
+    newImageUrls.splice(toIdx, 0, moved);
+    setComboImages(newImageUrls);
+    updateCombinationImages(index, newImageUrls);
+  };
+  
   return (
-    <div ref={ref} style={{ opacity: isDragging ? 0.5 : 1 }} className="border rounded p-4 cursor-move bg-white">
-      <div className="flex items-center gap-2">
-        <GripVertical className="h-4 w-4" />
-        <div className="text-sm">
-          {combo.combination.map((item, i) => (
-            <div key={i}>{item.optionName}: {item.value}</div>
-          ))}
+    <motion.div 
+      ref={ref} 
+      layout
+      initial={{ opacity: 1 }}
+      animate={{ opacity: isCurrentlyDragged ? 0.7 : 1 }}
+      onPointerUp={()=>{isCurrentlyDragged=''}}
+      transition={{ duration: 0.2 }}
+      className={`border rounded p-2 h-30 cursor-move bg-white transition-all duration-200 ${
+        isCurrentlyDragged ? 'bg-core/20 shadow-lg ring-2 ring-core/40 scale-105' : ''
+      } ${isOver ? 'border-core border-2 bg-core/5' : 'border-gray-200'}`}
+    >
+      <div className="flex items-center justify-between h-full gap-4">
+        <div className="flex h-full items-center gap-2">
+          <GripVertical className={`h-4 w-4 ${isCurrentlyDragged ? 'text-core' : 'text-muted-foreground'}`} />
+          <div className="text-sm ">
+            {combo.combination.map((item, i) => (
+              <div key={i}>{item.optionName}: {item.value}</div>
+            ))}
+          </div>
         </div>
+        
+        {/* Images Section */}
+        <div className="flex grow justify-end gap-2 h-full items-center">
+          {comboImages && comboImages.length > 0 ? (
+            <div className="flex gap-1 h-full w-full justify-center items-center">
+              {comboImages.slice(0, 3).map((imgUrl, idx) => (
+                <div key={idx} className="relative h-full aspect-square group">
+                  <img 
+                    src={imgUrl} 
+                    alt="variant" 
+                    className="size-full rounded border object-cover"
+                  />
+                  <button 
+                    onClick={() => handleRemoveComboImage(idx)}
+                    className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              {comboImages.length > 3 && <span className="text-xs text-gray-500">+{comboImages.length - 3}</span>}
+            </div>
+          ) : (
+            <p className="text-center text-xs bg-amber-300 aspect-square rounded text-gray-500 italic px-2 py-1">---</p>
+          )}
+          
+          {/* Map Image Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={() => setImageSheetOpen(true)}
+          >
+            <Plus className="h-3 w-3 mr-1" /> Map
+          </Button>
+        </div>
+
+        {/* Image Selection Sheet */}
+        <Sheet open={imageSheetOpen} onOpenChange={setImageSheetOpen}>
+          <SheetContent side="right" className="w-80 overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle className="text-sm">Select Images for Variant</SheetTitle>
+              <SheetDescription className="text-xs">
+                {combo.combination.map((item, i) => (
+                  <span key={i} className="block">{item.optionName}: {item.value}</span>
+                ))}
+              </SheetDescription>
+            </SheetHeader>
+            <div className="space-y-2 mt-4">
+              {selectedImages && selectedImages.length > 0 ? (
+                <div className="grid grid-cols-2 gap-2">
+                  {selectedImages.map((img) => (
+                    <div 
+                      key={img.id}
+                      className="relative cursor-pointer group border rounded hover:border-core transition-colors"
+                      onClick={() => {
+                        handleAddImage(img.id);
+                        setImageSheetOpen(false);
+                      }}
+                    >
+                      <img 
+                        src={img.url} 
+                        alt="product" 
+                        className="w-full h-24 object-cover rounded"
+                      />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors rounded flex items-center justify-center">
+                        <Plus className="text-white h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500 text-center py-8">No images uploaded yet</p>
+              )}
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
-    </div>
+    </motion.div>
   );
 }
   
