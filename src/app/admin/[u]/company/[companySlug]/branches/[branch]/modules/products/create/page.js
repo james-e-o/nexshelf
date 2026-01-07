@@ -507,7 +507,7 @@ const CreateProductPage = () => {
                                 </div>
                               </div>
 
-                              {options.length > 0 && (
+                              {hasVariants&&options.length > 0 && (
                                 <div className="mt-4">
                                   <h3 className="text-xs mb-2 font-medium">Variant Combinations <span className="text-[10px] ml-1 text-core italic">{`(drag and drop to modify hierarchy)`}</span></h3>
                                   <DndProvider backend={HTML5Backend}>
