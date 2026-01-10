@@ -1,5 +1,5 @@
 
-import { ChevronRight, Factory,Files,LayoutDashboard,Plus, Rocket } from "lucide-react"
+import { ChevronRight, Factory,Files,LayoutDashboard,Plus, Receipt, Rocket } from "lucide-react"
 import {  Collapsible,  CollapsibleContent,  CollapsibleTrigger,} from "@/components/ui/collapsible"
 import { Sidebar,  SidebarContent,  SidebarFooter,  SidebarHeader,SidebarTrigger,  SidebarRail, SidebarGroup,  SidebarGroupLabel,  SidebarMenu,  SidebarMenuButton,  SidebarMenuItem,  SidebarMenuSub,  SidebarMenuSubButton,  SidebarMenuSubItem,} from "@/components/ui/sidebar"
 import { Button,buttonVariants } from "@/components/ui/button";
@@ -34,6 +34,7 @@ export default function AppSidebarContent({ profile,companies}) {
                     />
                 )}
                 <NoCollapsibleButton className={``} url={`/admin/${params.u}`} title={'Reports'} icon={Files} active={false} name={'Reports'}/>
+                <NoCollapsibleButton className={``} url={`/admin/${params.u}`} title={'Billing'} icon={Receipt} active={false} name={'Billing'}/>
                
             </SidebarMenu> 
         </SidebarGroup>

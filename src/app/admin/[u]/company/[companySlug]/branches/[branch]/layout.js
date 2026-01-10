@@ -120,7 +120,7 @@ export default function CompanyLayout({ children }) {
               </BranchHeader>
             </div>
 
-            <div className="grow overflow-y-auto p-2 md:p-4">
+            <div className="grow overflow-y-auto p-2 ">
               {children}
             </div>
 

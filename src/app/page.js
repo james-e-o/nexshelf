@@ -24,20 +24,20 @@ export default function Home() {
   return (
     <div onScroll={(e)=>{dropState?setDropState(false):''}} className="relative h-full no_scroll overflow-x-hidden z-0 ">
       <LandingHeader />
-      <main className=" bg-gradient-to-b from-white via-sky-200 to-violet-500/30">
+      <main className=" bg-linear-to-b from-white via-sky-200 to-violet-500/30">
         <section className="min-h-[75svh] mb-36 flex flex-col px-10 items-center justify-center">
           <div >
             <p className="text-5xl text-center font-extralight text-army leading-[110%] font-WixMade md:mt-7 md:text-8xl tracking-tighter">Manage your Product <br/>  & Store with ease.</p>
           </div>
           <div className=" text-center font-WixMade tracking-tight text-core_contrast md:w-3/5 text-lg md:text-xl mt-5 font-light ">nexShelf gives you the complete control you need with <span  className="font-semibold"> effortless <br/>product management and B-2-B </span>.</div>
         
-          <Link href={'accounts/signup'} className="decoration-none mt-10 mx-auto">
+          <Link href={'/pricing'} className="decoration-none mt-10 mx-auto">
             <p className=" bg-white/25 border border-zinc-300 rounded-full  p-4 flex justify-center items-center">
-              <Button className="md:text-lg bg-core hover:bg-core/85 rounded-4xl font-medium font-WixMade text-white text-base flex-grow py-6" ><p className="px-7 gap-2 flex items-center"><Store className="size-4"/><span>Get started</span></p></Button>
+              <Button className="md:text-lg bg-core hover:bg-core/85 rounded-4xl font-medium font-WixMade text-white text-base grow py-6" ><p className="px-7 gap-2 flex items-center"><Store className="size-4"/><span>Get started</span></p></Button>
             </p>
           </Link>
         </section>
-        <section className=" rounded-4xl px-16 pt-16 pb-12 overflow-clip relative before:absolute before:inset-0 before:bg-gradient-to-b before:from-army/80 before:from-80% before:to-transparent  z-0 before:z-[1] coporate1">
+        <section className=" rounded-4xl px-16 pt-16 pb-12 overflow-clip relative before:absolute before:inset-0 before:bg-linear-to-b before:from-army/80 before:from-80% before:to-transparent  z-0 before:z-1 coporate1">
           <FeatureScroller />
         </section>
       {/* </main> */}
@@ -82,7 +82,7 @@ export default function Home() {
             <section className="py-24 bg-white font-WixMade relative overflow-hidden">
               {/* Decorative animated circle */}
               <div className="absolute inset-0 flex justify-start items-center opacity-10">
-                <div className="w-[400px] h-[400px] relative  bg-gradient-to-tr from-core to-lime-400/40 rounded-full animate-spin-slow blur-3xl"></div>
+                <div className="w-[400px] h-[400px] relative  bg-linear-to-tr from-core to-lime-400/40 rounded-full animate-spin-slow blur-3xl"></div>
               </div>
 
               <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-16 items-center px-6 relative z-10">

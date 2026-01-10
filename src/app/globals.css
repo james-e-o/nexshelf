@@ -96,9 +96,12 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+
 :root {
-  --core:oklch(51.017% 0.26191 276.948);
-  --army:oklch(60.579% 0.10553 119.921);
+  --core:oklch(48.702% 0.27882 273.859);
+  --army:oklch(56.74% 0.10356 119.113);
+  /* --core:#7008e7;
+  --army:#fb9e08; */
   --armylight:oklch(96.681% 0.01991 116.095);
   --radius: 0.625rem;
   --background: oklch(1 0 0);
