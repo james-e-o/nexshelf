@@ -195,4 +195,3 @@ export function VariantTable({ combinations = [], costPrice, pricingContexts, up
     </div>
   );
 }
-

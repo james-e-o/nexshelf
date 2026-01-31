@@ -76,7 +76,7 @@ export default function LoginPage() {
 
                   // ✅ Step 3: Profile is complete → go to dashboard
                   router.push(`/admin/${profile.handle}`);
-                  setIsLoading(false)
+                  // setIsLoading(false)
         
               }
 

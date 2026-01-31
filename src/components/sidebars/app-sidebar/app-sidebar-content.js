@@ -34,7 +34,7 @@ export default function AppSidebarContent({ profile,companies}) {
                     />
                 )}
                 <NoCollapsibleButton className={``} url={`/admin/${params.u}`} title={'Reports'} icon={Files} active={false} name={'Reports'}/>
-                <NoCollapsibleButton className={``} url={`/admin/${params.u}`} title={'Billing'} icon={Receipt} active={false} name={'Billing'}/>
+                <NoCollapsibleButton className={``} url={`/admin/${params.u}/billing`} title={'Billing'} icon={Receipt} active={false} name={'Billing & Plans'}/>
                
             </SidebarMenu> 
         </SidebarGroup>

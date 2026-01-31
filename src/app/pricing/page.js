@@ -19,66 +19,81 @@ const Pricing = () => {
     };
   });
   
-      const basicFeatures = [
-        "Create 1 website",
-        "Node.js web apps",
-        "10 GB of storage",
-        "1 mailbox per website",
-        "Keep every site safe with free SSL",
-        "Weekly auto backups",
-        "Migrate your site for free",
-      ];
-  
-      const proFeatures = [
-        "Create up to 3 websites",
-        "No Node.js web apps",
-        "20 GB of storage",
-        "2 mailboxes per website",
-        "Free domain for 1 year",
-        "Email marketing included",
-        "AI Website Builder",
-        "WordPress site maintenance",
-        "Free domain renewal",
-      ];
-  
-      const businessFeatures = [
-        "Create up to 50 websites",
-        "5 Node.js web apps",
-        "50 GB storage",
-        "5 mailboxes per website",
-        "Daily & on-demand backups",
-        "Build ecommerce with AI",
-        "AI Agent for WordPress",
-        "Ready-to-go WordPress sites",
-        "Maximum website speed",
-        "WordPress Multisite",
-      ];
+     const basicFeatures = [
+  "Inventory management",
+  "Product & variant management",
+  "Customer management",
+  "Sales & invoices",
+  "Purchase tracking",
+  "Single warehouse / stock location",
+  "Basic stock alerts",
+  "Company-level access control",
+  "Email support",
+];
+const standardFeatures = [
+  "Everything in Basic",
+  "Multiple warehouses / stock locations",
+  "Advanced inventory reports",
+  "Order & fulfillment management",
+  "Service & booking management",
+  "Project tracking",
+  "Basic logistics management",
+  "Staff roles & permissions",
+  "Automated stock movements",
+  "Priority email support",
+];
+const proFeatures = [
+  "Everything in Standard",
+  "E-commerce integration",
+  "Advanced logistics & warehousing",
+  "Custom inventory workflows",
+  "Analytics & performance dashboards",
+  "API & integrations access",
+  "Advanced reporting & exports",
+  "Multi-company management",
+  "Audit logs & activity tracking",
+  "Dedicated onboarding support",
+];
+
   
   const PLANS = [
       {
-        id: "basic",
+        key: "basic",
         title: "Basic",
         description: "Core tools to run your business",
         price: (period) => (period === "monthly" ? 1900 : 1900 * 12 * 0.85),
         originalPrice: (period) => (period === "monthly" ? 6300 : 6300 * 12),
         features: basicFeatures,
+        highlight: false,
         ctaLabel: "Get started",
       },
 
       {
-        id: "pro",
+        key: "standard",
+        title: "Standard",
+        description: "Growing business features",
+        price: (period) => (period === "monthly" ? 2400 : 2400 * 12 * 0.85),
+        originalPrice: (period) => (period === "monthly" ? 8500 : 8500 * 12),
+        features: standardFeatures,
+        highlight: true,
+        badge: "POPULAR",
+        ctaLabel: "Get started",
+      },
+
+      {
+        key: "pro",
         title: "Pro",
         description: "Advanced modules to scale and automate",
         price: (period) => (period === "monthly" ? 2900 : 2900 * 12 * 0.85),
         originalPrice: (period) => (period === "monthly" ? 11300 : 11300 * 12),
         features: proFeatures,
-        badge: "MOST POPULAR",
-        highlight: true,
+        badge: "",
+        highlight: false,
         ctaLabel: "Get started",
       },
 
       {
-        id: "custom",
+        key: "custom",
         title: "Custom",
         description: "Tailored solutions for complex businesses",
         price: null,
@@ -183,7 +198,7 @@ const Pricing = () => {
 
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 md:px-10 lg:px-12 py-16 md:py-20">
+      <main className=" mx-10 px-6 py-16 md:py-20">
         {/* Billing Toggle */}
         <div className="flex justify-center mb-12">
           <div className="inline-flex rounded-full border-2 border-gray-200 bg-gray-50 p-1 gap-1">
@@ -211,11 +226,11 @@ const Pricing = () => {
         </div>
 
         {/* Pricing Cards Grid */}
-        <div className="grid md:grid-cols-3 gap-8 items-stretch">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
           {/* Basic Plan */}
          {PLANS.map((plan) => (
             <PricingCard
-              key={plan.id}
+              key={plan.key}
               title={plan.title}
               description={plan.description}
               price={plan.price ? plan.price(billingPeriod) : null}
@@ -357,3 +372,9 @@ const PricingCard = ({
     </div>
   );
 };
+
+
+
+
+
+

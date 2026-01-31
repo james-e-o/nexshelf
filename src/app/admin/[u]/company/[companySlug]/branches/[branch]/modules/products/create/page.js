@@ -24,11 +24,14 @@ import { toast } from 'sonner'
 import { useRouter,useParams } from 'next/navigation'
 import AddImage from "@/components/add-image";
 import { VariantTable } from '@/components/variants';
+import { ProductConfigurations } from "@/components/product-configurations";
 import { supabase } from "../../../../../../../../../../../config/supabaseClient";
 import { BranchContext } from "../../../layout";
 import { set } from "date-fns";
 import { fi } from "date-fns/locale";
 import { motion, AnimatePresence } from 'framer-motion';
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+
 
 
 // Helper: build category tree
@@ -77,12 +80,39 @@ const CreateProductPage = () => {
     const [selectedTags, setSelectedTags] = useState([])
     const [selectedImage, setSelectedImage] = useState(null);
     const [imageDialogOpen, setImageDialogOpen] = useState(false);
-    const [currencies, setCurrencies] = useState([]); // Get from branch context
-    const [baseCurrency, setBaseCurrency] = useState('');
-    const [exchangeRates, setExchangeRates] = useState({});
-    const [manualPricing, setManualPricing] = useState(false);
-    const [basePrice, setBasePrice] = useState('');
-    const [discountable, setDiscountable] = useState(true);
+    const [productType, setProductType] = useState('physical');
+    
+    // Specifications state
+    const [dimensions, setDimensions] = useState({ length: '', width: '', height: '' });
+    const [dimensionUnit, setDimensionUnit] = useState('cm');
+    const [weight, setWeight] = useState('');
+    const [weightUnit, setWeightUnit] = useState('kg');
+    const [manufacturer, setManufacturer] = useState('');
+    const [brand, setBrand] = useState('');
+    const [upc, setUpc] = useState('');
+    const [mpn, setMpn] = useState('');
+    const [ean, setEan] = useState('');
+    const [isbn, setIsbn] = useState('');
+    
+    // Pricing state
+    const [costPrice, setCostPrice] = useState('');
+    
+    // Pricing Context state
+    const [pricingContexts, setPricingContexts] = useState([
+      {
+        id: 'standard',
+        name: 'Standard',
+        costPrice: '',
+        marginType: 'fixed',
+        marginValue: '',
+        sellingPrice: '',
+        bulkPrice: '',
+        bulkPriceType: 'percentage',
+        minSellingPrice: '',
+        discount: 0,
+        discountType: 'fixed'
+      }
+    ]);
     
     // Options state
     const [options, setOptions] = useState([]);
@@ -91,31 +121,18 @@ const CreateProductPage = () => {
     const lastOptionRef = useRef(null);
     const InputRefs = useRef([]);
 
+    // Service-specific state
+    const [serviceDuration, setServiceDuration] = useState('');
+    const [serviceCategory, setServiceCategory] = useState('');
+    const [requiresStaff, setRequiresStaff] = useState(true);
+    const [selectedStaff, setSelectedStaff] = useState('');
+
 
     //Inputs Values State
     const [title, setTitle] = useState('');
     const [subtitle, setSubtitle] = useState('');
     const [handle, setHandle] = useState('');
     const [description, setDescription] = useState('');
-
-    // Get currencies from branch context
-    useEffect(() => {
-      if (currentBranch?.currencies) {
-        const branchCurrencies = Object.keys(currentBranch.currencies);
-        const base = branchCurrencies.find(c => currentBranch.currencies[c].base);
-        setBaseCurrency(base || '');
-        setExchangeRates(currentBranch.currencies);
-        const sortedCurrencies = [...branchCurrencies].sort((a, b) => {
-          if (a === base) return -1;
-          if (b === base) return 1;
-          return 0;
-        });
-        setCurrencies(sortedCurrencies);
-      }
-    }, [currentBranch]);
-
-    // (removed localStorage-based draft restore — creation now stays in-page)
-
 
     // Generate combinations
     const generateCombinations = (optionsets) => {
@@ -160,17 +177,6 @@ const CreateProductPage = () => {
             });
         });
     }, [options, hasVariants]);
-
-    // Separate effect for manual pricing
-    useEffect(() => {
-        if (!manualPricing || !basePrice || !baseCurrency) return;
-        setVariantCombinations(prev =>
-            prev.map(combo => ({
-                ...combo,
-                [baseCurrency.toLowerCase()]: combo[baseCurrency.toLowerCase()] ?? basePrice
-            }))
-        );
-    }, [manualPricing, basePrice, baseCurrency]);
 
     // Listen for selected images from the AddImage modal — merge new images with existing, avoid duplicates
     useEffect(() => {
@@ -265,124 +271,244 @@ const CreateProductPage = () => {
 
 
            <div className="relative w-full h-full flex flex-col">
-                 <div className="flex items-center gap-4 border-b px-6 py-3 bg-white z-10">
+                 <div className="flex items-center gap-2 border-b px-6 py-3 bg-white z-10">
 
                     {/* X Button */}
-                    <Link href={`/admin/${u}/company/${companySlug}/branches/${branch}/modules/products`}><Button variant={'ghost'} className="text-neutral-500 h-7 hover:text-black text-xs">✕</Button></Link>
+                    <Link href={`/admin/${u}/company/${companySlug}/branches/${branch}/modules/products`}><Button variant={'ghost'} className="text-white bg-red-500 h-7 hover:text-black text-xs">✕</Button></Link>
 
                     {/* ESC Badge */}
-                    <div className="px-2 py-px border rounded-sm text-[10px] text-neutral-600">
+                    <div className="px-2 py-1 border  rounded-sm text-[10px] text-neutral-600">
                     esc
                     </div>
 
                     {/* Tabs */}
-                    <div className="flex items-center gap-3 ml-3 text-xs font-medium">
+                    <div className="flex items-center gap-3 ml-16 text-xs font-medium">
 
-                    {/* DETAILS */}
-                    <Button variant={'outline'}
-                        onClick={() => setActiveTab("details")}
-                        className={`px-2 py-1 h-6 text-[11px] rounded-sm ${
-                        activeTab === "details"
-                            ? "bg-army text-neutral-50"
-                            : "text-neutral-600"
-                        }`}
-                    >
-                        <span className="top-px relative">Details</span>
-                    </Button>
+                          {/* DETAILS */}
+                          <Button variant={'outline'}
+                              onClick={() => setActiveTab("details")}
+                              className={`px-2 py-1 h-6 text-[11px] rounded-sm ${
+                              activeTab === "details"
+                                  ? "bg-army text-neutral-50"
+                                  : "text-neutral-600"
+                              }`}
+                          >
+                              <span className="top-px relative">Details</span>
+                          </Button>
 
-                    <span className="text-neutral-300">|</span>
+                          <span className="text-neutral-300">|</span>
 
-                    {/* ORGANIZE */}
-                    <Button variant={'outline'}
-                        onClick={() => setActiveTab("organize")}
-                        className={`px-2 py-1 h-6 text-[11px] rounded-sm ${
-                        activeTab === "organize"
-                            ? "bg-army text-neutral-50"
-                            : "text-neutral-600"
-                        }`}
-                    >
-                        <span className="top-px relative">Organize</span>
-                    </Button>
+                          {/* ORGANIZE */}
+                          <Button variant={'outline'}
+                              onClick={() => setActiveTab("configure")}
+                              className={`px-2 py-1 h-6 text-[11px] rounded-sm ${
+                              activeTab === "configure"
+                                  ? "bg-army text-neutral-50"
+                                  : "text-neutral-600"
+                              }`}
+                          >
+                              <span className="top-px relative">Configurations</span>
+                          </Button>
 
-                    <span className="text-neutral-300">|</span>
+                          <span className="text-neutral-300">|</span>
 
-                    {/* VARIANTS */}
-                    <Button variant={'outline'}
-                        onClick={() => setActiveTab("price-variants")}
-                        className={`px-2 py-1 h-6 text-[11px] rounded-sm ${
-                        activeTab === "price-variants"
-                            ? "bg-army text-neutral-50"
-                            : "text-neutral-600"
-                        }`}
-                    >
-                        <span className="top-px relative">Pricing & Variants</span>
-                    </Button>
+                          {/* VARIANTS */}
+                          <Button variant={'outline'}
+                              onClick={() => setActiveTab("variants")}
+                              className={`px-2 py-1 h-6 text-[11px] rounded-sm ${
+                              activeTab === "variants"
+                                  ? "bg-army text-neutral-50"
+                                  : "text-neutral-600"
+                              }`}
+                          >
+                              <span className="top-px relative">Variants</span>
+                          </Button>
                     </div>
                 </div>
 
                 {/* ─── SCROLLABLE BODY ─────────────────────────────────────────── */}
                 <div className="flex-1 overflow-y-auto pt-4">
 
-                    <div className="mx-auto max-w-5xl space-y-10 text-xs text-neutral-900 pb-10">
+                    <div className=" space-y-10 text-xs text-neutral-900 pb-10">
 
                     {/* DETAILS TAB */}
                     {activeTab === "details" && (
-                        <div className="space-y-10 py-9">
+                        <div className="space-y-10 max-w-5xl mx-auto py-9">
 
                         {/* GENERAL */}
                         <div className="space-y-5 mx-8">
                             <h2 className="font-semibold text-sm">General</h2>
 
-                            {/* 3-column section */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-                            {/* Title */}
-                            <div className="flex flex-col space-y-1">
-                                <label className="text-xs font-medium">Title</label>
-                                <Input className="border rounded-sm px-2 py-2 text-xs" placeholder="Winter jacket" value={title} onChange={({target})=>{setTitle(capitalize(target.value),setHandle(convertToSlug(target.value)))}}/>
+                            {/* Product Type */}
+                            <div className="border rounded-sm p-4 bg-white">
+                                <label className="text-xs font-medium block mb-3">Product Type</label>
+                                <RadioGroup value={productType} onValueChange={setProductType} className="flex gap-6">
+                                    <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="physical" id="type-physical" />
+                                        <Label htmlFor="type-physical" className="font-normal text-xs cursor-pointer">Physical</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="service" id="type-service" />
+                                        <Label htmlFor="type-service" className="font-normal text-xs cursor-pointer">Service</Label>
+                                    </div>
+                                </RadioGroup>
                             </div>
 
-                            {/* Subtitle */}
-                            <div className="flex flex-col space-y-1">
-                                <label className="text-xs font-medium">
-                                Subtitle <span className="text-neutral-400">(Optional)</span>
-                                </label>
-                                <Input className="border rounded-sm px-2 py-2 text-xs"  placeholder="Warm and cozy" value={subtitle}  onChange={({target})=>{setSubtitle(target.value)}}/>
-                            </div>
+                            {productType === 'physical' ? (
+                              <>
+                                {/* PHYSICAL PRODUCT FIELDS */}
+                                {/* 3-column section */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-                            {/* Handle */}
-                            <div className="flex flex-col space-y-1">
-                                <label className="text-xs font-medium">
-                                Handle 
-                                </label>
-                                <div className="flex">
-                                <span className="border border-r-0 rounded-sm rounded-r-none px-2 py-2 text-xs bg-neutral-100 text-neutral-500">
-                                    /
-                                </span>
-                                <Input className="border rounded-sm rounded-l-none px-2 py-2 text-xs w-full" value={handle}  onChange={({target})=>{setHandle(convertToSlug(target.value))}}   placeholder="winter-jacket" />
+                                {/* Title */}
+                                <div className="flex flex-col space-y-1">
+                                    <label className="text-xs font-medium">Title</label>
+                                    <Input className="border rounded-sm px-2 py-2 text-xs" placeholder="Winter jacket" value={title} onChange={({target})=>{setTitle(capitalize(target.value),setHandle(convertToSlug(target.value)))}}/>
                                 </div>
-                            </div>
-                            </div>
 
-                            {/* Description */}
-                            <div className="flex flex-col space-y-1">
-                              <label className="text-xs font-medium">
-                                  Description <span className="text-neutral-400">(Optional)</span>
-                              </label>
-                              <Textarea rows={5} value={description} onChange={(e) => setDescription(e.target.value)} className="border rounded-sm px-2 py-2 text-xs" placeholder="A warm and cozy jacket"></Textarea>
-                            </div>
+                                {/* Subtitle */}
+                                <div className="flex flex-col space-y-1">
+                                    <label className="text-xs font-medium">
+                                    Subtitle <span className="text-neutral-400">(Optional)</span>
+                                    </label>
+                                    <Input className="border rounded-sm px-2 py-2 text-xs"  placeholder="Warm and cozy" value={subtitle}  onChange={({target})=>{setSubtitle(target.value)}}/>
+                                </div>
+
+                                {/* Handle */}
+                                <div className="flex flex-col space-y-1">
+                                    <label className="text-xs font-medium">
+                                    Handle 
+                                    </label>
+                                    <div className="flex">
+                                    <span className="border border-r-0 rounded-sm rounded-r-none px-2 py-2 text-xs bg-neutral-100 text-neutral-500">
+                                        /
+                                    </span>
+                                    <Input className="border rounded-sm rounded-l-none px-2 py-2 text-xs w-full" value={handle}  onChange={({target})=>{setHandle(convertToSlug(target.value))}}   placeholder="winter-jacket" />
+                                    </div>
+                                </div>
+                                </div>
+
+                                {/* Description */}
+                                <div className="flex flex-col space-y-1">
+                                  <label className="text-xs font-medium">
+                                      Description <span className="text-neutral-400">(Optional)</span>
+                                  </label>
+                                  <Textarea rows={5} value={description} onChange={(e) => setDescription(e.target.value)} className="border rounded-sm px-2 py-2 text-xs" placeholder="A warm and cozy jacket"></Textarea>
+                                </div>
+
+                                {/* Manufacturer & Brand */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div className="flex flex-col space-y-1">
+                                    <label className="text-xs font-medium">Manufacturer</label>
+                                    <Input
+                                      placeholder="Select or Add Manufacturer"
+                                      value={manufacturer}
+                                      onChange={(e) => setManufacturer(e.target.value)}
+                                      className="border rounded-sm px-2 py-2 text-xs"
+                                    />
+                                  </div>
+                                  <div className="flex flex-col space-y-1">
+                                    <label className="text-xs font-medium">Brand</label>
+                                    <Input
+                                      placeholder="Select or Add Brand"
+                                      value={brand}
+                                      onChange={(e) => setBrand(e.target.value)}
+                                      className="border rounded-sm px-2 py-2 text-xs"
+                                    />
+                                  </div>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                {/* SERVICE PRODUCT FIELDS */}
+                                {/* 3-column section */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+                                {/* Title */}
+                                <div className="flex flex-col space-y-1">
+                                    <label className="text-xs font-medium">Service Name</label>
+                                    <Input className="border rounded-sm px-2 py-2 text-xs" placeholder="Haircut - Skin Fade" value={title} onChange={({target})=>{setTitle(capitalize(target.value),setHandle(convertToSlug(target.value)))}}/>
+                                </div>
+
+                                {/* Subtitle */}
+                                <div className="flex flex-col space-y-1">
+                                    <label className="text-xs font-medium">
+                                    Subtitle <span className="text-neutral-400">(Optional)</span>
+                                    </label>
+                                    <Input className="border rounded-sm px-2 py-2 text-xs"  placeholder="Premium fade with razor finish" value={subtitle}  onChange={({target})=>{setSubtitle(target.value)}}/>
+                                </div>
+
+                                {/* Handle */}
+                                <div className="flex flex-col space-y-1">
+                                    <label className="text-xs font-medium">
+                                    Handle 
+                                    </label>
+                                    <div className="flex">
+                                    <span className="border border-r-0 rounded-sm rounded-r-none px-2 py-2 text-xs bg-neutral-100 text-neutral-500">
+                                        /
+                                    </span>
+                                    <Input className="border rounded-sm rounded-l-none px-2 py-2 text-xs w-full" value={handle}  onChange={({target})=>{setHandle(convertToSlug(target.value))}}   placeholder="haircut-skin-fade" />
+                                    </div>
+                                </div>
+                                </div>
+
+                                {/* Description */}
+                                <div className="flex flex-col space-y-1">
+                                  <label className="text-xs font-medium">
+                                      Description <span className="text-neutral-400">(Optional)</span>
+                                  </label>
+                                  <Textarea rows={5} value={description} onChange={(e) => setDescription(e.target.value)} className="border rounded-sm px-2 py-2 text-xs" placeholder="Describe your service offering..."></Textarea>
+                                </div>
+
+                                {/* Service Duration */}
+                                <div className="flex flex-col space-y-1">
+                                  <label className="text-xs font-medium">Duration (minutes) <span className="text-red-500">*</span></label>
+                                  <Input
+                                    type="number"
+                                    placeholder="30"
+                                    value={serviceDuration}
+                                    onChange={(e) => setServiceDuration(e.target.value)}
+                                    className="border rounded-sm px-2 py-2 text-xs"
+                                  />
+                                </div>
+
+                                {/* Requires Staff Assignment */}
+                                <div className="flex flex-col space-y-3">
+                                  <label className="text-xs font-medium flex items-center gap-2">
+                                    <Checkbox 
+                                      checked={requiresStaff}
+                                      onCheckedChange={setRequiresStaff}
+                                    />
+                                    <span>Requires Staff Assignment</span>
+                                  </label>
+                                </div>
+
+                                {/* Select Staff - shown only when Requires Staff Assignment is checked */}
+                                {requiresStaff && (
+                                  <div className="flex flex-col space-y-1">
+                                    <label className="text-xs font-medium">Select Staff <span className="text-neutral-400">(Optional)</span></label>
+                                    <Input
+                                      placeholder="Search or select staff member"
+                                      value={selectedStaff}
+                                      onChange={(e) => setSelectedStaff(e.target.value)}
+                                      className="border rounded-sm px-2 py-2 text-xs"
+                                    />
+                                  </div>
+                                )}
+                              </>
+                            )}
 
                             {/* Media uploader */}
                             <div>
                                 <label className="text-xs font-medium">
-                                    Media <span className="text-neutral-400">(Required if product will appear on e-commerce)</span>
+                                    Media {productType === 'physical' ? <span className="text-neutral-400">(Required if product will appear on e-commerce)</span> : <span className="text-neutral-400">(Optional - images help showcase your service)</span>}
                                 </label>
                                 {hasVariants && selectedImages.length > 0 && variantCombinations.length > 0 && (
                                   <p className="text-[10px] text-neutral-500 mt-1">
                                     Images are mapped to variants in order: the first image corresponds to the first variant, the second to the second, and so on.
                                   </p>
                                 )}
-                            <div className="mt-2 border border-dashed rounded-sm min-h-32 flex text-neutral-500 p-2">
+                                <div className="mt-2 border border-dashed rounded-sm min-h-32 flex text-neutral-500 p-2">
                                   {selectedImages && selectedImages.length > 0 ? (
                                     <div className="w-full flex items-center gap-3">
                                       <div className="flex-1">
@@ -424,9 +550,152 @@ const CreateProductPage = () => {
                             </div>
                         </div>
 
+                        {/* SPECIFICATIONS SECTION - ONLY FOR PHYSICAL PRODUCTS */}
+                        {productType === 'physical' && (
+                        <div className="space-y-5 mx-8">
+                            <h2 className="text-xs font-semibold">Specifications</h2>
+
+                            {/* Dimensions */}
+                            <div className="border rounded-sm px-4 py-3">
+                                <div className="mb-4">
+                                    <Label className="text-xs font-medium mb-2 block">Dimensions (Length X Width X Height)</Label>
+                                    <div className="flex gap-2 items-end">
+                                        <div className="flex-1">
+                                            <Input
+                                                placeholder="Length"
+                                                type="number"
+                                                step="0.01"
+                                                value={dimensions.length}
+                                                onChange={(e) => setDimensions({ ...dimensions, length: e.target.value })}
+                                                className="h-8"
+                                            />
+                                        </div>
+                                        <span className="text-xs text-neutral-500">x</span>
+                                        <div className="flex-1">
+                                            <Input
+                                                placeholder="Width"
+                                                type="number"
+                                                step="0.01"
+                                                value={dimensions.width}
+                                                onChange={(e) => setDimensions({ ...dimensions, width: e.target.value })}
+                                                className="h-8"
+                                            />
+                                        </div>
+                                        <span className="text-xs text-neutral-500">x</span>
+                                        <div className="flex-1">
+                                            <Input
+                                                placeholder="Height"
+                                                type="number"
+                                                step="0.01"
+                                                value={dimensions.height}
+                                                onChange={(e) => setDimensions({ ...dimensions, height: e.target.value })}
+                                                className="h-8"
+                                            />
+                                        </div>
+                                        <div className="w-20">
+                                            <select
+                                                value={dimensionUnit}
+                                                onChange={(e) => setDimensionUnit(e.target.value)}
+                                                className="h-8 px-2 border rounded-sm text-xs bg-white"
+                                            >
+                                                <option value="cm">cm</option>
+                                                <option value="m">m</option>
+                                                <option value="in">in</option>
+                                                <option value="ft">ft</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Weight */}
+                                <div>
+                                    <Label className="text-xs font-medium mb-2 block">Weight</Label>
+                                    <div className="flex gap-2">
+                                        <div className="flex-1">
+                                            <Input
+                                                placeholder="0.4"
+                                                value={weight}
+                                                onChange={(e) => setWeight(e.target.value)}
+                                                type="number"
+                                                step="0.01"
+                                                className="h-8"
+                                            />
+                                        </div>
+                                        <div className="w-20">
+                                            <select
+                                                value={weightUnit}
+                                                onChange={(e) => setWeightUnit(e.target.value)}
+                                                className="h-8 px-2 border rounded-sm text-xs bg-white"
+                                            >
+                                                <option value="kg">kg</option>
+                                                <option value="g">g</option>
+                                                <option value="lb">lb</option>
+                                                <option value="oz">oz</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Product Codes */}
+                            <div className="border rounded-sm px-4 py-3">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <Label className="text-xs font-medium mb-2 flex items-center gap-1">
+                                            UPC
+                                            <span className="text-neutral-400 text-[10px]" title="Universal Product Code">ⓘ</span>
+                                        </Label>
+                                        <Input
+                                            placeholder="Universal Product Code"
+                                            value={upc}
+                                            onChange={(e) => setUpc(e.target.value)}
+                                            className="h-8"
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label className="text-xs font-medium mb-2 flex items-center gap-1">
+                                            MPN
+                                            <span className="text-neutral-400 text-[10px]" title="Manufacturer Part Number">ⓘ</span>
+                                        </Label>
+                                        <Input
+                                            placeholder="Manufacturer Part Number"
+                                            value={mpn}
+                                            onChange={(e) => setMpn(e.target.value)}
+                                            className="h-8"
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label className="text-xs font-medium mb-2 flex items-center gap-1">
+                                            EAN
+                                            <span className="text-neutral-400 text-[10px]" title="European Article Number">ⓘ</span>
+                                        </Label>
+                                        <Input
+                                            placeholder="European Article Number"
+                                            value={ean}
+                                            onChange={(e) => setEan(e.target.value)}
+                                            className="h-8"
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label className="text-xs font-medium mb-2 flex items-center gap-1">
+                                            ISBN
+                                            <span className="text-neutral-400 text-[10px]" title="International Standard Book Number">ⓘ</span>
+                                        </Label>
+                                        <Input
+                                            placeholder="International Standard Book Number"
+                                            value={isbn}
+                                            onChange={(e) => setIsbn(e.target.value)}
+                                            className="h-8"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        )}
+
                         {/* VARIANTS SECTION */}
                           <div className="space-y-5 mx-8">
-                              <h2 className="text-xs font-semibold">Variants</h2>
+                              <h2 className="text-xs font-semibold">{productType === 'service' ? 'Service Options' : 'Variants'}</h2>
 
                               <div className="border rounded-sm px-4 py-3 space-y-1">
                                 <div className="flex items-center gap-2">
@@ -436,11 +705,15 @@ const CreateProductPage = () => {
                                         onCheckedChange={setHasVariants}
                                     />
                                     <span className="font-medium text-xs">
-                                    Toggle if this is a product with variants
+                                    {productType === 'service' 
+                                      ? 'Toggle if this service has different options (e.g., styles, durations)'
+                                      : 'Toggle if this is a product with variants'}
                                     </span>
                                 </div>
                                 <p className="text-[10px] text-neutral-500">
-                                    When unchecked, we will create a default variant for you
+                                    {productType === 'service'
+                                      ? 'Define service variations such as style, duration, or quality'
+                                      : 'When unchecked, we will create a default variant for you'}
                                 </p>
                               </div>
 
@@ -448,9 +721,11 @@ const CreateProductPage = () => {
                                 <div className="overflow-hidden">
                                   <div className="space-y-4">
                                     <div className="space-y-2">
-                                      <h3 className="text-xs font-medium">Product options</h3>
+                                      <h3 className="text-xs font-medium">{productType === 'service' ? 'Service Options' : 'Product'} options</h3>
                                       <p className="text-[10px] text-neutral-500">
-                                          Define the options and values for the product, e.g. color, size, etc.
+                                          {productType === 'service'
+                                            ? 'Define service variations such as style, duration, or quality level'
+                                            : 'Define the options and values for the product, e.g. color, size, etc.'}
                                       </p>
 
                                       {/* Dynamic Options */}
@@ -559,138 +834,42 @@ const CreateProductPage = () => {
                         </div>
                     )}
 
-                    {/* ORGANIZE TAB */}
-                    {activeTab === "organize" && (
-                      <div className="text-neutral-700 text-xs">
-                      <h2 className="font-semibold mb-4">Organize</h2>
-                        
-                       <div className="space-y-4 text-xs text-gray-700">
-
-                        {/* Type + Collection */}
-                            <div className=" rounded-sm bg-white p-4 space-y-4">
-                            <div className="flex gap-4">
-                                <div className="flex-1">
-                                <label className="text-gray-600 text-xs">Type (Optional)</label>
-                                <select className="mt-1 w-full border rounded-sm p-2 text-xs">
-                                    <option>Select product type</option>
-                                </select>
-                                </div>
-
-                                <div className="flex-1">
-                                <label className="text-gray-600 text-xs">Collection (Optional)</label>
-                                <div className="flex gap-2 mt-1 items-center">
-                                  <input className="flex-1 border rounded-sm p-2 text-xs" value={selectedCollectionName || ''} readOnly placeholder="Select collection" />
-                                  <Button variant="outline" className="h-8 px-2 text-xs" onClick={()=>setCollectionSheetOpen(true)}>Choose</Button>
-                                  <CollectionSheet branch={branch} open={collectionSheetOpen} onOpenChange={setCollectionSheetOpen} onConfirm={(id,name)=>{ setSelectedCollectionId(id); setSelectedCollectionName(name || ''); setCollectionSheetOpen(false) }} initialSelected={selectedCollectionId} />
-                                </div>
-                                </div>
-                            </div>
-                            </div>
-
-                            {/* Categories + Tags */}
-                            <div className=" rounded-sm bg-white p-4 space-y-4">
-                            <div className="flex gap-4">
-                                <div className="flex-1">
-                                <label className="text-gray-600 text-xs">Categories </label>
-                                <div className="flex gap-2 mt-1 items-center">
-                                    <input className="flex-1 border rounded-sm p-2 text-xs" value={selectedCategoryName || ''} readOnly placeholder="Select category" />
-                                    <Button variant="outline" className="h-8 px-2 text-xs" onClick={()=>setCategorySheetOpen(true)}>Select</Button>
-                                    <CategorySheet branch={branch} open={categorySheetOpen} onOpenChange={setCategorySheetOpen} onConfirm={(id,name)=>{ setSelectedCategoryId(id); setSelectedCategoryName(name || ''); setCategorySheetOpen(false) }} initialSelected={selectedCategoryId} />
-                                </div>
-                                </div>
-
-                                <div className="flex-1">
-                                <label className="text-gray-600 text-xs">Tags (Optional)</label>
-                                <div className="flex gap-2 mt-1 items-center">
-                                  <input className="flex-1 border rounded-sm p-2 text-xs" value={(selectedTags && selectedTags.length) ? selectedTags.join(', ') : ''} readOnly placeholder="Select tags" />
-                                  <Button variant="outline" className="h-8 px-2 text-xs" onClick={()=>setTagSheetOpen(true)}>Choose</Button>
-                                  <TagSheet open={tagSheetOpen} onOpenChange={setTagSheetOpen} onConfirm={(ids)=>{ setSelectedTags(ids || []); setTagSheetOpen(false) }} initialSelected={selectedTags} />
-                                </div>
-                                </div>
-                            </div>
-                            </div>
-
-                            {/* Shipping Profile */}
-                            <div className=" rounded-sm bg-white p-4">
-                            <label className="text-gray-600 text-xs">Shipping profile (Optional)</label>
-                            <select className="mt-1 w-full border rounded-sm p-2 text-xs">
-                                <option>Select shipping profile</option>
-                            </select>
-                            <p className="text-gray-500 text-[11px] mt-1">
-                                Connect the product to a shipping profile
-                            </p>
-                            </div>
-
-                            {/* Sales Channels */}
-                            <div className=" rounded-sm bg-white p-4 space-y-3">
-                            <p className="text-xs text-gray-500">
-                                This product will only be available in the default sales channel if left untouched.
-                            </p>
-
-                            <div className="flex items-center gap-2 flex-wrap">
-                                <span className="px-2 py-1 bg-gray-200 rounded-sm text-[11px]">
-                                Default Sales Channel
-                                </span>
-                                <button className="text-[11px] text-red-500">Clear all</button>
-                            </div>
-
-                            <button className="px-3 py-1 border rounded-sm text-xs w-fit">
-                                Add
-                            </button>
-                            </div>
-
-                        </div>
-                        </div>
+                    {/* CONFIGURATIONS TAB */}
+                    {activeTab === "configure" && (
+                      <ProductConfigurations
+                        selectedCollectionId={selectedCollectionId}
+                        selectedCollectionName={selectedCollectionName}
+                        setSelectedCollectionId={setSelectedCollectionId}
+                        setSelectedCollectionName={setSelectedCollectionName}
+                        collectionSheetOpen={collectionSheetOpen}
+                        setCollectionSheetOpen={setCollectionSheetOpen}
+                        CollectionSheet={CollectionSheet}
+                        selectedCategoryId={selectedCategoryId}
+                        selectedCategoryName={selectedCategoryName}
+                        setSelectedCategoryId={setSelectedCategoryId}
+                        setSelectedCategoryName={setSelectedCategoryName}
+                        categorySheetOpen={categorySheetOpen}
+                        setCategorySheetOpen={setCategorySheetOpen}
+                        CategorySheet={CategorySheet}
+                        selectedTags={selectedTags}
+                        setSelectedTags={setSelectedTags}
+                        tagSheetOpen={tagSheetOpen}
+                        setTagSheetOpen={setTagSheetOpen}
+                        TagSheet={TagSheet}
+                        costPrice={costPrice}
+                        setCostPrice={setCostPrice}
+                        pricingContexts={pricingContexts}
+                        setPricingContexts={setPricingContexts}
+                        branch={currentBranch}
+                      />
                     )}
 
                     {/* VARIANTS TAB */}
-                    {activeTab === "price-variants" && (
-                        <div className="text-neutral-700 text-xs">
-                        <h2 className="font-semibold mb-4">Price & Variants</h2>
+                    {activeTab === "variants" && (
+                        <div className="text-neutral-700 w-11/12 mx-auto text-xs">
+                        <h2 className="font-semibold mb-4">Variance</h2>
                         
-                        {/* Pricing Mode Switch */}
-                        <div className="border rounded-sm px-4 py-3 space-y-3 mb-6">
-                            <div className="flex items-center gap-2">
-                                <Switch
-                                    checked={manualPricing}
-                                    onCheckedChange={setManualPricing}
-                                />
-                                <span className="font-medium text-xs">
-                                    Input price manually
-                                </span>
-                            </div>
-                            <p className="text-[11px] font font-medium text-core">
-                                {manualPricing 
-                                    ? "Set a base price that will be applied to all variants" 
-                                    : "If Unchecked, Prices will be automatically synchronized with purchases, based on the most recent cost price"
-                                }
-                            </p>
-                            
-                            {manualPricing && (
-                                <div className="space-y-2">
-                                    <Label className="text-xs font-medium">Base Price ({baseCurrency})</Label>
-                                    <Input
-                                        type="number"
-                                        value={basePrice}
-                                        onChange={(e) => setBasePrice(e.target.value)}
-                                        placeholder="Enter base price"
-                                        className="h-8"
-                                    />
-
-                                    <div className="rounded-sm bg-white p-4 mt-2">
-                                      <div className="flex items-center gap-3">
-                                        <Input type="checkbox" className="toggle-checkbox" checked={discountable} onChange={(e)=>setDiscountable(e.target.checked)} />
-                                        <div>
-                                          <p className="text-xs font-medium">Discountable</p>
-                                          <p className="text-gray-500 text-xs">When unchecked, discounts will not be applied to this product</p>
-                                        </div>
-                                      </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                        
-                        <VariantTable combinations={variantCombinations} currencies={currencies} updateValue={updateVariantValue} baseCurrency={baseCurrency} exchangeRates={exchangeRates} manualPricing={manualPricing} />
+                        <VariantTable combinations={variantCombinations} costPrice={costPrice} pricingContexts={pricingContexts} updateValue={updateVariantValue} />
                         </div>
                     )}
                     </div>
@@ -698,7 +877,7 @@ const CreateProductPage = () => {
 
                 {/* FOOTER BUTTONS */}
                 <div className="flex justify-end gap-2 border-t px-7 mr-3 py-3  bg-white">
-                    <Button variant={'outline'} className="px-3 h-7 py-2 rounded-sm border text-xs">Cancel</Button>
+                    <Button variant={'outline'} className="px-3 h-7 py-2 bg-red-500 text-white hover:text-black rounded-sm border text-xs">Cancel</Button>
                     <Button variant={''} className="px-3 h-7 py-2 bg-core rounded-sm border hover:bg-core/90 text-xs">Save as draft</Button>
                     <Button variant={''} className="px-3 h-7 py-2 bg-core rounded-sm hover:bg-core/90 text-white text-xs">
                     Continue
