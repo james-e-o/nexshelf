@@ -87,7 +87,6 @@ const CreateProductPage = () => {
     const [dimensionUnit, setDimensionUnit] = useState('cm');
     const [weight, setWeight] = useState('');
     const [weightUnit, setWeightUnit] = useState('kg');
-    const [manufacturer, setManufacturer] = useState('');
     const [brand, setBrand] = useState('');
     const [upc, setUpc] = useState('');
     const [mpn, setMpn] = useState('');
@@ -100,7 +99,7 @@ const CreateProductPage = () => {
     // Pricing Context state
     const [pricingContexts, setPricingContexts] = useState([
       {
-        id: 'standard',
+        id: 'default-standard',
         name: 'Standard',
         costPrice: '',
         marginType: 'fixed',
@@ -113,6 +112,7 @@ const CreateProductPage = () => {
         discountType: 'fixed'
       }
     ]);
+    const [selectedPricingContexts, setSelectedPricingContexts] = useState(['default-standard']);
     
     // Options state
     const [options, setOptions] = useState([]);
@@ -120,6 +120,7 @@ const CreateProductPage = () => {
     const [draggedIndex, setDraggedIndex] = useState(null);
     const lastOptionRef = useRef(null);
     const InputRefs = useRef([]);
+    const productConfigRef = useRef(null);
 
     // Service-specific state
     const [serviceDuration, setServiceDuration] = useState('');
@@ -127,12 +128,86 @@ const CreateProductPage = () => {
     const [requiresStaff, setRequiresStaff] = useState(true);
     const [selectedStaff, setSelectedStaff] = useState('');
 
+    // Validation state
+    const [errors, setErrors] = useState({});
+
+    // Fetch pricing contexts from database
+    useEffect(() => {
+      const fetchPricingContexts = async () => {
+        try {
+          if (!currentBranch?.id) return;
+          const { data, error } = await supabase
+            .from('pricing_contexts')
+            .select('*')
+            .eq('branch_id', currentBranch.id);
+          
+          if (error) {
+            console.error('Error fetching pricing contexts:', error);
+            return;
+          }
+
+          // Merge default context with database contexts
+          const defaultContext = {
+            id: 'default-standard',
+            name: 'Standard',
+            costPrice: '',
+            marginType: 'fixed',
+            marginValue: '',
+            sellingPrice: '',
+            bulkPrice: '',
+            bulkPriceType: 'percentage',
+            minSellingPrice: '',
+            discount: 0,
+            discountType: 'fixed'
+          };
+
+          const dbContexts = data || [];
+          setPricingContexts([defaultContext, ...dbContexts]);
+        } catch (err) {
+          console.error('Error fetching pricing contexts:', err);
+        }
+      };
+
+      fetchPricingContexts();
+    }, [currentBranch?.id]);
 
     //Inputs Values State
     const [title, setTitle] = useState('');
     const [subtitle, setSubtitle] = useState('');
     const [handle, setHandle] = useState('');
     const [description, setDescription] = useState('');
+
+    // Field requirements configuration - easily toggle any field here
+    const requiredFields = {
+        title: true,
+        subtitle: false,
+        handle: true,
+        description: false,
+        images: productType === 'physical',
+        serviceDuration: productType === 'service',
+        brand: false,
+        costPrice: false,
+        upc: false,
+        mpn: false,
+        ean: false,
+        isbn: false,
+        weight: false,
+        dimensions: false
+    };
+
+    // Helper function to render required/optional indicator
+    const renderFieldLabel = (labelText, fieldKey) => {
+        return (
+            <label className="text-xs font-medium">
+                {labelText}
+                {requiredFields[fieldKey] ? (
+                    <span className="text-red-500 ml-1">*</span>
+                ) : (
+                    <span className="text-neutral-400 ml-1">(Optional)</span>
+                )}
+            </label>
+        );
+    };
 
     // Generate combinations
     const generateCombinations = (optionsets) => {
@@ -177,6 +252,59 @@ const CreateProductPage = () => {
             });
         });
     }, [options, hasVariants]);
+
+    // Clear errors when product type changes
+    useEffect(() => {
+        setErrors({});
+    }, [productType]);
+
+    // Reset all inputs when product type changes
+    const resetAllInputs = () => {
+        setTitle('');
+        setSubtitle('');
+        setHandle('');
+        setDescription('');
+        setSelectedImages([]);
+        setDimensions({ length: '', width: '', height: '' });
+        setWeight('');
+        setBrand('');
+        setUpc('');
+        setMpn('');
+        setEan('');
+        setIsbn('');
+        setServiceDuration('');
+        setRequiresStaff(false);
+        setSelectedStaff('');
+        setCostPrice('');
+        setOptions([]);
+        setVariantCombinations([]);
+        setSelectedCategoryId('');
+        setSelectedCategoryName('');
+        setSelectedCollectionId('');
+        setSelectedCollectionName('');
+        setSelectedTags([]);
+        setHasVariants(false);
+        setPricingContexts([
+            {
+                id: 'default-standard',
+                name: 'Standard',
+                costPrice: '',
+                marginType: 'fixed',
+                marginValue: '',
+                sellingPrice: '',
+                bulkPrice: '',
+                bulkPriceType: 'percentage',
+                minSellingPrice: '',
+                discount: 0,
+                discountType: 'fixed'
+            }
+        ]);
+        setErrors({});
+    };
+
+    useEffect(() => {
+        resetAllInputs();
+    }, [productType]);
 
     // Listen for selected images from the AddImage modal — merge new images with existing, avoid duplicates
     useEffect(() => {
@@ -255,6 +383,176 @@ const CreateProductPage = () => {
         }
     };
 
+    // Validation function for current tab before moving to next
+    const validateCurrentTab = (tabName) => {
+        const newErrors = {};
+        
+        if (tabName === 'details') {
+            // Validate details tab required fields
+            if (requiredFields.title && !title.trim()) newErrors.title = true;
+            if (requiredFields.handle && !handle.trim()) newErrors.handle = true;
+            if (requiredFields.description && !description.trim()) newErrors.description = true;
+            if (requiredFields.serviceDuration && !serviceDuration.trim()) newErrors.serviceDuration = true;
+            if (requiredFields.images && selectedImages.length === 0) newErrors.images = true;
+            if (requiredFields.brand && !brand.trim()) newErrors.brand = true;
+            if (requiredFields.manufacturer && !manufacturer.trim()) newErrors.manufacturer = true;
+        } 
+        else if (tabName === 'configure') {
+            // Validate configuration tab - will be handled by ProductConfigurations component
+            if (productConfigRef.current && productConfigRef.current.validateConfigurations) {
+                if (!productConfigRef.current.validateConfigurations()) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        
+        setErrors(newErrors);
+        
+        if (Object.keys(newErrors).length > 0) {
+            // Find first error and scroll to it
+            const errorKeys = Object.keys(newErrors);
+            const firstError = errorKeys[0];
+            
+            // Show toast with error message
+            toast.error(`Please fill in: ${firstError}`);
+            
+            // Scroll to the field
+            setTimeout(() => {
+                const element = document.querySelector(`[data-field="${firstError}"]`);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 100);
+            
+            return false;
+        }
+        
+        return true;
+    };
+
+    // Validation function for final submit
+    const validateForm = () => {
+        const newErrors = {};
+        
+        // Check all required fields dynamically based on requiredFields config
+        if (requiredFields.title && !title.trim()) newErrors.title = true;
+        if (requiredFields.handle && !handle.trim()) newErrors.handle = true;
+        if (requiredFields.description && !description.trim()) newErrors.description = true;
+        if (requiredFields.serviceDuration && !serviceDuration.trim()) newErrors.serviceDuration = true;
+        if (requiredFields.images && selectedImages.length === 0) newErrors.images = true;
+        if (requiredFields.brand && !brand.trim()) newErrors.brand = true;
+        if (requiredFields.manufacturer && !manufacturer.trim()) newErrors.manufacturer = true;
+        if (requiredFields.costPrice && !costPrice.trim()) newErrors.costPrice = true;
+        
+        setErrors(newErrors);
+        
+        if (Object.keys(newErrors).length > 0) {
+            // Find first error and scroll to it
+            const errorKeys = Object.keys(newErrors);
+            const firstError = errorKeys[0];
+            
+            // Map error keys to tabs
+            let targetTab = 'details';
+            if (['serviceDuration'].includes(firstError)) {
+                targetTab = 'details';
+            }
+            
+            setActiveTab(targetTab);
+            
+            // Scroll to the field
+            setTimeout(() => {
+                const element = document.querySelector(`[data-field="${firstError}"]`);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 100);
+            
+            return false;
+        }
+        
+        return true;
+    };
+
+    // Tab navigation functions
+    const goToPreviousTab = () => {
+        if (activeTab === 'configure') setActiveTab('details');
+        else if (activeTab === 'variants') setActiveTab('configure');
+    };
+
+    const goToNextTab = () => {
+        if (activeTab === 'details') {
+            // Validate details tab before moving to configure
+            if (validateCurrentTab('details')) {
+                setActiveTab('configure');
+            }
+        } 
+        else if (activeTab === 'configure') {
+            // Validate configurations before moving to variants
+            if (validateCurrentTab('configure')) {
+                setActiveTab('variants');
+            }
+        }
+    };
+
+    const handleSubmit = () => {
+        if (validateForm()) {
+            // Proceed with submission
+            console.log('Form is valid, submitting...');
+            
+            // Log all inputs and selections
+            console.log('=== PRODUCT DETAILS ===');
+            console.log('Title:', title);
+            console.log('Subtitle:', subtitle);
+            console.log('Handle:', handle);
+            console.log('Description:', description);
+            console.log('Product Type:', productType);
+            
+            console.log('=== SPECIFICATIONS ===');
+            console.log('Dimensions:', dimensions);
+            console.log('Dimension Unit:', dimensionUnit);
+            console.log('Weight:', weight);
+            console.log('Weight Unit:', weightUnit);
+            console.log('Brand:', brand);
+            console.log('Manufacturer:', manufacturer);
+            console.log('UPC:', upc);
+            console.log('MPN:', mpn);
+            console.log('EAN:', ean);
+            console.log('ISBN:', isbn);
+            
+            console.log('=== SERVICE SPECIFIC ===');
+            console.log('Service Duration:', serviceDuration);
+            console.log('Requires Staff:', requiresStaff);
+            console.log('Selected Staff:', selectedStaff);
+            
+            console.log('=== PRICING & CONTEXTS ===');
+            console.log('Cost Price:', costPrice);
+            console.log('All Pricing Contexts:', pricingContexts);
+            console.log('Selected Pricing Contexts:', selectedPricingContexts);
+            
+            console.log('=== MEDIA ===');
+            console.log('Selected Images:', selectedImages);
+            
+            console.log('=== VARIANTS ===');
+            console.log('Has Variants:', hasVariants);
+            console.log('Options:', options);
+            console.log('Variant Combinations:', variantCombinations);
+            
+            console.log('=== CATEGORIES & COLLECTIONS ===');
+            console.log('Selected Category ID:', selectedCategoryId);
+            console.log('Selected Category Name:', selectedCategoryName);
+            console.log('Selected Collection ID:', selectedCollectionId);
+            console.log('Selected Collection Name:', selectedCollectionName);
+            console.log('Selected Tags:', selectedTags);
+            
+            console.log('=== END OF PRODUCT DATA ===');
+            
+            toast.success('Product submitted successfully');
+        } else {
+            toast.error('Please fill in all required fields');
+        }
+    };
+
     // (removed external 'new' navigation — creation happens inside sheets)
     function capitalize(input) {
       let newValue= input.toString().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1))
@@ -271,25 +569,29 @@ const CreateProductPage = () => {
 
 
            <div className="relative w-full h-full flex flex-col">
-                 <div className="flex items-center gap-2 border-b px-6 py-3 bg-white z-10">
+                 <div className="flex items-center justify-between border-b px-6 py-3 bg-white z-10">
+                    <div className="flex items-center gap-2">
+                      {/* X Button */}
+                      <Link href={`/admin/${u}/company/${companySlug}/branches/${branch}/modules/products`}><Button variant={'ghost'} className="text-white bg-red-500 h-7 hover:text-black text-xs">✕</Button></Link>
 
-                    {/* X Button */}
-                    <Link href={`/admin/${u}/company/${companySlug}/branches/${branch}/modules/products`}><Button variant={'ghost'} className="text-white bg-red-500 h-7 hover:text-black text-xs">✕</Button></Link>
+                      {/* Reset Button */}
+                      <Button 
+                        onClick={resetAllInputs}
+                        variant={'outline'} 
+                        className="px-2 py-1 h-7 text-[10px] rounded-sm text-neutral-600 border"
+                      >
+                        Reset
+                      </Button>
 
-                    {/* ESC Badge */}
-                    <div className="px-2 py-1 border  rounded-sm text-[10px] text-neutral-600">
-                    esc
-                    </div>
-
-                    {/* Tabs */}
-                    <div className="flex items-center gap-3 ml-16 text-xs font-medium">
+                      {/* Tabs */}
+                      <div className="flex items-center gap-3 ml-16 text-xs font-medium">
 
                           {/* DETAILS */}
                           <Button variant={'outline'}
                               onClick={() => setActiveTab("details")}
                               className={`px-2 py-1 h-6 text-[11px] rounded-sm ${
                               activeTab === "details"
-                                  ? "bg-army text-neutral-50"
+                                  ? "bg-neutral-800 text-neutral-50"
                                   : "text-neutral-600"
                               }`}
                           >
@@ -303,7 +605,7 @@ const CreateProductPage = () => {
                               onClick={() => setActiveTab("configure")}
                               className={`px-2 py-1 h-6 text-[11px] rounded-sm ${
                               activeTab === "configure"
-                                  ? "bg-army text-neutral-50"
+                                  ? "bg-neutral-800 text-neutral-50"
                                   : "text-neutral-600"
                               }`}
                           >
@@ -317,13 +619,18 @@ const CreateProductPage = () => {
                               onClick={() => setActiveTab("variants")}
                               className={`px-2 py-1 h-6 text-[11px] rounded-sm ${
                               activeTab === "variants"
-                                  ? "bg-army text-neutral-50"
+                                  ? "bg-neutral-800 text-neutral-50"
                                   : "text-neutral-600"
                               }`}
                           >
-                              <span className="top-px relative">Variants</span>
+                              <span className="top-px relative">{productType === 'service' ? 'Quality Tiers' : 'Variants'}</span>
                           </Button>
+                      </div>
                     </div>
+                    {/* Save as Draft Button - Top Right */}
+                    <Button variant={''} className="px-3 h-7 py-2 bg-core rounded-sm border hover:bg-core/90 text-xs text-white">
+                      Save as draft
+                    </Button>
                 </div>
 
                 {/* ─── SCROLLABLE BODY ─────────────────────────────────────────── */}
@@ -361,59 +668,70 @@ const CreateProductPage = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
                                 {/* Title */}
-                                <div className="flex flex-col space-y-1">
-                                    <label className="text-xs font-medium">Title</label>
-                                    <Input className="border rounded-sm px-2 py-2 text-xs" placeholder="Winter jacket" value={title} onChange={({target})=>{setTitle(capitalize(target.value),setHandle(convertToSlug(target.value)))}}/>
+                                <div className="flex flex-col space-y-1" data-field="title">
+                                    {renderFieldLabel("Title", "title")}
+                                    <Input 
+                                      required={requiredFields.title}
+                                      className={`border rounded-sm px-2 py-2 text-xs ${errors.title ? 'border-red-500 border-2' : ''}`}
+                                      placeholder="Winter jacket" 
+                                      value={title} 
+                                      onChange={({target})=>{setTitle(capitalize(target.value),setHandle(convertToSlug(target.value))); setErrors(prev => ({ ...prev, title: false }));}}
+                                    />
                                 </div>
 
                                 {/* Subtitle */}
-                                <div className="flex flex-col space-y-1">
-                                    <label className="text-xs font-medium">
-                                    Subtitle <span className="text-neutral-400">(Optional)</span>
-                                    </label>
-                                    <Input className="border rounded-sm px-2 py-2 text-xs"  placeholder="Warm and cozy" value={subtitle}  onChange={({target})=>{setSubtitle(target.value)}}/>
+                                <div className="flex flex-col space-y-1" data-field="subtitle">
+                                    {renderFieldLabel("Subtitle", "subtitle")}
+                                    <Input 
+                                      required={requiredFields.subtitle}
+                                      className="border rounded-sm px-2 py-2 text-xs"  
+                                      placeholder="Warm and cozy" 
+                                      value={subtitle}  
+                                      onChange={({target})=>{setSubtitle(target.value); setErrors(prev => ({ ...prev, subtitle: false }));}}
+                                    />
                                 </div>
 
                                 {/* Handle */}
-                                <div className="flex flex-col space-y-1">
-                                    <label className="text-xs font-medium">
-                                    Handle 
-                                    </label>
+                                <div className="flex flex-col space-y-1" data-field="handle">
+                                    {renderFieldLabel("Handle", "handle")}
                                     <div className="flex">
                                     <span className="border border-r-0 rounded-sm rounded-r-none px-2 py-2 text-xs bg-neutral-100 text-neutral-500">
                                         /
                                     </span>
-                                    <Input className="border rounded-sm rounded-l-none px-2 py-2 text-xs w-full" value={handle}  onChange={({target})=>{setHandle(convertToSlug(target.value))}}   placeholder="winter-jacket" />
+                                    <Input 
+                                      required={requiredFields.handle}
+                                      className={`border rounded-sm rounded-l-none px-2 py-2 text-xs w-full ${errors.handle ? 'border-red-500 border-2' : ''}`}
+                                      value={handle}  
+                                      onChange={({target})=>{setHandle(convertToSlug(target.value)); setErrors(prev => ({ ...prev, handle: false }));}}   
+                                      placeholder="winter-jacket" 
+                                    />
                                     </div>
                                 </div>
                                 </div>
 
                                 {/* Description */}
-                                <div className="flex flex-col space-y-1">
-                                  <label className="text-xs font-medium">
-                                      Description <span className="text-neutral-400">(Optional)</span>
-                                  </label>
-                                  <Textarea rows={5} value={description} onChange={(e) => setDescription(e.target.value)} className="border rounded-sm px-2 py-2 text-xs" placeholder="A warm and cozy jacket"></Textarea>
+                                <div className="flex flex-col space-y-1" data-field="description">
+                                  {renderFieldLabel("Description", "description")}
+                                  <Textarea 
+                                    required={requiredFields.description}
+                                    rows={5} 
+                                    value={description} 
+                                    onChange={(e) => { setDescription(e.target.value); setErrors(prev => ({ ...prev, description: false })); }} 
+                                    className={`border rounded-sm px-2 py-2 text-xs ${errors.description ? 'border-red-500 border-2' : ''}`}
+                                    placeholder="A warm and cozy jacket"
+                                  />
                                 </div>
 
                                 {/* Manufacturer & Brand */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  <div className="flex flex-col space-y-1">
-                                    <label className="text-xs font-medium">Manufacturer</label>
+                                  <div className="flex flex-col space-y-1" data-field="brand">
+                                    {renderFieldLabel("Brand/Manufacturer", "brand")}
                                     <Input
-                                      placeholder="Select or Add Manufacturer"
-                                      value={manufacturer}
-                                      onChange={(e) => setManufacturer(e.target.value)}
-                                      className="border rounded-sm px-2 py-2 text-xs"
-                                    />
-                                  </div>
-                                  <div className="flex flex-col space-y-1">
-                                    <label className="text-xs font-medium">Brand</label>
-                                    <Input
+                                      required={requiredFields.brand}
                                       placeholder="Select or Add Brand"
                                       value={brand}
-                                      onChange={(e) => setBrand(e.target.value)}
-                                      className="border rounded-sm px-2 py-2 text-xs"
+                                      onChange={(e) => { setBrand(e.target.value); setErrors(prev => ({ ...prev, brand: false })); }}
+                                      className={`border rounded-sm px-2 py-2 text-xs ${errors.brand ? 'border-red-500 border-2' : ''}`}
                                     />
                                   </div>
                                 </div>
@@ -425,50 +743,70 @@ const CreateProductPage = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
                                 {/* Title */}
-                                <div className="flex flex-col space-y-1">
-                                    <label className="text-xs font-medium">Service Name</label>
-                                    <Input className="border rounded-sm px-2 py-2 text-xs" placeholder="Haircut - Skin Fade" value={title} onChange={({target})=>{setTitle(capitalize(target.value),setHandle(convertToSlug(target.value)))}}/>
+                                <div className="flex flex-col space-y-1" data-field="title">
+                                    {renderFieldLabel(productType === 'service' ? "Service Name" : "Product Name", "title")}
+                                    <Input 
+                                      required={requiredFields.title}
+                                      className={`border rounded-sm px-2 py-2 text-xs ${errors.title ? 'border-red-500 border-2' : ''}`}
+                                      placeholder={productType === 'service' ? "e.g., Haircut - Fade, Manicure, Facial" : "Product name"}
+                                      value={title} 
+                                      onChange={({target})=>{setTitle(capitalize(target.value),setHandle(convertToSlug(target.value))); setErrors(prev => ({ ...prev, title: false }));}}
+                                    />
                                 </div>
 
                                 {/* Subtitle */}
-                                <div className="flex flex-col space-y-1">
-                                    <label className="text-xs font-medium">
-                                    Subtitle <span className="text-neutral-400">(Optional)</span>
-                                    </label>
-                                    <Input className="border rounded-sm px-2 py-2 text-xs"  placeholder="Premium fade with razor finish" value={subtitle}  onChange={({target})=>{setSubtitle(target.value)}}/>
+                                <div className="flex flex-col space-y-1" data-field="subtitle">
+                                    {renderFieldLabel("Subtitle", "subtitle")}
+                                    <Input 
+                                      required={requiredFields.subtitle}
+                                      className="border rounded-sm px-2 py-2 text-xs"  
+                                      placeholder={productType === 'service' ? "e.g., Premium fade with razor finish, Gel polish application" : "Brief description"} 
+                                      value={subtitle}  
+                                      onChange={({target})=>{setSubtitle(target.value); setErrors(prev => ({ ...prev, subtitle: false }));}}
+                                    />
                                 </div>
 
                                 {/* Handle */}
-                                <div className="flex flex-col space-y-1">
-                                    <label className="text-xs font-medium">
-                                    Handle 
-                                    </label>
+                                <div className="flex flex-col space-y-1" data-field="handle">
+                                    {renderFieldLabel("Handle", "handle")}
                                     <div className="flex">
                                     <span className="border border-r-0 rounded-sm rounded-r-none px-2 py-2 text-xs bg-neutral-100 text-neutral-500">
                                         /
                                     </span>
-                                    <Input className="border rounded-sm rounded-l-none px-2 py-2 text-xs w-full" value={handle}  onChange={({target})=>{setHandle(convertToSlug(target.value))}}   placeholder="haircut-skin-fade" />
+                                    <Input 
+                                      required={requiredFields.handle}
+                                      className={`border rounded-sm rounded-l-none px-2 py-2 text-xs w-full ${errors.handle ? 'border-red-500 border-2' : ''}`}
+                                      value={handle}  
+                                      onChange={({target})=>{setHandle(convertToSlug(target.value)); setErrors(prev => ({ ...prev, handle: false }));}}   
+                                      placeholder="haircut-skin-fade" 
+                                    />
                                     </div>
                                 </div>
                                 </div>
 
                                 {/* Description */}
-                                <div className="flex flex-col space-y-1">
-                                  <label className="text-xs font-medium">
-                                      Description <span className="text-neutral-400">(Optional)</span>
-                                  </label>
-                                  <Textarea rows={5} value={description} onChange={(e) => setDescription(e.target.value)} className="border rounded-sm px-2 py-2 text-xs" placeholder="Describe your service offering..."></Textarea>
+                                <div className="flex flex-col space-y-1" data-field="description">
+                                  {renderFieldLabel("Description", "description")}
+                                  <Textarea 
+                                    required={requiredFields.description}
+                                    rows={5} 
+                                    value={description} 
+                                    onChange={(e) => { setDescription(e.target.value); setErrors(prev => ({ ...prev, description: false })); }} 
+                                    className={`border rounded-sm px-2 py-2 text-xs ${errors.description ? 'border-red-500 border-2' : ''}`}
+                                    placeholder={productType === 'service' ? "Describe the service details - e.g., 'Professional haircut featuring clean fades and precise lines. Includes blow-dry and styling.' or 'Relaxing facial treatment with hydrating moisturizers and anti-aging treatments.'" : "Describe your product..."}
+                                  />
                                 </div>
 
                                 {/* Service Duration */}
-                                <div className="flex flex-col space-y-1">
-                                  <label className="text-xs font-medium">Duration (minutes) <span className="text-red-500">*</span></label>
+                                <div className="flex flex-col space-y-1" data-field="serviceDuration">
+                                  {renderFieldLabel("Duration (minutes)", "serviceDuration")}
                                   <Input
                                     type="number"
-                                    placeholder="30"
+                                    required={requiredFields.serviceDuration}
+                                    placeholder={productType === 'service' ? "e.g., 30, 45, 60" : "Duration"}
                                     value={serviceDuration}
-                                    onChange={(e) => setServiceDuration(e.target.value)}
-                                    className="border rounded-sm px-2 py-2 text-xs"
+                                    onChange={(e) => { setServiceDuration(e.target.value); setErrors(prev => ({ ...prev, serviceDuration: false })); }}
+                                    className={`border rounded-sm px-2 py-2 text-xs ${errors.serviceDuration ? 'border-red-500 border-2' : ''}`}
                                   />
                                 </div>
 
@@ -499,16 +837,16 @@ const CreateProductPage = () => {
                             )}
 
                             {/* Media uploader */}
-                            <div>
-                                <label className="text-xs font-medium">
-                                    Media {productType === 'physical' ? <span className="text-neutral-400">(Required if product will appear on e-commerce)</span> : <span className="text-neutral-400">(Optional - images help showcase your service)</span>}
-                                </label>
+                            <div data-field="images">
+                                {renderFieldLabel("Media", "images")}
+                                {requiredFields.images && <span className="text-neutral-400 text-xs ml-1">(Required if product will appear on e-commerce)</span>}
+                                {!requiredFields.images && <span className="text-neutral-400 text-xs ml-1">(Optional - images help showcase your service)</span>}
                                 {hasVariants && selectedImages.length > 0 && variantCombinations.length > 0 && (
                                   <p className="text-[10px] text-neutral-500 mt-1">
                                     Images are mapped to variants in order: the first image corresponds to the first variant, the second to the second, and so on.
                                   </p>
                                 )}
-                                <div className="mt-2 border border-dashed rounded-sm min-h-32 flex text-neutral-500 p-2">
+                                <div className={`mt-2 border border-dashed rounded-sm min-h-32 flex text-neutral-500 p-2 ${errors.images ? 'border-red-500 border-2 bg-red-50' : ''}`}>
                                   {selectedImages && selectedImages.length > 0 ? (
                                     <div className="w-full flex items-center gap-3">
                                       <div className="flex-1">
@@ -638,12 +976,13 @@ const CreateProductPage = () => {
                             </div>
 
                             {/* Product Codes */}
-                            <div className="border rounded-sm px-4 py-3">
+                            <div className="border rounded-sm px-4 mt-9 py-3">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <Label className="text-xs font-medium mb-2 flex items-center gap-1">
                                             UPC
-                                            <span className="text-neutral-400 text-[10px]" title="Universal Product Code">ⓘ</span>
+                                            <span className="text-neutral-800 font-bold text-[10px]" title="Universal Product Code">ⓘ</span>
+                                            <span className="text-neutral-400 text-[10px]" title="Universal Product Code">Optional</span>
                                         </Label>
                                         <Input
                                             placeholder="Universal Product Code"
@@ -655,7 +994,8 @@ const CreateProductPage = () => {
                                     <div>
                                         <Label className="text-xs font-medium mb-2 flex items-center gap-1">
                                             MPN
-                                            <span className="text-neutral-400 text-[10px]" title="Manufacturer Part Number">ⓘ</span>
+                                            <span className="text-neutral-80 font-bold text-[10px]" title="Manufacturer Part Number">ⓘ</span>
+                                            <span className="text-neutral-400 text-[10px]" title="Universal Product Code">Optional</span>
                                         </Label>
                                         <Input
                                             placeholder="Manufacturer Part Number"
@@ -667,7 +1007,8 @@ const CreateProductPage = () => {
                                     <div>
                                         <Label className="text-xs font-medium mb-2 flex items-center gap-1">
                                             EAN
-                                            <span className="text-neutral-400 text-[10px]" title="European Article Number">ⓘ</span>
+                                            <span className="text-neutral-800 font-bold text-[10px]" title="European Article Number">ⓘ</span>
+                                            <span className="text-neutral-400 text-[10px]" title="Universal Product Code">Optional</span>
                                         </Label>
                                         <Input
                                             placeholder="European Article Number"
@@ -679,7 +1020,8 @@ const CreateProductPage = () => {
                                     <div>
                                         <Label className="text-xs font-medium mb-2 flex items-center gap-1">
                                             ISBN
-                                            <span className="text-neutral-400 text-[10px]" title="International Standard Book Number">ⓘ</span>
+                                            <span className="text-neutral-800 font-bold text-[10px]" title="International Standard Book Number">ⓘ</span>
+                                            <span className="text-neutral-400 text-[10px]" title="International Standard Book Number">Optional</span>
                                         </Label>
                                         <Input
                                             placeholder="International Standard Book Number"
@@ -756,7 +1098,7 @@ const CreateProductPage = () => {
                                               onChange={(e) => updateOptionInput(index, e.target.value.toLowerCase())}
                                               onKeyDown={(e) => handleKeyDown(e, index)}
                                               className="w-full border-0 outline-0 mt-1 text-xs placeholder-neutral-400"
-                                              placeholder="Add values..."
+                                              placeholder={productType === 'service' ? 'e.g., fade, crew cut, taper or standard, deluxe, premium' : 'Add values...'}
                                             />
                                             <div className="flex flex-wrap gap-2">
                                               {option.values.map((value, valIndex) => (
@@ -784,7 +1126,7 @@ const CreateProductPage = () => {
 
                               {hasVariants&&options.length > 0 && (
                                 <div className="mt-4">
-                                  <h3 className="text-xs mb-2 font-medium">Variant Combinations <span className="text-[10px] ml-1 text-core italic">{`(drag and drop to modify hierarchy)`}</span></h3>
+                                  <h3 className="text-xs mb-2 font-medium">{productType === 'service' ? 'Quality Tier Combinations' : 'Variant Combinations'} <span className="text-[10px] ml-1 text-core italic">{`(drag and drop to modify hierarchy)`}</span></h3>
                                   <DndProvider backend={HTML5Backend}>
                                     <CombinationDragPreview />
                                     <AnimatePresence mode="popLayout">
@@ -837,6 +1179,7 @@ const CreateProductPage = () => {
                     {/* CONFIGURATIONS TAB */}
                     {activeTab === "configure" && (
                       <ProductConfigurations
+                        ref={productConfigRef}
                         selectedCollectionId={selectedCollectionId}
                         selectedCollectionName={selectedCollectionName}
                         setSelectedCollectionId={setSelectedCollectionId}
@@ -860,28 +1203,65 @@ const CreateProductPage = () => {
                         setCostPrice={setCostPrice}
                         pricingContexts={pricingContexts}
                         setPricingContexts={setPricingContexts}
+                        selectedPricingContexts={selectedPricingContexts}
+                        setSelectedPricingContexts={setSelectedPricingContexts}
                         branch={currentBranch}
+                        productType={productType}
                       />
                     )}
 
                     {/* VARIANTS TAB */}
                     {activeTab === "variants" && (
-                        <div className="text-neutral-700 w-11/12 mx-auto text-xs">
-                        <h2 className="font-semibold mb-4">Variance</h2>
+                        <div className="text-neutral-700 w-full p-6 mx-auto text-xs">
+                        <h2 className="font-semibold mb-4">{productType === 'service' ? 'Quality Tiers (Variants)' : 'Variants'}</h2>
                         
-                        <VariantTable combinations={variantCombinations} costPrice={costPrice} pricingContexts={pricingContexts} updateValue={updateVariantValue} />
+                          <VariantTable 
+                            combinations={variantCombinations} 
+                            costPrice={costPrice} 
+                            pricingContexts={pricingContexts.filter(ctx => selectedPricingContexts?.includes(ctx.id))}
+                            updateValue={updateVariantValue} 
+                            productType={productType}
+                          />
+
                         </div>
                     )}
                     </div>
                 </div>
 
                 {/* FOOTER BUTTONS */}
-                <div className="flex justify-end gap-2 border-t px-7 mr-3 py-3  bg-white">
-                    <Button variant={'outline'} className="px-3 h-7 py-2 bg-red-500 text-white hover:text-black rounded-sm border text-xs">Cancel</Button>
-                    <Button variant={''} className="px-3 h-7 py-2 bg-core rounded-sm border hover:bg-core/90 text-xs">Save as draft</Button>
-                    <Button variant={''} className="px-3 h-7 py-2 bg-core rounded-sm hover:bg-core/90 text-white text-xs">
-                    Continue
-                    </Button>
+                <div className="flex justify-end  mr-14 gap-2 border-t px-7 py-3 bg-white">
+                    {/* <Link href={`/admin/${u}/company/${companySlug}/branches/${branch}/modules/products`}><Button variant={'outline'} className="px-3 h-7 py-2 bg-red-500 text-white hover:text-black rounded-sm border text-xs">Cancel</Button></Link> */}
+                    
+                    <div className="flex gap-2">
+                        {/* Back Button */}
+                        <Button 
+                            onClick={goToPreviousTab}
+                            disabled={activeTab === 'details'}
+                            variant={'outline'} 
+                            className="px-3 h-7 py-2 rounded-sm border text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Back
+                        </Button>
+                        
+                        {/* Next/Submit Button */}
+                        {activeTab !== 'variants' ? (
+                            <Button 
+                                onClick={goToNextTab}
+                                variant={''} 
+                                className="px-3 h-7 py-2 bg-army rounded-sm hover:bg-army/90 text-white text-xs"
+                            >
+                                Next
+                            </Button>
+                        ) : (
+                            <Button 
+                                onClick={handleSubmit}
+                                variant={''} 
+                                className="px-3 h-7 py-2 bg-army rounded-sm hover:bg-army/90 text-white text-xs"
+                            >
+                                Submit
+                            </Button>
+                        )}
+                    </div>
                 </div>
            </div>
 
@@ -1076,10 +1456,10 @@ function DraggableCombination({ combo, index, moveCombination, draggedIndex, onD
           <Button
             variant="outline"
             size="sm"
-            className="h-7 px-2 text-xs"
+            className="h-6 text-[10px] px-2"
             onClick={() => setImageSheetOpen(true)}
           >
-            <Plus className="h-3 w-3 mr-1" /> Map
+            <Plus className="h-2.5 w-2.5 mr-1" /> Map image to variant
           </Button>
         </div>
 
