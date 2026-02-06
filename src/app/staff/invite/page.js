@@ -13,9 +13,9 @@ import { toast } from 'sonner';
 import Image from 'next/image';
 
 export default function StaffInvitePage() {
-  const searchParams = useSearchParams();
+
   const router = useRouter();
-  const token = searchParams.get('token');
+
 
   const [step, setStep] = useState('verify'); // verify, form, success
   const [isLoading, setIsLoading] = useState(true);
