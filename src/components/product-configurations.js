@@ -37,17 +37,33 @@ export const ProductConfigurations = forwardRef(({
   setPricingContexts,
   selectedPricingContexts,
   setSelectedPricingContexts,
+  errors = {},
+  shippingProfiles,
+  setShippingProfiles,
+  selectedShippingProfile,
+  setSelectedShippingProfile,
+  selectedMeasurementType,
+  setSelectedMeasurementType,
+  totalProductUnits,
+  setTotalProductUnits,
+  totalProductUnitsType,
+  setTotalProductUnitsType,
+  minimumProductUnits,
+  setMinimumProductUnits,
+  bulkQuantity,
+  setBulkQuantity,
   branch,
-  productType = 'physical'
+  productType = 'physical',
+  reorderLevel,
+  setReorderLevel,
+  returnPolicy,
+  setReturnPolicy,
+  selectedReturnPolicyId,
+  setSelectedReturnPolicyId
 }, ref) => {
-  // Local state for measurement data
+  // Local state for measurement data (measurementTypes and measurementUnits are fetched, others come from props)
   const [measurementTypes, setMeasurementTypes] = useState([]);
   const [measurementUnits, setMeasurementUnits] = useState([]);
-  const [selectedMeasurementType, setSelectedMeasurementType] = useState('');
-  const [totalProductUnits, setTotalProductUnits] = useState('');
-  const [totalProductUnitsType, setTotalProductUnitsType] = useState('count');
-  const [minimumProductUnits, setMinimumProductUnits] = useState('');
-  const [bulkQuantity, setBulkQuantity] = useState('');
   const [loading, setLoading] = useState(false);
   const [pricingContextSheetOpen, setPricingContextSheetOpen] = useState(false);
   const [pricingContextMode, setPricingContextMode] = useState('list'); // 'list' or 'create'
@@ -61,6 +77,23 @@ export const ProductConfigurations = forwardRef(({
   const [isSavingMarginRule, setIsSavingMarginRule] = useState(false);
   const [isDeletingMarginRule, setIsDeletingMarginRule] = useState(null);
   const [isLoadingMarginRules, setIsLoadingMarginRules] = useState(false);
+  const [shippingProfileSheetOpen, setShippingProfileSheetOpen] = useState(false);
+  const [shippingProfileMode, setShippingProfileMode] = useState('list'); // 'list' or 'create'
+  const [newShippingProfileName, setNewShippingProfileName] = useState('');
+  const [newShippingProfileDescription, setNewShippingProfileDescription] = useState('');
+  const [isSavingShippingProfile, setIsSavingShippingProfile] = useState(false);
+  const [isDeletingShippingProfile, setIsDeletingShippingProfile] = useState(null);
+  const [isLoadingShippingProfiles, setIsLoadingShippingProfiles] = useState(false);
+  
+  // Return policy database state
+  const [returnPoliciesFromDb, setReturnPoliciesFromDb] = useState([]);
+  const [returnPolicySheetOpen, setReturnPolicySheetOpen] = useState(false);
+  const [returnPolicyMode, setReturnPolicyMode] = useState('list'); // 'list' or 'create'
+  const [newPolicyName, setNewPolicyName] = useState('');
+  const [newPolicyDescription, setNewPolicyDescription] = useState('');
+  const [isSavingReturnPolicy, setIsSavingReturnPolicy] = useState(false);
+  const [isDeletingReturnPolicy, setIsDeletingReturnPolicy] = useState(null);
+  const [isLoadingReturnPolicies, setIsLoadingReturnPolicies] = useState(false);
   
   // Pricing context database state
   const [isLoadingPricingContexts, setIsLoadingPricingContexts] = useState(false);
@@ -85,8 +118,8 @@ export const ProductConfigurations = forwardRef(({
   // Combined pricing contexts: use the passed pricingContexts prop which includes default + database contexts
   const allPricingContexts = pricingContexts || [defaultPricingContext];
 
-  // Validation state
-  const [errors, setErrors] = useState({});
+  // Validation state for component-specific errors
+  const [validationErrors, setValidationErrors] = useState({});
 
   // Required fields configuration based on product type
   const requiredFields = {
@@ -107,40 +140,8 @@ export const ProductConfigurations = forwardRef(({
     );
   };
 
-  // Validation function for configurations
-  const validateConfigurations = () => {
-    const newErrors = {};
-    
-    // Check pricing contexts
-    if (requiredFields.pricingContexts && (!pricingContexts || pricingContexts.length === 0)) {
-      newErrors.pricingContexts = true;
-    }
-    
-    setErrors(newErrors);
-    
-    if (Object.keys(newErrors).length > 0) {
-      // Scroll to first error
-      setTimeout(() => {
-        const element = document.querySelector(`[data-field="configurations"]`);
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }, 100);
-      return false;
-    }
-    
-    return true;
-  };
-
-  // Clear errors when product type changes
-  useEffect(() => {
-    setErrors({});
-  }, [productType]);
-
-  // Expose validation function via ref
-  useImperativeHandle(ref, () => ({
-    validateConfigurations
-  }), [pricingContexts, requiredFields]);
+  // Note: All validation for this section is handled by the parent component (create/page.js)
+  // This component only receives error state as a prop and displays them
 
   // Fetch measurement types and units from Supabase
   useEffect(() => {
@@ -416,7 +417,231 @@ export const ProductConfigurations = forwardRef(({
     }
   };
 
-  // Helper to toggle context selection (multiple selection)
+  // Fetch return policies from Supabase
+  const fetchReturnPolicies = async () => {
+    if (!branch?.id) {
+      console.log('No branch ID available');
+      return;
+    }
+    
+    try {
+      setIsLoadingReturnPolicies(true);
+      console.log('Fetching return policies for branch:', branch.id);
+      
+      const { data, error } = await supabase
+        .from('return_policies')
+        .select('*')
+        .eq('branch_id', branch.id);
+      
+      if (error) {
+        console.error('Error fetching return policies:', error);
+        toast.error('Failed to load return policies');
+        setReturnPoliciesFromDb([]);
+      } else {
+        console.log('Fetched return policies:', data);
+        setReturnPoliciesFromDb(data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching return policies:', error);
+      setReturnPoliciesFromDb([]);
+    } finally {
+      setIsLoadingReturnPolicies(false);
+    }
+  };
+
+  // Create new return policy in Supabase
+  const handleCreateReturnPolicy = async () => {
+    if (!newPolicyName.trim() || !newPolicyDescription.trim()) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+
+    try {
+      setIsSavingReturnPolicy(true);
+      const { data, error } = await supabase
+        .from('return_policies')
+        .insert([{
+          name: newPolicyName.trim(),
+          description: newPolicyDescription.trim(),
+          branch_id: branch?.id
+        }])
+        .select('*');
+      
+      if (error) {
+        console.error('Error creating return policy:', error);
+        toast.error('Failed to create return policy');
+        return;
+      }
+
+      if (data && data.length > 0) {
+        setReturnPoliciesFromDb([...returnPoliciesFromDb, data[0]]);
+        setNewPolicyName('');
+        setNewPolicyDescription('');
+        setReturnPolicyMode('list');
+        toast.success('Return policy created successfully');
+      }
+    } catch (error) {
+      console.error('Error creating return policy:', error);
+      toast.error('Failed to create return policy');
+    } finally {
+      setIsSavingReturnPolicy(false);
+    }
+  };
+
+  // Delete return policy from Supabase
+  const handleDeleteReturnPolicy = async (policyId, policyName) => {
+    if (!branch?.id) return;
+
+    try {
+      setIsDeletingReturnPolicy(policyId);
+      const { error } = await supabase
+        .from('return_policies')
+        .delete()
+        .eq('id', policyId)
+        .eq('branch_id', branch.id);
+      
+      if (error) {
+        console.error('Error deleting return policy:', error);
+        toast.error('Failed to delete return policy');
+        return;
+      }
+
+      setReturnPoliciesFromDb(returnPoliciesFromDb.filter(policy => policy.id !== policyId));
+      
+      // Clear selection if deleted policy was selected
+      if (selectedReturnPolicyId === policyId) {
+        setSelectedReturnPolicyId(null);
+      }
+      
+      toast.success('Return policy deleted successfully');
+    } catch (error) {
+      console.error('Error deleting return policy:', error);
+      toast.error('Failed to delete return policy');
+    } finally {
+      setIsDeletingReturnPolicy(null);
+    }
+  };
+
+  // Fetch return policies when sheet opens
+  useEffect(() => {
+    if (returnPolicySheetOpen && branch?.id) {
+      fetchReturnPolicies();
+    }
+  }, [returnPolicySheetOpen, branch?.id]);
+
+  // Fetch shipping profiles from Supabase
+  const fetchShippingProfiles = async () => {
+    if (!branch?.id) {
+      console.log('No branch ID available');
+      return;
+    }
+    
+    try {
+      setIsLoadingShippingProfiles(true);
+      console.log('Fetching shipping profiles for branch:', branch.id);
+      
+      const { data, error } = await supabase
+        .from('shipping_profiles')
+        .select('*')
+        .eq('branch_id', branch.id);
+      
+      if (error) {
+        console.error('Error fetching shipping profiles:', error);
+        toast.error('Failed to load shipping profiles');
+        setShippingProfiles([]);
+      } else {
+        console.log('Fetched shipping profiles:', data);
+        setShippingProfiles(data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching shipping profiles:', error);
+      setShippingProfiles([]);
+    } finally {
+      setIsLoadingShippingProfiles(false);
+    }
+  };
+
+  // Create new shipping profile in Supabase
+  const handleCreateShippingProfile = async () => {
+    if (!newShippingProfileName.trim() || !newShippingProfileDescription.trim()) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+
+    try {
+      setIsSavingShippingProfile(true);
+      const { data, error } = await supabase
+        .from('shipping_profiles')
+        .insert([{
+          name: newShippingProfileName.trim(),
+          description: newShippingProfileDescription.trim(),
+          branch_id: branch?.id
+        }])
+        .select('*');
+      
+      if (error) {
+        console.error('Error creating shipping profile:', error);
+        toast.error('Failed to create shipping profile');
+        return;
+      }
+
+      if (data && data.length > 0) {
+        setShippingProfiles([...shippingProfiles, data[0]]);
+        setNewShippingProfileName('');
+        setNewShippingProfileDescription('');
+        setShippingProfileMode('list');
+        toast.success('Shipping profile created successfully');
+      }
+    } catch (error) {
+      console.error('Error creating shipping profile:', error);
+      toast.error('Failed to create shipping profile');
+    } finally {
+      setIsSavingShippingProfile(false);
+    }
+  };
+
+  // Delete shipping profile from Supabase
+  const handleDeleteShippingProfile = async (profileId, profileName) => {
+    if (!branch?.id) return;
+
+    try {
+      setIsDeletingShippingProfile(profileId);
+      const { error } = await supabase
+        .from('shipping_profiles')
+        .delete()
+        .eq('id', profileId)
+        .eq('branch_id', branch.id);
+      
+      if (error) {
+        console.error('Error deleting shipping profile:', error);
+        toast.error('Failed to delete shipping profile');
+        return;
+      }
+
+      setShippingProfiles(shippingProfiles.filter(profile => profile.id !== profileId));
+      
+      // Clear selection if deleted profile was selected
+      if (selectedShippingProfile?.id === profileId) {
+        setSelectedShippingProfile(null);
+      }
+      
+      toast.success('Shipping profile deleted successfully');
+    } catch (error) {
+      console.error('Error deleting shipping profile:', error);
+      toast.error('Failed to delete shipping profile');
+    } finally {
+      setIsDeletingShippingProfile(null);
+    }
+  };
+
+  // Fetch shipping profiles when sheet opens
+  useEffect(() => {
+    if (shippingProfileSheetOpen && branch?.id) {
+      fetchShippingProfiles();
+    }
+  }, [shippingProfileSheetOpen, branch?.id]);
+
+  // Helper to get selected policy data
   const toggleContextSelection = (contextId) => {
     setSelectedPricingContexts(prev => 
       prev.includes(contextId)
@@ -472,6 +697,28 @@ export const ProductConfigurations = forwardRef(({
     setTotalProductUnits('');
   };
 
+  // Expose method to save/commit editing state before parent validation
+  useImperativeHandle(ref, () => ({
+    commitEditingState: () => {
+      if (editingContextId && Object.keys(editingContextData).length > 0) {
+        // Update the pricing context in parent state
+        const updatedContexts = pricingContexts.map(ctx =>
+          ctx.id === editingContextId
+            ? { ...ctx, ...editingContextData }
+            : ctx
+        );
+        setPricingContexts(updatedContexts);
+        // Clear editing state
+        setEditingContextId(null);
+        setEditingContextData({});
+        // Return the updated contexts so parent can use for immediate validation
+        return updatedContexts;
+      }
+      // Return current contexts if no editing state
+      return pricingContexts;
+    }
+  }));
+
   return (
     <div className="text-neutral-700 font-WixMade tracking-tight max-w-5xl mx-auto text-xs">
       <h2 className="font-semibold mb-4">Configurations</h2>
@@ -493,12 +740,12 @@ export const ProductConfigurations = forwardRef(({
         )}
 
         {/* Categories + Tags */}
-        <div className=" rounded-sm bg-white p-4 space-y-4">
+        <div className=" rounded-sm bg-white p-4 space-y-4" data-field="category">
           <div className="flex gap-4">
             <div className="flex-1">
               <label className="text-gray-600 text-xs">Categories </label>
               <div className="flex gap-2 mt-1 items-center">
-                <input className="flex-1 border rounded-sm p-2 text-xs" value={selectedCategoryName || ''} readOnly placeholder="Select category" />
+                <input className={`flex-1 border rounded-sm p-2 text-xs ${errors.category ? 'border-red-500 border-2 bg-red-50' : ''}`} value={selectedCategoryName || ''} readOnly placeholder="Select category" />
                 <Button variant="outline" className="h-8 px-2 text-xs" onClick={()=>setCategorySheetOpen(true)}>Select</Button>
                 <CategorySheet branch={branch} open={categorySheetOpen} onOpenChange={setCategorySheetOpen} onConfirm={(id,name)=>{ setSelectedCategoryId(id); setSelectedCategoryName(name || ''); setCategorySheetOpen(false) }} initialSelected={selectedCategoryId} />
               </div>
@@ -615,6 +862,40 @@ export const ProductConfigurations = forwardRef(({
                     </div>
                   </div>
 
+                  {/* Reorder Level */}
+                  <div>
+                    <div className="flex items-center gap-1 mb-2">
+                      <label className="text-gray-600 text-xs font-medium block">Reorder Level</label>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-4 w-4 text-cyan-600 cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          The minimum stock level at which you should reorder this product.
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1">
+                        <Input
+                          type="number"
+                          placeholder="0"
+                          value={reorderLevel || ''}
+                          onChange={(e) => setReorderLevel(e.target.value)}
+                          className="h-8"
+                        />
+                      </div>
+                      <Select value={totalProductUnitsType} disabled>
+                        <SelectTrigger className="h-8 text-xs w-fit">
+                          <SelectValue placeholder="unit" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {totalProductUnitsType && <SelectItem value={totalProductUnitsType}>{totalProductUnitsType}</SelectItem>}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
 
                 </div>
               </>
@@ -624,22 +905,28 @@ export const ProductConfigurations = forwardRef(({
         </div>
         )}
 
+
         {/* PRICING SECTION - Cost Price Only */}
-        <div className="space-y-3 p-4">
-        <div className="rounded-sm bg-white border p-4">
+        <div className="space-y-3 p-4" data-field="costPrice">
+        <div className={`rounded-sm bg-white border p-4 ${errors.costPrice ? 'border-red-500 border-2 bg-red-50' : ''}`}>
           <h3 className="text-xs font-semibold mb-4">Pricing</h3>
           <div>
-            <Label className="text-xs font-medium mb-1 block">Cost Price</Label>
+            <Label className={`text-xs font-medium mb-1 block ${errors.costPrice ? 'text-red-600' : ''}`}>
+              {productType === 'service' ? 'Cost of Service' : 'Cost Price'}
+              {productType === 'service' ? <span className="text-neutral-400 ml-1">(Optional)</span> : null}
+            </Label>
             <Input
               type="number"
               step="0.01"
               placeholder="0.00"
               value={costPrice}
               onChange={(e) => setCostPrice(e.target.value)}
-              className="h-8"
+              className={`h-8 ${errors.costPrice ? 'border-red-500 border-2' : ''}`}
             />
-            <p className="text-gray-500 text-[11px] mt-1">
-              Base cost price for this product (same across all pricing contexts)
+            <p className={`text-[11px] mt-1 ${errors.costPrice ? 'text-red-600 font-medium' : 'text-gray-500'}`}>
+              {productType === 'service' 
+                ? 'Optional: Cost to deliver this service (helps calculate margins)'
+                : 'Base cost price for this product (same across all pricing contexts)'}
             </p>
           </div>
         </div>
@@ -654,10 +941,10 @@ export const ProductConfigurations = forwardRef(({
             Manage selling prices and reductions for different pricing contexts (channels, customer types, etc).
           </p>
 
-          {/* Error message for pricing contexts */}
+          {/* Error message for pricing contexts - from parent validation */}
           {errors.pricingContexts && (
             <div className="bg-red-50 border border-red-200 rounded-sm p-3 text-xs text-red-700">
-              At least one pricing context is required
+              Please select at least one pricing context
             </div>
           )}
 
@@ -702,10 +989,13 @@ export const ProductConfigurations = forwardRef(({
                   </div>
 
                   {/* Margin - Dual Inputs (Percentage & Value) */}
-                  <div>
-                    <Label className="text-xs font-medium mb-2 block">Margin</Label>
+                  <div data-field="margin">
+                    <Label className={`text-xs font-medium mb-2 block ${productType === 'physical' && errors.margin ? 'text-red-600' : ''}`}>
+                      Margin
+                      {productType === 'physical' ? <span className="text-red-500 ml-1">*</span> : null}
+                    </Label>
                     <div className="flex mt-3 gap-3 items-center">
-                      <div className="grow">
+                      <div className={`grow ${productType === 'physical' && errors.margin ? 'border border-red-500 rounded-sm p-2' : ''}`}>
                         <Label className='ml-0.5 text-[10px]'>Margin %</Label>
                         <Input 
                           type='number' 
@@ -720,10 +1010,10 @@ export const ProductConfigurations = forwardRef(({
                               margin_value: calculateValueFromPercentage(percentage, costPrice)
                             });
                           }} 
-                          className={'mt-1 bg-[#fcfcfc] h-8'}
+                          className={`mt-1 bg-[#fcfcfc] h-8 ${productType === 'physical' && errors.margin && !((editingContextId === context.id ? editingContextData.margin_percentage : context.margin_percentage) || '') ? 'border-red-500 border-2' : ''}`}
                         />
                       </div>
-                      <div className="grow">
+                      <div className={`grow ${productType === 'physical' && errors.margin ? 'border border-red-500 rounded-sm p-2' : ''}`}>
                         <Label className='ml-0.5 text-[10px]'>Margin Value</Label>
                         <div className='w-fit inline-flex items-center gap-1 mt-1'>
                           <Input 
@@ -747,21 +1037,47 @@ export const ProductConfigurations = forwardRef(({
                     <p className="text-gray-500 text-[10px] mt-2">Margin amount (both % and value sync based on cost price)</p>
                   </div>
 
-                  {/* Selling Price - Auto-calculated */}
-                  <div>
-                    <Label className="text-xs font-medium mb-2 block">Selling Price</Label>
+                  {/* Selling Price - Auto-calculated for physical, Editable for service */}
+                  <div data-field="sellingPrice">
+                    <Label className={`text-xs font-medium mb-2 block ${productType === 'service' && errors.sellingPrice ? 'text-red-600' : ''}`}>
+                      Selling Price
+                      {productType === 'service' ? <span className="text-red-500 ml-1">*</span> : null}
+                    </Label>
                     <div className="flex mt-3 gap-3 items-center">
-                      <div className="grow">
-                        <Input 
-                          type='text' 
-                          value={calculateSellingPrice(editingContextId === context.id ? (editingContextData.margin_value || 0) : (context.margin_value || 0))}
-                          readOnly
-                          className={'mt-0 bg-[#f0f0f0] h-8 cursor-not-allowed'}
-                          placeholder="Auto-calculated"
-                        />
+                      <div className={`grow ${productType === 'service' && errors.sellingPrice && !((editingContextId === context.id ? editingContextData.selling_price : context.selling_price) || '') ? 'border-red-500 border-2 rounded-sm' : ''}`}>
+                        {productType === 'service' ? (
+                          // For services: editable input
+                          <Input 
+                            type='number'
+                            step="0.01"
+                            value={editingContextId === context.id ? (editingContextData.selling_price || '') : (context.selling_price || '')} 
+                            onChange={(e) => {
+                              setEditingContextId(context.id);
+                              setEditingContextData({
+                                ...editingContextData,
+                                selling_price: e.target.value
+                              });
+                            }}
+                            placeholder="Enter selling price"
+                            className={`mt-0 h-8 ${errors.sellingPrice ? 'border-red-500 border-2' : ''}`}
+                          />
+                        ) : (
+                          // For physical products: auto-calculated, read-only
+                          <Input 
+                            type='text' 
+                            value={calculateSellingPrice(editingContextId === context.id ? (editingContextData.margin_value || 0) : (context.margin_value || 0))}
+                            readOnly
+                            className={`mt-0 h-8 cursor-not-allowed ${!calculateSellingPrice(editingContextId === context.id ? (editingContextData.margin_value || 0) : (context.margin_value || 0)) && errors.sellingPrice ? 'border-red-500 border-2 bg-red-50' : 'bg-[#f0f0f0]'}`}
+                            placeholder="Auto-calculated"
+                          />
+                        )}
                       </div>
                     </div>
-                    <p className="text-gray-500 text-[10px] mt-2">Auto-calculated: Cost Price + Margin Value</p>
+                    <p className={`text-[10px] mt-2 ${!calculateSellingPrice(editingContextId === context.id ? (editingContextData.margin_value || 0) : (context.margin_value || 0)) && errors.sellingPrice && productType === 'physical' ? 'text-red-600 font-medium' : 'text-gray-500'}`}>
+                      {productType === 'service' 
+                        ? 'Required: Enter the price to charge customers for this service'
+                        : (!calculateSellingPrice(editingContextId === context.id ? (editingContextData.margin_value || 0) : (context.margin_value || 0)) && errors.sellingPrice ? 'Set a margin value to calculate selling price' : 'Auto-calculated: Cost Price + Margin Value')}
+                    </p>
                   </div>
 
                   {/* Bulk Price Reduction - Dual Inputs (Percentage & Value) */}
@@ -971,22 +1287,249 @@ export const ProductConfigurations = forwardRef(({
           </SheetContent>
         </Sheet>
 
-        {/* Shipping Profile - ONLY FOR PHYSICAL PRODUCTS */}
+        {/* RETURN POLICY SECTION - Only for Physical Products */}
         {productType === 'physical' && (
-        <div className="rounded-sm bg-white p-4">
-          <label className="text-gray-600 text-xs font-medium">Shipping profile (Optional)</label>
-          <Select>
-            <SelectTrigger className="mt-1 h-8 text-xs">
-              <SelectValue placeholder="Select shipping profile" />
-            </SelectTrigger>
-            <SelectContent>
-            </SelectContent>
-          </Select>
-          <p className="text-gray-500 text-[11px] mt-1">
-            Connect the product to a shipping profile
-          </p>
+        <div className="space-y-3 p-4">
+        <div className="rounded-sm bg-white border p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1">
+              <label className="text-gray-700 text-xs font-semibold">Return Policy</label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-4 w-4 text-cyan-600 cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  Select a predefined return policy or create a custom one. You can also add an optional custom text override.
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <Button
+              size="sm"
+              className="h-6 text-xs bg-blue-600 hover:bg-blue-700"
+              onClick={() => setReturnPolicySheetOpen(true)}
+            >
+              <Plus className="h-3 w-3 mr-1" />
+              Select Policy
+            </Button>
+          </div>
+          
+          {/* Selected Policy Display */}
+          {selectedReturnPolicyId ? (
+            <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-sm">
+              <div className="flex-1">
+                <span className="text-xs font-medium text-blue-900">{returnPoliciesFromDb.find(p => p.id === selectedReturnPolicyId)?.name}</span>
+                <p className="text-[10px] text-blue-700 mt-1">{returnPoliciesFromDb.find(p => p.id === selectedReturnPolicyId)?.description}</p>
+              </div>
+              <button
+                onClick={() => setSelectedReturnPolicyId(null)}
+                className="text-blue-600 hover:text-blue-800 ml-2 shrink-0"
+              >
+                ×
+              </button>
+            </div>
+          ) : (
+            <p className="text-gray-500 text-[11px] py-2">
+              No return policy selected
+            </p>
+          )}
+
+          {/* Optional Custom Override */}
+          <div>
+            <Label className="text-xs font-medium mb-2 block">Custom Policy Override (Optional)</Label>
+            <textarea
+              placeholder="Leave empty to use selected policy, or enter custom text to override"
+              value={returnPolicy || ''}
+              onChange={(e) => setReturnPolicy(e.target.value)}
+              rows="3"
+              className="w-full border rounded-sm px-2 py-2 text-xs font-normal resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-[11px] text-gray-500 mt-1">This will override the selected policy if provided</p>
+          </div>
+        </div>
         </div>
         )}
+
+        {/* Shipping Profile */}
+        {productType === 'physical' && (
+        <div className="rounded-sm bg-white p-4 border border-gray-200">
+          <div className="flex items-center justify-between mb-3">
+            <label className="text-gray-700 text-xs font-semibold">Shipping Profile</label>
+            <Button
+              size="sm"
+              className="h-6 text-xs bg-blue-600 hover:bg-blue-700"
+              onClick={() => setShippingProfileSheetOpen(true)}
+            >
+              <Plus className="h-3 w-3 mr-1" />
+              Select Profile
+            </Button>
+          </div>
+          
+          {selectedShippingProfile ? (
+            <div className="flex items-center justify-between p-2 bg-blue-50 border border-blue-200 rounded-sm">
+              <span className="text-xs font-medium text-blue-900">{selectedShippingProfile.name}</span>
+              <button
+                onClick={() => setSelectedShippingProfile(null)}
+                className="text-blue-600 hover:text-blue-800"
+              >
+                ×
+              </button>
+            </div>
+          ) : (
+            <p className="text-gray-500 text-[11px]">
+              No shipping profile selected
+            </p>
+          )}
+        </div>
+        )}
+
+        {/* Shipping Profile Sheet */}
+        <Sheet open={shippingProfileSheetOpen} onOpenChange={(open) => {
+          setShippingProfileSheetOpen(open);
+          if (!open) {
+            setShippingProfileMode('list');
+            setNewShippingProfileName('');
+            setNewShippingProfileDescription('');
+          }
+        }}>
+          <SheetContent className="w-96 font-WixMade tracking-tight p-0 flex flex-col h-full">
+            {shippingProfileMode === 'list' ? (
+              <>
+                <SheetHeader className="p-3 border-b shrink-0">
+                  <SheetTitle>Shipping Profiles</SheetTitle>
+                  <SheetDescription>Select or create a shipping profile</SheetDescription>
+                </SheetHeader>
+
+                <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                  <button
+                    onClick={() => {
+                      setShippingProfileMode('create');
+                      setNewShippingProfileName('');
+                      setNewShippingProfileDescription('');
+                    }}
+                    className="w-full border border-dashed rounded-sm h-8 text-xs text-gray-600 hover:bg-gray-50 mb-4 flex items-center justify-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Create New Profile
+                  </button>
+
+                  {isLoadingShippingProfiles ? (
+                    <div className="text-center py-8">
+                      <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2 text-gray-400" />
+                      <p className="text-xs text-gray-500">Loading profiles...</p>
+                    </div>
+                  ) : shippingProfiles && shippingProfiles.length > 0 ? (
+                    shippingProfiles.map((profile) => (
+                      <div
+                        key={profile.id}
+                        className={`flex items-center gap-2 p-3 border rounded-sm cursor-pointer transition ${
+                          selectedShippingProfile?.id === profile.id
+                            ? 'bg-blue-50 border-blue-500' 
+                            : 'bg-white border-gray-200 hover:border-gray-300'
+                        }`}
+                        onClick={() => {
+                          setSelectedShippingProfile(profile);
+                          setShippingProfileSheetOpen(false);
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          checked={selectedShippingProfile?.id === profile.id}
+                          onChange={() => setSelectedShippingProfile(profile)}
+                          className="h-4 w-4 cursor-pointer"
+                        />
+                        <div className="flex-1">
+                          <span className="text-xs font-medium">{profile.name}</span>
+                          {profile.description && (
+                            <p className="text-[10px] text-gray-500">{profile.description}</p>
+                          )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={isDeletingShippingProfile === profile.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteShippingProfile(profile.id, profile.name);
+                          }}
+                          className="h-6 w-6 p-0 text-gray-500 hover:text-red-500 shrink-0"
+                        >
+                          {isDeletingShippingProfile === profile.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <p className="text-xs">No shipping profiles available</p>
+                      <p className="text-[10px] mt-1">Create one to get started</p>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 p-3 border-b shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 text-gray-600"
+                    onClick={() => {
+                      setShippingProfileMode('list');
+                      setNewShippingProfileName('');
+                      setNewShippingProfileDescription('');
+                    }}
+                  >
+                    ←
+                  </Button>
+                  <SheetTitle>Create New Shipping Profile</SheetTitle>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-3">
+                  <div className="space-y-4 pb-20">
+                    <div>
+                      <Label className="text-xs font-medium mb-1 block">Profile Name</Label>
+                      <Input
+                        type="text"
+                        placeholder="e.g., Standard Shipping, Express Delivery"
+                        value={newShippingProfileName}
+                        onChange={(e) => setNewShippingProfileName(e.target.value)}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium mb-1 block">Description</Label>
+                      <textarea
+                        placeholder="e.g., 5-7 business days, Free shipping on orders over $50, Includes tracking"
+                        value={newShippingProfileDescription}
+                        onChange={(e) => setNewShippingProfileDescription(e.target.value)}
+                        rows="5"
+                        className="w-full border rounded-sm px-2 py-2 text-xs font-normal resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <Button
+                      className="w-full h-8 text-xs"
+                      disabled={isSavingShippingProfile}
+                      onClick={handleCreateShippingProfile}
+                    >
+                      {isSavingShippingProfile ? (
+                        <>
+                          <Loader2 className="h-3 w-3 animate-spin mr-2" />
+                          Creating...
+                        </>
+                      ) : (
+                        'Create Profile'
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
+          </SheetContent>
+        </Sheet>
 
         {/* Minimum Margin Rules Sheet */}
         <Sheet open={minimumMarginRulesOpen} onOpenChange={(open) => {
@@ -1132,9 +1675,153 @@ export const ProductConfigurations = forwardRef(({
           </SheetContent>
         </Sheet>
 
+        {/* Return Policy Sheet */}
+        <Sheet open={returnPolicySheetOpen} onOpenChange={(open) => {
+          setReturnPolicySheetOpen(open);
+          if (!open) {
+            setReturnPolicyMode('list');
+            setNewPolicyName('');
+            setNewPolicyDescription('');
+          }
+        }}>
+          <SheetContent className="w-96 font-WixMade tracking-tight p-0 flex flex-col h-full">
+            {returnPolicyMode === 'list' ? (
+              <>
+                <SheetHeader className="p-3 border-b shrink-0">
+                  <SheetTitle>Return Policies</SheetTitle>
+                  <SheetDescription>Select or create a return policy</SheetDescription>
+                </SheetHeader>
+
+                <div className="flex-1 overflow-y-auto p-3">
+                  <div className="space-y-3">
+                    <Button
+                      className="w-full border border-dashed rounded-sm h-8 text-xs text-gray-600 hover:bg-gray-50 mb-4"
+                      variant="outline"
+                      onClick={() => {
+                        setReturnPolicyMode('create');
+                        setNewPolicyName('');
+                        setNewPolicyDescription('');
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create New Policy
+                    </Button>
+
+                    {isLoadingReturnPolicies ? (
+                      <div className="text-center py-8">
+                        <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2 text-gray-400" />
+                        <p className="text-xs text-gray-500">Loading policies...</p>
+                      </div>
+                    ) : returnPoliciesFromDb.length > 0 ? (
+                      returnPoliciesFromDb.map((policy) => (
+                        <div
+                          key={policy.id}
+                          className={`flex items-center justify-between p-3 border rounded-sm transition-all cursor-pointer ${
+                            selectedReturnPolicyId === policy.id
+                              ? 'bg-blue-100 border-blue-400'
+                              : 'bg-slate-50 border-slate-200 hover:border-blue-300 hover:bg-slate-100'
+                          }`}
+                          onClick={() => {
+                            setSelectedReturnPolicyId(policy.id);
+                            setReturnPolicySheetOpen(false);
+                          }}
+                        >
+                          <div className="flex-1">
+                            <p className="text-sm font-medium">{policy.name}</p>
+                            <p className="text-xs text-slate-600 mt-1">{policy.description}</p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={isDeletingReturnPolicy === policy.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteReturnPolicy(policy.id, policy.name);
+                            }}
+                            className="h-6 w-6 p-0 text-gray-500 hover:text-red-500 shrink-0"
+                          >
+                            {isDeletingReturnPolicy === policy.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8">
+                        <p className="text-xs text-gray-500">No policies created yet</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 p-3 border-b shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 text-gray-600"
+                    onClick={() => {
+                      setReturnPolicyMode('list');
+                      setNewPolicyName('');
+                      setNewPolicyDescription('');
+                    }}
+                  >
+                    ←
+                  </Button>
+                  <SheetTitle>Create New Return Policy</SheetTitle>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-3">
+                  <div className="space-y-4 pb-20">
+                    <div>
+                      <Label className="text-xs font-medium mb-1 block">Policy Name</Label>
+                      <Input
+                        type="text"
+                        placeholder="e.g., 30-Day Guarantee, No-Questions-Asked"
+                        value={newPolicyName}
+                        onChange={(e) => setNewPolicyName(e.target.value)}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium mb-1 block">Description</Label>
+                      <textarea
+                        placeholder="e.g., 30 days money-back guarantee, Free returns with prepaid label, Restocking fee 15%, Items must be in original packaging"
+                        value={newPolicyDescription}
+                        onChange={(e) => setNewPolicyDescription(e.target.value)}
+                        rows="5"
+                        className="w-full border rounded-sm px-2 py-2 text-xs font-normal resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <Button
+                      className="w-full h-8 text-xs"
+                      disabled={isSavingReturnPolicy}
+                      onClick={handleCreateReturnPolicy}
+                    >
+                      {isSavingReturnPolicy ? (
+                        <>
+                          <Loader2 className="h-3 w-3 animate-spin mr-2" />
+                          Creating...
+                        </>
+                      ) : (
+                        'Create Policy'
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
+          </SheetContent>
+        </Sheet>
+
       </div>
     </div>
   );
 });
 
 ProductConfigurations.displayName = 'ProductConfigurations';
+

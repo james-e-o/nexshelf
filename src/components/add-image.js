@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { DndProvider, useDrag, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-import { CompanyInfoContext } from '@/app/admin/[u]/company/[companySlug]/layout';
+import { CompanyInfoContext } from '@/app/users/[u]/company/[companySlug]/layout';
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input"
 import { supabase } from '../../config/supabaseClient';

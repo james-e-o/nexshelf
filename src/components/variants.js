@@ -7,10 +7,88 @@ import { ChevronDown, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
-const EditableCell = ({ row, column, table, getValue }) => {
+// Helper functions for margin and price calculations
+const calculateValueFromPercentage = (percentage, basePrice) => {
+  if (!percentage || !basePrice) return '';
+  return (parseFloat(basePrice) * parseFloat(percentage) / 100).toFixed(2);
+};
+
+const calculatePercentageFromValue = (value, basePrice) => {
+  if (!value || !basePrice) return '';
+  return (parseFloat(value) / parseFloat(basePrice) * 100).toFixed(2);
+};
+
+const calculateSellingPrice = (costPrice, marginValue) => {
+  if (!costPrice || !marginValue) return '';
+  return (parseFloat(costPrice) + parseFloat(marginValue)).toFixed(2);
+};
+
+// Enhanced EditableCell with synced margin calculations
+const EditableCell = ({ row, column, table, getValue, productType = 'physical' }) => {
   const initialValue = getValue()
   const [value, setValue] = useState(initialValue)
-  const updateData = () => table.options.meta?.updateValue(row.index, column.id, value)
+  const rowData = table.options.meta?.rowData?.[row.index] || {}
+  const costPrice = rowData.costPrice || ''
+  
+  // Parse column.id to extract context ID and field type
+  // Format: {contextId}_margin_percentage or {contextId}_margin_value or {contextId}_selling_price
+  const parseFieldInfo = (columnId) => {
+    if (columnId.endsWith('_margin_percentage')) {
+      const contextId = columnId.replace(/_margin_percentage$/, '')
+      return { contextId, fieldType: 'margin_percentage' }
+    } else if (columnId.endsWith('_margin_value')) {
+      const contextId = columnId.replace(/_margin_value$/, '')
+      return { contextId, fieldType: 'margin_value' }
+    } else if (columnId.endsWith('_selling_price')) {
+      const contextId = columnId.replace(/_selling_price$/, '')
+      return { contextId, fieldType: 'selling_price' }
+    } else if (columnId.endsWith('_bulk_price')) {
+      const contextId = columnId.replace(/_bulk_price$/, '')
+      return { contextId, fieldType: 'bulk_price' }
+    } else if (columnId.endsWith('_bulk_reduction_value')) {
+      const contextId = columnId.replace(/_bulk_reduction_value$/, '')
+      return { contextId, fieldType: 'bulk_reduction_value' }
+    } else if (columnId.endsWith('_bulk_reduction_percentage')) {
+      const contextId = columnId.replace(/_bulk_reduction_percentage$/, '')
+      return { contextId, fieldType: 'bulk_reduction_percentage' }
+    }
+    return { contextId: '', fieldType: '' }
+  }
+  
+  const { contextId, fieldType } = parseFieldInfo(column.id)
+  // Selling price is read-only for physical products, editable only for service products
+  const isSellingPriceReadOnly = fieldType === 'selling_price' && productType === 'physical'
+  
+  const updateData = () => {
+    const updates = { [column.id]: value }
+    
+    // If updating margin_percentage, auto-calculate margin_value and selling_price
+    if (fieldType === 'margin_percentage') {
+      const newMarginValue = calculateValueFromPercentage(value, costPrice)
+      updates[`${contextId}_margin_value`] = newMarginValue
+      updates[`${contextId}_selling_price`] = calculateSellingPrice(costPrice, newMarginValue)
+    }
+    // If updating margin_value, auto-calculate margin_percentage and selling_price
+    else if (fieldType === 'margin_value') {
+      const newMarginPercentage = calculatePercentageFromValue(value, costPrice)
+      updates[`${contextId}_margin_percentage`] = newMarginPercentage
+      updates[`${contextId}_selling_price`] = calculateSellingPrice(costPrice, value)
+    }
+    
+    // Update all related fields
+    Object.entries(updates).forEach(([key, val]) => {
+      table.options.meta?.updateValue(row.index, key, val)
+    })
+  }
+  
+  // For physical products with selling price: don't allow editing, just display
+  if (isSellingPriceReadOnly) {
+    return (
+      <div className="w-full h-7 px-1 text-center rounded-sm bg-gray-100 flex items-center justify-center border text-xs border-gray-300">
+        {value}
+      </div>
+    )
+  }
   
   return (
     <input 
@@ -28,6 +106,7 @@ export function VariantTable({ combinations = [], costPrice, pricingContexts, up
   const [allTracked, setAllTracked] = useState(false)
   const [rowSelection, setRowSelection] = useState({})
   const [openContextId, setOpenContextId] = useState(pricingContexts && pricingContexts.length > 0 ? pricingContexts[0].id : null)
+  const [variantData, setVariantData] = useState({}) // State to manage variant-specific values
   const pendingEditsRef = useRef(pendingEdits)
 
   useEffect(() => {
@@ -40,6 +119,36 @@ export function VariantTable({ combinations = [], costPrice, pricingContexts, up
       setOpenContextId(pricingContexts[0].id)
     }
   }, [pricingContexts])
+
+  // Initialize and sync variant data with latest values from combinations and pricing contexts
+  // This ensures that changes in ProductConfigurations (cost price, pricing context values) are reflected in the table
+  useEffect(() => {
+    const initialized = {}
+    combinations.forEach((combo, idx) => {
+      initialized[idx] = {
+        // Always use the latest costPrice from props - allows syncing from parent changes
+        costPrice: costPrice || '',
+      }
+      // Set pricing context field values - sync from combo first, then fall back to context defaults
+      if (pricingContexts && pricingContexts.length > 0) {
+        pricingContexts.forEach(context => {
+          const marginPercentage = combo[`${context.id}_margin_percentage`] || context.margin_percentage || ''
+          const marginValue = combo[`${context.id}_margin_value`] || context.margin_value || ''
+          let sellingPrice = combo[`${context.id}_selling_price`] || context.selling_price || ''
+          
+          // If selling_price is not set, calculate it from costPrice + marginValue
+          if (!sellingPrice && marginValue && costPrice) {
+            sellingPrice = calculateSellingPrice(costPrice, marginValue)
+          }
+          
+          initialized[idx][`${context.id}_margin_percentage`] = marginPercentage
+          initialized[idx][`${context.id}_margin_value`] = marginValue
+          initialized[idx][`${context.id}_selling_price`] = sellingPrice
+        })
+      }
+    })
+    setVariantData(initialized)
+  }, [combinations, costPrice, pricingContexts])
 
   // Handle context switch - only one context can be open at a time
   const handleContextSwitch = (contextId) => {
@@ -101,7 +210,34 @@ export function VariantTable({ combinations = [], costPrice, pricingContexts, up
           </div>
           {/* Cost Price Cell */}
           <div className="flex items-center justify-center p-2">
-            <span className="text-[11px]">{costPrice || '-'}</span>
+            <Input
+              type="text"
+              defaultValue={(pendingEdits[row.index]?.costPrice) ?? (variantData[row.index]?.costPrice || costPrice)}
+              onBlur={(e) => {
+                const val = e.target.value ?? costPrice
+                updateValue(row.index, "costPrice", val)
+                setPendingEdits(prev => ({ ...prev, [row.index]: { ...(prev[row.index] || {}), costPrice: val } }))
+                setVariantData(prev => ({ ...prev, [row.index]: { ...(prev[row.index] || {}), costPrice: val } }))
+                
+                // For physical products: recalculate selling prices when cost price changes
+                if (productType === 'physical' && pricingContexts && pricingContexts.length > 0) {
+                  const updates = {}
+                  pricingContexts.forEach(context => {
+                    const contextId = context.id
+                    // Get the current margin value for this context
+                    const marginValue = variantData[row.index]?.[`${contextId}_margin_value`] || row.original?.[`${contextId}_margin_value`] || context.margin_value || ''
+                    // Recalculate selling price with new cost price
+                    if (marginValue) {
+                      updates[`${contextId}_selling_price`] = calculateSellingPrice(val, marginValue)
+                      updateValue(row.index, `${contextId}_selling_price`, updates[`${contextId}_selling_price`])
+                    }
+                  })
+                }
+              }}
+              className="h-7 w-24 text-[11px]"
+              placeholder="0.00"
+              key={`cost-${costPrice}-${row.index}`}
+            />
           </div>
         </div>
       ),
@@ -142,12 +278,12 @@ export function VariantTable({ combinations = [], costPrice, pricingContexts, up
               header: () => (
                 <div className="flex flex-col gap-1 justify-start items-center">
                   <span className="text-[8px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded w-fit">{context.name}</span>
-                  <span className='text-xs'>Selling <br/> Price</span>
+                  <span className='text-xs'>Selling Price</span>
                 </div>
               ),
               accessorKey: `${context.id}_selling_price`,
-              cell: ({ row, column, table, getValue }) => <div className="w-"><EditableCell row={row} column={column} table={table} getValue={getValue} /></div>,
-              // size: 110,
+              cell: ({ row, column, table, getValue }) => <EditableCell row={row} column={column} table={table} getValue={getValue} productType={productType} />,
+              size: 110,
             },
             {
               header: () => (
@@ -158,7 +294,7 @@ export function VariantTable({ combinations = [], costPrice, pricingContexts, up
               ),
               accessorKey: `${context.id}_bulk_reduction_percentage`,
               cell: ({ row, column, table, getValue }) => <EditableCell row={row} column={column} table={table} getValue={getValue} />,
-              // size: 75,
+              size: 75,
             },
             {
               header: () => (
@@ -180,7 +316,7 @@ export function VariantTable({ combinations = [], costPrice, pricingContexts, up
               ),
               accessorKey: `${context.id}_bulk_price`,
               cell: ({ row, column, table, getValue }) => <EditableCell row={row} column={column} table={table} getValue={getValue} />,
-              // size: 85,
+              size: 85,
             },
           ],
         }))
@@ -203,30 +339,44 @@ export function VariantTable({ combinations = [], costPrice, pricingContexts, up
   }, [combinations.length])
 
   const data = useMemo(() => {
-    return combinations.map((combo) => {
+    return combinations.map((combo, idx) => {
+      // Use variantData values if available (edited by user), otherwise fall back to combo values
+      const costPriceValue = variantData[idx]?.costPrice ?? combo.costPrice ?? costPrice ?? '';
+      
       const baseData = {
         variant: combo.combination.length > 0 ? combo.combination.map(item => `${item.value}`).join(' / ') : 'Product',
         sku: combo.sku || '',
         managed: combo.managed || false,
-        costPrice: costPrice || '',
+        costPrice: costPriceValue,
       };
 
       // Add pricing context fields for each context
       const pricingData = pricingContexts && pricingContexts.length > 0
-        ? pricingContexts.reduce((acc, context) => ({
-            ...acc,
-            [`${context.id}_margin_percentage`]: combo[`${context.id}_margin_percentage`] || '',
-            [`${context.id}_margin_value`]: combo[`${context.id}_margin_value`] || '',
-            [`${context.id}_selling_price`]: combo[`${context.id}_selling_price`] || '',
-            [`${context.id}_bulk_reduction_percentage`]: combo[`${context.id}_bulk_reduction_percentage`] || '',
-            [`${context.id}_bulk_reduction_value`]: combo[`${context.id}_bulk_reduction_value`] || '',
-            [`${context.id}_bulk_price`]: combo[`${context.id}_bulk_price`] || '',
-          }), {})
+        ? pricingContexts.reduce((acc, context) => {
+            const marginPercentage = combo[`${context.id}_margin_percentage`] || variantData[idx]?.[`${context.id}_margin_percentage`] || context.margin_percentage || ''
+            const marginValue = combo[`${context.id}_margin_value`] || variantData[idx]?.[`${context.id}_margin_value`] || context.margin_value || ''
+            let sellingPrice = combo[`${context.id}_selling_price`] || variantData[idx]?.[`${context.id}_selling_price`] || context.selling_price || ''
+            
+            // If selling_price is not set, calculate it from costPrice + marginValue
+            if (!sellingPrice && marginValue && costPriceValue) {
+              sellingPrice = calculateSellingPrice(costPriceValue, marginValue)
+            }
+            
+            return {
+              ...acc,
+              [`${context.id}_margin_percentage`]: marginPercentage,
+              [`${context.id}_margin_value`]: marginValue,
+              [`${context.id}_selling_price`]: sellingPrice,
+              [`${context.id}_bulk_reduction_percentage`]: combo[`${context.id}_bulk_reduction_percentage`] || '',
+              [`${context.id}_bulk_reduction_value`]: combo[`${context.id}_bulk_reduction_value`] || '',
+              [`${context.id}_bulk_price`]: combo[`${context.id}_bulk_price`] || '',
+            }
+          }, {})
         : {};
 
       return { ...baseData, ...pricingData };
     });
-  }, [combinations, pricingContexts, costPrice]);
+  }, [combinations, pricingContexts, costPrice, variantData]);
 
   const table = useReactTable({
     data,
@@ -239,6 +389,7 @@ export function VariantTable({ combinations = [], costPrice, pricingContexts, up
     onRowSelectionChange: setRowSelection,
     meta: {
       updateValue: updateValue,
+      rowData: variantData,
     },
   });
 
@@ -329,4 +480,5 @@ export function VariantTable({ combinations = [], costPrice, pricingContexts, up
     </div>
   );
 }
+
 

@@ -241,3 +241,4 @@ export function InvoiceRow({ invoice, statusBadge, statusLabel }) {
 		</div>
 	);
 }
+

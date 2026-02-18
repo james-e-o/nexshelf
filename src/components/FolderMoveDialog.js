@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { supabase } from '../../config/supabaseClient';
-import { CompanyInfoContext } from '@/app/admin/[u]/company/[companySlug]/layout';
+import { CompanyInfoContext } from '@/app/users/[u]/company/[companySlug]/layout';
 import { toast } from 'sonner';
 
 const FolderMoveDialog = ({ open, onOpenChange, selectedItems, onMoveSuccess }) => {

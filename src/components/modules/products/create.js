@@ -3,34 +3,37 @@
 import React, { useState, useEffect, useRef,useContext, useCallback } from "react";
 import { DndProvider, useDrag, useDrop, useDragLayer } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
+import Link from "next/link"
+import { set } from "date-fns";
+import { fi } from "date-fns/locale";
+import { motion, AnimatePresence } from 'framer-motion';
 import { useReactTable, getCoreRowModel, flexRender } from "@tanstack/react-table";
+
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs,TabsTrigger,TabsList,TabsContent } from "@/components/ui/tabs"
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea";
-import Link from "next/link"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch";
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger} from "@/components/ui/sheet"
 import {AlertDialog,AlertDialogAction,AlertDialogCancel,AlertDialogContent,AlertDialogDescription,AlertDialogFooter,AlertDialogHeader,AlertDialogTitle,AlertDialogTrigger,} from "@/components/ui/alert-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { cn } from "@/lib/utils"
-import { Switch } from "@/components/ui/switch";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,} from "@/components/ui/command"
 import {Popover,PopoverContent,PopoverTrigger,} from "@/components/ui/popover"
 import { X ,Check, ChevronsUpDown, Plus,Rocket,GripIcon,GripVertical,GripHorizontal, GripHorizontalIcon, ArrowRight, Upload} from "lucide-react"
 import { toast } from 'sonner'
 import { useRouter,useParams } from 'next/navigation'
+
 import AddImage from "@/components/add-image";
 import { VariantTable } from '@/components/variants';
 import { ProductConfigurations } from "@/components/product-configurations";
-import { supabase } from "../../../../../../../../../../../config/supabaseClient";
-import { BranchContext } from "../../../layout";
-import { set } from "date-fns";
-import { fi } from "date-fns/locale";
-import { motion, AnimatePresence } from 'framer-motion';
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { supabase } from "../../../../config/supabaseClient";
+
+import { BranchContext } from "@/app/users/[u]/company/[companySlug]/branches/[branch]/layout";
+
 
 
 
@@ -114,6 +117,22 @@ const CreateProductPage = () => {
     ]);
     const [selectedPricingContexts, setSelectedPricingContexts] = useState(['default-standard']);
     
+    // Shipping Profile state
+    const [shippingProfiles, setShippingProfiles] = useState([]);
+    const [selectedShippingProfile, setSelectedShippingProfile] = useState(null);
+    
+    // Measurement state - moved from ProductConfigurations to parent for persistence
+    const [selectedMeasurementType, setSelectedMeasurementType] = useState('count');
+    const [totalProductUnits, setTotalProductUnits] = useState('1');
+    const [totalProductUnitsType, setTotalProductUnitsType] = useState('count');
+    const [minimumProductUnits, setMinimumProductUnits] = useState('');
+    const [bulkQuantity, setBulkQuantity] = useState('');
+    
+    // Inventory & Policy state
+    const [reorderLevel, setReorderLevel] = useState('');
+    const [returnPolicy, setReturnPolicy] = useState('');
+    const [selectedReturnPolicyId, setSelectedReturnPolicyId] = useState(null);
+    
     // Options state
     const [options, setOptions] = useState([]);
     const [justAdded, setJustAdded] = useState(false);
@@ -170,6 +189,30 @@ const CreateProductPage = () => {
 
       fetchPricingContexts();
     }, [currentBranch?.id]);
+
+    // Fetch shipping profiles from database
+    // useEffect(() => {
+    //   const fetchShippingProfiles = async () => {
+    //     try {
+    //       if (!currentBranch?.id) return;
+    //       const { data, error } = await supabase
+    //         .from('shipping_profiles')
+    //         .select('*')
+    //         .eq('branch_id', currentBranch.id);
+          
+    //       if (error) {
+    //         console.error('Error fetching shipping profiles:', error);
+    //         return;
+    //       }
+
+    //       setShippingProfiles(data || []);
+    //     } catch (err) {
+    //       console.error('Error fetching shipping profiles:', err);
+    //     }
+    //   };
+
+    //   fetchShippingProfiles();
+    // }, [currentBranch?.id]);
 
     //Inputs Values State
     const [title, setTitle] = useState('');
@@ -284,6 +327,9 @@ const CreateProductPage = () => {
         setSelectedCollectionName('');
         setSelectedTags([]);
         setHasVariants(false);
+        setReorderLevel('');
+        setReturnPolicy('');
+        setSelectedReturnPolicyId(null);
         setPricingContexts([
             {
                 id: 'default-standard',
@@ -384,8 +430,11 @@ const CreateProductPage = () => {
     };
 
     // Validation function for current tab before moving to next
-    const validateCurrentTab = (tabName) => {
+    // Pass contextsToValidate to use freshly committed contexts instead of stale state
+    const validateCurrentTab = (tabName, contextsToValidate = null) => {
         const newErrors = {};
+        // Use passed contexts if available (from commitEditingState), otherwise use state
+        const contextsForValidation = contextsToValidate || pricingContexts;
         
         if (tabName === 'details') {
             // Validate details tab required fields
@@ -398,13 +447,43 @@ const CreateProductPage = () => {
             if (requiredFields.manufacturer && !manufacturer.trim()) newErrors.manufacturer = true;
         } 
         else if (tabName === 'configure') {
-            // Validate configuration tab - will be handled by ProductConfigurations component
-            if (productConfigRef.current && productConfigRef.current.validateConfigurations) {
-                if (!productConfigRef.current.validateConfigurations()) {
-                    return false;
+            // Validate configuration tab required fields
+            
+            // Category is required
+            if (!selectedCategoryId || !selectedCategoryId.trim()) {
+                newErrors.category = true;
+            }
+            
+            // Cost price is required for physical products only
+            if (productType === 'physical' && !costPrice.trim()) {
+                newErrors.costPrice = true;
+            }
+            
+            // For physical products: check if at least one margin is set (either margin_percentage or margin_value)
+            // They are synced - filling one auto-fills the other
+            // For service products: check if at least one selling price is manually entered
+            if (productType === 'physical') {
+                const hasMargin = contextsForValidation.some(ctx => 
+                    ((ctx.margin_value && ctx.margin_value.toString().trim() !== '') || 
+                     (ctx.margin_percentage && ctx.margin_percentage.toString().trim() !== '')) 
+                    && selectedPricingContexts.includes(ctx.id)
+                );
+                if (!hasMargin) {
+                    newErrors.margin = true;
+                }
+            } else if (productType === 'service') {
+                const hasServiceSellingPrice = contextsForValidation.some(ctx => 
+                    ctx.selling_price && (ctx.selling_price.toString().trim() !== '') && selectedPricingContexts.includes(ctx.id)
+                );
+                if (!hasServiceSellingPrice) {
+                    newErrors.sellingPrice = true;
                 }
             }
-            return true;
+            
+            // Check if pricing contexts are selected (from ProductConfigurations)
+            if (!selectedPricingContexts || selectedPricingContexts.length === 0) {
+                newErrors.pricingContexts = true;
+            }
         }
         
         setErrors(newErrors);
@@ -414,8 +493,18 @@ const CreateProductPage = () => {
             const errorKeys = Object.keys(newErrors);
             const firstError = errorKeys[0];
             
+            // Error messages
+            const errorMessages = {
+                category: 'Please select a category',
+                costPrice: 'Please enter a cost price',
+                margin: 'Please set a margin value for at least one pricing context',
+                sellingPrice: 'Please set a selling price for at least one pricing context',
+                pricingContexts: 'Please select at least one pricing context',
+                default: `Please fill in: ${firstError}`
+            };
+            
             // Show toast with error message
-            toast.error(`Please fill in: ${firstError}`);
+            toast.error(errorMessages[firstError] || errorMessages.default);
             
             // Scroll to the field
             setTimeout(() => {
@@ -488,8 +577,13 @@ const CreateProductPage = () => {
             }
         } 
         else if (activeTab === 'configure') {
-            // Validate configurations before moving to variants
-            if (validateCurrentTab('configure')) {
+            // Commit any unsaved editing state in ProductConfigurations before validating
+            let committedContexts = pricingContexts; // Fallback to current state
+            if (productConfigRef.current?.commitEditingState) {
+                committedContexts = productConfigRef.current.commitEditingState();
+            }
+            // Validate configurations using the freshly committed contexts (not stale state)
+            if (validateCurrentTab('configure', committedContexts)) {
                 setActiveTab('variants');
             }
         }
@@ -514,7 +608,6 @@ const CreateProductPage = () => {
             console.log('Weight:', weight);
             console.log('Weight Unit:', weightUnit);
             console.log('Brand:', brand);
-            console.log('Manufacturer:', manufacturer);
             console.log('UPC:', upc);
             console.log('MPN:', mpn);
             console.log('EAN:', ean);
@@ -529,6 +622,11 @@ const CreateProductPage = () => {
             console.log('Cost Price:', costPrice);
             console.log('All Pricing Contexts:', pricingContexts);
             console.log('Selected Pricing Contexts:', selectedPricingContexts);
+            
+            console.log('=== INVENTORY & POLICY ===');
+            console.log('Reorder Level:', reorderLevel);
+            console.log('Selected Return Policy ID:', selectedReturnPolicyId);
+            console.log('Return Policy Override:', returnPolicy);
             
             console.log('=== MEDIA ===');
             console.log('Selected Images:', selectedImages);
@@ -572,7 +670,7 @@ const CreateProductPage = () => {
                  <div className="flex items-center justify-between border-b px-6 py-3 bg-white z-10">
                     <div className="flex items-center gap-2">
                       {/* X Button */}
-                      <Link href={`/admin/${u}/company/${companySlug}/branches/${branch}/modules/products`}><Button variant={'ghost'} className="text-white bg-red-500 h-7 hover:text-black text-xs">✕</Button></Link>
+                      <Link href={`/users/${u}/company/${companySlug}/branches/${branch}/modules/products`}><Button variant={'ghost'} className="text-white bg-red-500 h-7 hover:text-black text-xs">✕</Button></Link>
 
                       {/* Reset Button */}
                       <Button 
@@ -602,7 +700,11 @@ const CreateProductPage = () => {
 
                           {/* ORGANIZE */}
                           <Button variant={'outline'}
-                              onClick={() => setActiveTab("configure")}
+                              onClick={() => {
+                                  if (validateCurrentTab('details')) {
+                                      setActiveTab("configure");
+                                  }
+                              }}
                               className={`px-2 py-1 h-6 text-[11px] rounded-sm ${
                               activeTab === "configure"
                                   ? "bg-neutral-800 text-neutral-50"
@@ -616,7 +718,11 @@ const CreateProductPage = () => {
 
                           {/* VARIANTS */}
                           <Button variant={'outline'}
-                              onClick={() => setActiveTab("variants")}
+                              onClick={() => {
+                                  if (validateCurrentTab('configure')) {
+                                      setActiveTab("variants");
+                                  }
+                              }}
                               className={`px-2 py-1 h-6 text-[11px] rounded-sm ${
                               activeTab === "variants"
                                   ? "bg-neutral-800 text-neutral-50"
@@ -1205,8 +1311,29 @@ const CreateProductPage = () => {
                         setPricingContexts={setPricingContexts}
                         selectedPricingContexts={selectedPricingContexts}
                         setSelectedPricingContexts={setSelectedPricingContexts}
-                        branch={currentBranch}
+                        errors={errors}
+                        shippingProfiles={shippingProfiles}
+                        setShippingProfiles={setShippingProfiles}
+                        selectedShippingProfile={selectedShippingProfile}
+                        setSelectedShippingProfile={setSelectedShippingProfile}
+                        selectedMeasurementType={selectedMeasurementType}
+                        setSelectedMeasurementType={setSelectedMeasurementType}
+                        totalProductUnits={totalProductUnits}
+                        setTotalProductUnits={setTotalProductUnits}
+                        totalProductUnitsType={totalProductUnitsType}
+                        setTotalProductUnitsType={setTotalProductUnitsType}
+                        minimumProductUnits={minimumProductUnits}
+                        setMinimumProductUnits={setMinimumProductUnits}
+                        bulkQuantity={bulkQuantity}
+                        setBulkQuantity={setBulkQuantity}
+                        branch={currentBranch.id}
                         productType={productType}
+                        reorderLevel={reorderLevel}
+                        setReorderLevel={setReorderLevel}
+                        returnPolicy={returnPolicy}
+                        setReturnPolicy={setReturnPolicy}
+                        selectedReturnPolicyId={selectedReturnPolicyId}
+                        setSelectedReturnPolicyId={setSelectedReturnPolicyId}
                       />
                     )}
 
@@ -1230,7 +1357,7 @@ const CreateProductPage = () => {
 
                 {/* FOOTER BUTTONS */}
                 <div className="flex justify-end  mr-14 gap-2 border-t px-7 py-3 bg-white">
-                    {/* <Link href={`/admin/${u}/company/${companySlug}/branches/${branch}/modules/products`}><Button variant={'outline'} className="px-3 h-7 py-2 bg-red-500 text-white hover:text-black rounded-sm border text-xs">Cancel</Button></Link> */}
+                    {/* <Link href={`/users/${u}/company/${companySlug}/branches/${branch}/modules/products`}><Button variant={'outline'} className="px-3 h-7 py-2 bg-red-500 text-white hover:text-black rounded-sm border text-xs">Cancel</Button></Link> */}
                     
                     <div className="flex gap-2">
                         {/* Back Button */}
@@ -1528,6 +1655,7 @@ function CategorySheet({ branch, open, onOpenChange, onConfirm, initialSelected 
         const [categoryDescription, setCategoryDescription] = useState('')
     
       const fetch = async () => {
+        console.log('Fetching categories for branch:', branch)
         if (!open) return
         setLoading(true)
         try {
@@ -1723,7 +1851,7 @@ function CategorySheet({ branch, open, onOpenChange, onConfirm, initialSelected 
       const [selected, setSelected] = useState(initialSelected || [])
       const [newTagName, setNewTagName] = useState('')
     
-      useEffect(() => { if (!open) return; const fetch = async () => { setLoading(true); try { const { data } = await supabase.from('tags').select('*'); if (!data || data.length===0) setList([{id:'1',name:'New'},{id:'2',name:'Sale'},{id:'3',name:'Limited'}]); else setList(data);} catch(e){console.error(e)} setLoading(false);} ; fetch() }, [open])
+      useEffect(() => { if (!open) return; const fetch = async () => { setLoading(true); try { const { data } = await supabase.from('tags').select('*'); if (!data || data.length===0) setList([{id:'default-new-1',name:'New'},{id:'default-sale-2',name:'Sale'},{id:'default-limited-3',name:'Limited'}]); else setList(data);} catch(e){console.error(e)} setLoading(false);} ; fetch() }, [open])
     
       const toggle = (id, checked) => {
         if (checked) setSelected(prev => [...new Set([...(prev||[]), id])])
@@ -1812,3 +1940,4 @@ function CategorySheet({ branch, open, onOpenChange, onConfirm, initialSelected 
         </div>
       );
     };
+

@@ -7,7 +7,7 @@ import {Breadcrumb,  BreadcrumbList,  BreadcrumbItem,  BreadcrumbSeparator,  Bre
 
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { BranchContext } from "@/app/admin/[u]/company/[companySlug]/branches/[branch]/layout";
+import { BranchContext } from "@/app/users/[u]/company/[companySlug]/branches/[branch]/layout";
 
 export default function BranchHeader({ children }) {
   const pathname = usePathname();
@@ -40,7 +40,7 @@ export default function BranchHeader({ children }) {
     /* ------------------------------
       URL builders and simple route predicates
     ------------------------------- */
-    const baseCompany = `/admin/${userId}/company/${companySlug}`;
+    const baseCompany = `/users/${userId}/company/${companySlug}`;
     const branchBase = `${baseCompany}/branches/${params.branch}`;
     const isAtCompanyRoot = segments.length === 4;
 
@@ -51,7 +51,7 @@ export default function BranchHeader({ children }) {
     const breadcrumbItems = [];
 
   // Admin
-  breadcrumbItems.push({ label: "Admin", href: `/admin/${userId}` });
+  breadcrumbItems.push({ label: "Admin", href: `/users/${userId}` });
 
   // Company
   if (isAtCompanyRoot) {
@@ -117,7 +117,7 @@ export default function BranchHeader({ children }) {
             {/* Admin */}
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link href={`/admin/${userId}`}>Admin</Link>
+                <Link href={`/users/${userId}`}>Admin</Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
 
@@ -190,3 +190,4 @@ export default function BranchHeader({ children }) {
     </header>
   );
 }
+

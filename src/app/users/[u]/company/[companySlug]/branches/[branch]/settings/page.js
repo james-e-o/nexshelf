@@ -2,7 +2,7 @@
 
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Settings, Edit3, DollarSign, Grid } from "lucide-react";
+import { Settings, Edit3, DollarSign, Grid, Truck } from "lucide-react";
 
 export default function BranchSettingsPage() {
   const router = useRouter()
@@ -27,6 +27,12 @@ export default function BranchSettingsPage() {
       description: "Enable or disable branch-level modules.",
       icon: <Grid className="w-5 h-5 text-gray-600" />,
       route: "modules",
+    },
+    {
+      title: "Shipping Profiles",
+      description: "Create and manage shipping options for your products.",
+      icon: <Truck className="w-5 h-5 text-gray-600" />,
+      route: "shipping-profiles",
     }
   ]
 

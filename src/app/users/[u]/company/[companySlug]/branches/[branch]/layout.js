@@ -11,7 +11,7 @@ import BranchHeader from "@/components/headers/branch-header"
 import { Button } from "@/components/ui/button"
 import { Bell } from "lucide-react"
 import { CompanyInfoContext } from "../../layout"
-import { RefreshContext } from "@/app/admin/[u]/layout"
+import { RefreshContext } from "@/app/users/[u]/layout"
 
 export const BranchContext = createContext();
 
@@ -57,14 +57,14 @@ export default function CompanyLayout({ children }) {
 
         if (branchError || !branchData) {
           toast("Branch not found.")
-          router.push(`/admin/${params.u}/company/${params.companySlug}/branches`)
+          router.push(`/users/${params.u}/company/${params.companySlug}/branches`)
           return
         }
 
         // Step 3: Verify branch belongs to user's company
         if (branchData.company !== parentContext.info.id) {
           toast("Access denied. Branch does not belong to this company.")
-          router.push(`/admin/${params.u}/company/${params.companySlug}/branches`)
+          router.push(`/users/${params.u}/company/${params.companySlug}/branches`)
           return
         }
 
@@ -79,7 +79,7 @@ export default function CompanyLayout({ children }) {
       } catch (e) {
         console.error("Branch access error:", e)
         toast("Unexpected error occurred.")
-        router.push(`/admin/${params.u}/company/${params.companySlug}/branches`)
+        router.push(`/users/${params.u}/company/${params.companySlug}/branches`)
       } finally {
         setIsLoading(false)
       }

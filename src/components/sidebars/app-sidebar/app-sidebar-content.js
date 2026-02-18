@@ -13,7 +13,7 @@ export default function AppSidebarContent({ profile,companies}) {
     return (
     <SidebarContent className={'bg-[white] text-zinc-100'} >
         <SidebarGroup>
-            <Link href={`/admin/${params.u}/new-company`} className="no-underline">
+            <Link href={`/users/${params.u}/new-company`} className="no-underline">
             <SidebarMenuButton tooltip={'new company'} size="lg" className=" hover:from-core/90 hover:to-army/90 mt-3 h-10 cursor-pointer bg-linear-to-r from-core to-60% to-army">
                 <div className="bg-transparent scale-125 flex aspect-square size-8 items-center justify-center rounded-lg">
                     <Rocket className="size-4 text-white font-bold" />
@@ -26,15 +26,15 @@ export default function AppSidebarContent({ profile,companies}) {
         </SidebarGroup>
         <SidebarGroup>
             <SidebarMenu>
-                <NoCollapsibleButton className={``} url={`/admin/${params.u}`} title={'Dashboard'} icon={LayoutDashboard} active={false} name={'Dashboard'}/>
+                <NoCollapsibleButton className={``} url={`/users/${params.u}`} title={'Dashboard'} icon={LayoutDashboard} active={false} name={'Dashboard'}/>
                 {companies&&companies.length>0&&(
                     <CollapsibleButton caps={'uppercase'} sidebarOpen={true} className={``} title={'Companies'} icon={Factory} 
-                        items={companies.map((company)=>({title:company.name,url:`/admin/${params.u}/company/${company.slug}`}))}
+                        items={companies.map((company)=>({title:company.name,url:`/users/${params.u}/company/${company.slug}`}))}
                         sidebarCollapse={false}
                     />
                 )}
-                <NoCollapsibleButton className={``} url={`/admin/${params.u}`} title={'Reports'} icon={Files} active={false} name={'Reports'}/>
-                <NoCollapsibleButton className={``} url={`/admin/${params.u}/billing`} title={'Billing'} icon={Receipt} active={false} name={'Billing & Plans'}/>
+                <NoCollapsibleButton className={``} url={`/users/${params.u}`} title={'Reports'} icon={Files} active={false} name={'Reports'}/>
+                <NoCollapsibleButton className={``} url={`/users/${params.u}/billing`} title={'Billing'} icon={Receipt} active={false} name={'Billing & Plans'}/>
                
             </SidebarMenu> 
         </SidebarGroup>

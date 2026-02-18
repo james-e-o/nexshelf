@@ -34,7 +34,7 @@ export default function CompanyHeader({ children }) {
             {/* Always show "Dashboard" */}
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link href={`/admin/${userId}`}>Admin Page</Link>
+                <Link href={`/users/${userId}`}>Admin Page</Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
 
@@ -50,7 +50,7 @@ export default function CompanyHeader({ children }) {
                 <BreadcrumbItem>
                   <BreadcrumbLink asChild>
                     <Link
-                      href={`/admin/${userId}/company/${companySlug}`}
+                      href={`/users/${userId}/company/${companySlug}`}
                       className="capitalize"
                     >
                       {companySlug}
@@ -60,7 +60,7 @@ export default function CompanyHeader({ children }) {
 
                 {/* Sub-page breadcrumbs */}
                 {companySegments.map((segment, i) => {
-                  const href = `/admin/${userId}/company/${companySlug}/${companySegments
+                  const href = `/users/${userId}/company/${companySlug}/${companySegments
                     .slice(0, i + 1)
                     .join("/")}`;
                   const isLast = i === companySegments.length - 1;
@@ -95,3 +95,4 @@ export default function CompanyHeader({ children }) {
     </header>
   );
 }
+

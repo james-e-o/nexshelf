@@ -22,7 +22,7 @@ export default function StaffManagementPage() {
         <h1 className="text-base font-semibold text-gray-800">Staff Management</h1>
 
         <div className="flex items-center gap-2 mt-4 md:mt-0">
-            <Link href={`/admin/${u}/company/${companySlug}/staff/new`}>
+            <Link href={`/users/${u}/company/${companySlug}/staff/new`}>
                 <Button className="bg-army hover:bg-army/90 text-white text-xs h-7 px-3 py-2 rounded-md flex items-center gap-1">
                     <UserPlus className="h-3.5 w-3.5" /> Add New Staff
                 </Button>

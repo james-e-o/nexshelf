@@ -42,7 +42,7 @@ export default function Header({children}) {
             ) : (
               breadcrumbSegments.map((segment, i) => {
                 const href =
-                  "/admin/" +
+                  "/users/" +
                   segments[1] + // dynamic user ID
                   "/" +
                   breadcrumbSegments.slice(0, i + 1).join("/");

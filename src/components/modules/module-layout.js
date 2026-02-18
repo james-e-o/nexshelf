@@ -36,7 +36,7 @@ export function ModuleLayout({
 					{navigationItems.map((item) => (
 						<Link
 							key={item.label}
-							href={`/admin/${u}/company/${companySlug}/branches/${branch}/modules/${moduleSlug}/${item.href}`}
+							href={`/users/${u}/company/${companySlug}/branches/${branch}/modules/${moduleSlug}/${item.href}`}
 						>
                             <Button variant={'ghost'} className={'h-7'}>
                                 <span className="text-xl"><item.icon className='text-army font-extrabold'/></span>
@@ -64,3 +64,4 @@ export function ModuleLayout({
 		</div>
 	);
 }
+

@@ -14,7 +14,7 @@ export default function ProductsLayout({ children }) {
 	const navigationItems = [
 		{ label: 'Products', href: '/', icon: List },
 		{ label: 'Create Product', href: 'create', icon: Plus },
-		{ label: 'Collections', href: 'collections', icon: Palette },
+		{ label: 'Categories', href: 'categories', icon: Palette },
 		{ label: 'Settings', href: 'settings', icon: Settings2 },
 	];
 
@@ -31,7 +31,7 @@ export default function ProductsLayout({ children }) {
 					{navigationItems.map((item) => (
 						<Link
 							key={item.label}
-							href={`/admin/${u}/company/${companySlug}/branches/${branch}/modules/products/${item.href}`}
+							href={`/users/${u}/company/${companySlug}/branches/${branch}/modules/products/${item.href}`}
 						>
                             <Button variant={'ghost'} className={'h-7'}>
                                 <span className="text-xl"><item.icon className='text-army font-extrabold'/></span>
@@ -52,7 +52,7 @@ export default function ProductsLayout({ children }) {
 
 			{/* Main Content */}
 			<main className="flex-1 overflow-auto">
-				<div className="p-8">
+				<div className="p-2 ">
 					{children}
 				</div>
 			</main>

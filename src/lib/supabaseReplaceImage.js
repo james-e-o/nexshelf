@@ -50,3 +50,4 @@ export async function replaceImageInSupabase(
     return { success: false, error: err };
   }
 }
+

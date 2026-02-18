@@ -185,14 +185,14 @@ export default function BranchesPage() {
                 <div className="flex items-center justify-between py-3 relative top-1  pl-3 pr-7">
                   <div>
                     <div className="flex items-center gap-2">
-                      <Button variant={'link'} className="text-xs h-7 font-medium hover:underline" onClick={() => router.push(`/admin/${params.u}/company/${params.companySlug}/branches/${b.id}`)}>{b.name}
+                      <Button variant={'link'} className="text-xs h-7 font-medium hover:underline" onClick={() => router.push(`/users/${params.u}/company/${params.companySlug}/branches/${b.id}`)}>{b.name}
                       {b.isheadoffice && <span className="text-[10px] text-zinc-500">(Head Office)</span>}</Button>
                     </div>
                     <div className="text-[10px] text-zinc-500">{b.address}, {b.city}</div>
                   </div>
 
                     <div className="flex items-center gap-2">
-                    <Button variant={'outline'} className="h-6 shadow-none text-[10px]" onClick={() => router.push(`/admin/${params.u}/company/${params.companySlug}/branches/${b.id}/settings`)}>
+                    <Button variant={'outline'} className="h-6 shadow-none text-[10px]" onClick={() => router.push(`/users/${params.u}/company/${params.companySlug}/branches/${b.id}/settings`)}>
                       Edit
                     </Button>
                     {!b.isheadoffice && (

@@ -1,5 +1,5 @@
 'use client'
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Eye, EyeOff, GalleryVerticalEnd ,Circle,CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -20,16 +20,25 @@ export default function SignupPage() {
     const [showValidatePassword, setShowValidatePassword] = useState(false);
     const [focused, setFocused] = useState(false);
     const [validateFocused, setValidateFocused] = useState(false);
+    const [username, setUsername] = useState('')
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState("");
     const [passwordValidate, setPasswordValidate] = useState("");
     const [error, setError] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
     const [isLoading,setIsLoading] = useState(false)
+    const [usernameExists, setUsernameExists] = useState(null)
+    const [checkingUsername, setCheckingUsername] = useState(false)
+    const [usernameInvalidChars, setUsernameInvalidChars] = useState(false)
+    const debounceTimer = useRef(null)
+    
     const message = {
+      usernameError: 'username is required',
       emailError:'valid email address required',
       passwordError :'password must have at least 8 characters that includes at least number',
       validateError :'password does not match',
+      usernameExistsError: 'username already exists',
+      usernameInvalidCharsError: 'Only lowercase letters, numbers, underscore (_), and dollar symbol ($) are allowed',
     }
 
     const rules = {
@@ -41,59 +50,90 @@ export default function SignupPage() {
 
     const allValid = Object.values(rules).every(Boolean);
     
-    
-
-      function generateUsername(email) {
-        if (!email) return;
-
-        const namePart = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
-        
-        return `@${namePart}`;
+    // Debounced function to check username availability
+    // Username in state already has @ symbol, so we check exactly what we'll save
+    const checkUsernameAvailability = async (usernameToCheck) => {
+      if (!usernameToCheck || isEmpty(usernameToCheck) || usernameToCheck === '@') {
+        setUsernameExists(null)
+        setCheckingUsername(false)
+        return
       }
 
-      function addRandomSuffix(base) {
-      // Add a small random string or number (e.g. user1234)
-      const random = Math.random().toString(36).substring(2, 6);
-      return `${base}${random}`;
-    }
-
-    async function generateUniqueUsername(email, supabase) {
-      let username = generateUsername(email);
-      let finalUsername = username;
-
-      // Loop until we find a unique username
-      while (true) {
-
-
+      setCheckingUsername(true)
+      
+      try {
+        // Query database for username WITH @ symbol (as it will be stored)
         const { data: existing, error } = await supabase
-          .from("profiles")
+          .from("users")
           .select("id")
-          .eq("username", finalUsername)
+          .eq("username", usernameToCheck.toLowerCase())
           .maybeSingle();
 
-        if (!existing) break; // Unique username found
-        finalUsername = addRandomSuffix(username); // Try again with random suffix
+        if (error) {
+          console.error("Error checking username:", error)
+          setUsernameExists(null)
+        } else {
+          setUsernameExists(existing ? true : false)
+        }
+      } catch (err) {
+        console.error("Unexpected error checking username:", err)
+        setUsernameExists(null)
+      } finally {
+        setCheckingUsername(false)
       }
-
-      return finalUsername;
     }
 
+    // Handle username change with debouncing
+    // State keeps @ symbol, input field just shows what user types
+    // Only allows: letters (a-z), numbers (0-9), underscore (_), dollar symbol ($)
+    const handleUsernameChange = (e) => {
+      const inputValue = e.target.value.toLowerCase()
+      // Check if input contains invalid characters
+      const hasInvalidChars = /[^a-z0-9_$@]/.test(inputValue)
+      setUsernameInvalidChars(hasInvalidChars)
+      
+      // Only allow letters, numbers, underscore, and dollar symbol
+      // Remove @ symbol and any other disallowed characters
+      const cleanValue = inputValue.replace(/[^a-z0-9_$]/g, '')
+      // State always has @ symbol for consistency with database
+      const stateValue = `@${cleanValue}`
+      setUsername(stateValue)
+
+      // Clear existing timer
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current)
+      }
+
+      // Set new timer for delayed check (check WITH @ symbol, as stored in DB)
+      debounceTimer.current = setTimeout(() => {
+        checkUsernameAvailability(stateValue)
+      }, 500) // 500ms delay
+    }
+
+    // Cleanup timer on unmount
+    useEffect(() => {
+      return () => {
+        if (debounceTimer.current) {
+          clearTimeout(debounceTimer.current)
+        }
+      }
+    }, [])
 
     async function Submit(e){
         e.preventDefault();
         setError(false)
         setErrorMessage('')
 
-        if(isEmpty(email) || !isEmail(email)){setError(true),setErrorMessage(message.emailError); return}
+        if(isEmpty(username) || username === '@'){setError(true),setErrorMessage(message.usernameError); return}
+        else if(usernameExists){setError(true),setErrorMessage(message.usernameExistsError); return}
+        else if(isEmpty(email) || !isEmail(email)){setError(true),setErrorMessage(message.emailError); return}
         else if((!allValid) ){setError(true),setErrorMessage(message.passwordError); return}
-        // else if(isEmpty(password)||!isLength(password,{min:8})||!matches(password,/[0-9]/)){setError(true),setErrorMessage(message.passwordError); return}
         else if(isEmpty(passwordValidate)||passwordValidate!==password){setError(true);setErrorMessage(message.validateError); return}
 
         else{
             setIsLoading(true)
-            const username = await generateUniqueUsername(email, supabase);
-            const handle = username.startsWith('@') ? username.slice(1) : username; // remove '@' for handle
-            console.log('Form Submitted',email,password)
+            const handle = username.substring(1); // Remove @ symbol from username
+            // console.log('Form Submitted',username,handle,email,password)
       
             try {
               // Network call to Supabase
@@ -105,11 +145,9 @@ export default function SignupPage() {
                     data:{
                       username:username,
                       handle:handle,
-                      role:'admin'
                     }
                   }
                 })
-
 
               if (error) {
                 // Supabase reached, but login failed (wrong credentials, etc.)
@@ -163,8 +201,45 @@ export default function SignupPage() {
                   </div>
                 
                       <Field>
+                        <FieldLabel htmlFor="username">Username</FieldLabel>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 font-medium">@ </span>
+                          <Input 
+                            id="username" 
+                            className="pl-6" 
+                            value={username.replace('@', '')}
+                            onChange={handleUsernameChange}
+                            type="text" 
+                            placeholder="your_username"
+                            autoComplete="username"
+                          />
+                          {checkingUsername && (
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+                              <Spinner spinning={true} size={14} />
+                            </span>
+                          )}
+                          {!checkingUsername && username && username !== '@' && usernameExists === false && (
+                            <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500" size={16} />
+                          )}
+                        </div>
+                        <FieldDescription className={'text-xs ml-1'}>
+                          {usernameInvalidChars && (
+                            <span className="text-orange-500">{message.usernameInvalidCharsError}</span>
+                          )}
+                          {!usernameInvalidChars && error && (errorMessage==message.usernameError || errorMessage==message.usernameExistsError) && (
+                            <span className="text-orange-500">{errorMessage}</span>
+                          )}
+                          {!usernameInvalidChars && !error && username && username !== '@' && !checkingUsername && usernameExists === false && (
+                            <span className="text-green-600">username is available</span>
+                          )}
+                          {!usernameInvalidChars && !error && username && username !== '@' && !checkingUsername && usernameExists === true && (
+                            <span className="text-orange-500">username already taken</span>
+                          )}
+                        </FieldDescription>
+                      </Field>
+                      <Field>
                         <FieldLabel htmlFor="email">Email</FieldLabel>
-                        <Input id="email" value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="m@example.com" required />
+                        <Input id="email" value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="m@example.com" />
                         <FieldDescription className={'text-xs ml-1'}>
                           {error && errorMessage==message.emailError && (
                             <span className="text-orange-500">{errorMessage}</span>
@@ -176,7 +251,7 @@ export default function SignupPage() {
                           <Field>
                             <FieldLabel htmlFor="password">Password</FieldLabel>
                             <div className="relative ">
-                              <Input id="password" className={'mt-1'} value={password} onChange={(e) => setPassword(e.target.value)} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} type={showPassword ? "text" : "password"} placeholder="" required/>
+                              <Input id="password" className={'mt-1'} value={password} onChange={(e) => setPassword(e.target.value)} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} type={showPassword ? "text" : "password"} placeholder="" />
                               <Button type="button" variant={'ghost'} onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700" >
                                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                               </Button>
@@ -223,7 +298,7 @@ export default function SignupPage() {
                               Confirm Password
                             </FieldLabel>
                             <div className="relative ">
-                              <Input id="passwordValidate" className={'mt-1'} value={passwordValidate} onChange={(e) => setPasswordValidate(e.target.value)} onFocus={() => setValidateFocused(true)} onBlur={() => setValidateFocused(false)} type={showValidatePassword ? "text" : "password"} placeholder="" required/>
+                              <Input id="passwordValidate" className={'mt-1'} value={passwordValidate} onChange={(e) => setPasswordValidate(e.target.value)} onFocus={() => setValidateFocused(true)} onBlur={() => setValidateFocused(false)} type={showValidatePassword ? "text" : "password"} placeholder="" />
                               <Button type="button" variant={'ghost'} onClick={() => setShowValidatePassword(!showValidatePassword)} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700" >
                                 {showValidatePassword ? <EyeOff size={18} /> : <Eye size={18} />}
                               </Button>
@@ -279,7 +354,7 @@ export default function SignupPage() {
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogAction onClick={()=>{setEmail(''),setPassword(''),setPasswordValidate('')}} className={'h-8 -mt-1'}>Ok</AlertDialogAction>
+          <AlertDialogAction onClick={()=>{setUsername(''),setEmail(''),setPassword(''),setPasswordValidate('')}} className={'h-8 -mt-1'}>Ok</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

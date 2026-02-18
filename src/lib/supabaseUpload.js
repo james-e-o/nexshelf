@@ -80,3 +80,4 @@ export async function uploadImagesToSupabase(files, { bucket, companyName, folde
 
   return results;
 }
+

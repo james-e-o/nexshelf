@@ -43,7 +43,7 @@ const PageLayout = ({ children }) => {
 
         const userID = user.id
         const { data: profile, error: profileError } = await supabase
-          .from('admins')
+          .from('users')
           .select('*')
           .eq('id', userID)
           .single()

@@ -3,7 +3,7 @@
 import {useContext} from "react"
 import { ArrowBigDownDash, ChevronRight, AudioWaveform, BookOpen, Bot, Calculator, ChartCandlestick,Files, Command, Factory, FileChartLine, Frame, GalleryVerticalEnd, LayoutDashboard, Map, PieChart, Plus, Settings, Settings2, SquareTerminal,} from "lucide-react"
 import { Button,buttonVariants } from "@/components/ui/button";
-import { DataContext } from "@/app/admin/[u]/layout";
+import { DataContext } from "@/app/users/[u]/layout";
 import Link from "next/link";
 import {  Sidebar,  SidebarContent,  SidebarFooter,  SidebarHeader,SidebarTrigger,  SidebarRail,} from "@/components/ui/sidebar"
 import {  Collapsible,  CollapsibleContent,  CollapsibleTrigger,} from "@/components/ui/collapsible"

@@ -21,3 +21,4 @@ export default function ClientLayout({ session, profile, children }) {
     </DataContext.Provider>
   )
 }
+

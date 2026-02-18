@@ -42,65 +42,102 @@ export default function LoginPage() {
         else {
 
           setIsLoading(true)
-           try {
+          //  try {
+          //     const { data, error } = await supabase.auth.signInWithPassword({
+          //       email,
+          //       password
+          //     })
+
+          //     if (error) {
+          //       setIsLoading(false)
+          //       setError(true)
+          //       alert(error.message);
+          //       return;
+          //     }
+
+          //     if (data.session) {
+          //       // ✅ session created and stored automatically
+          //       const userId = data.user.id;
+          //       console.log(data)
+                
+          //       const { data: profile, error: profileError } = await supabase
+          //           .from('admins')
+          //           .select('handle')
+          //           .eq('id', userId)
+          //           .single()
+
+          //         if (profileError || !profile) {
+          //           console.error('Profile fetch error:', profileError)
+          //           alert('Profile not found. Please sign in again.')
+          //           setIsLoading(false)
+          //           return
+          //         }
+              
+
+          //         // ✅ Step 3: Profile is complete → go to dashboard
+          //         router.push(`/users/${profile.handle}`);
+          //         // setIsLoading(false)
+        
+          //     }
+
+          //   } catch (err) {
+          //     // Request itself failed (network issue, CORS, etc.)
+          //     setIsLoading(false)
+          //     setError(true)
+          //     toast("Network error, Retry")
+          //     console.log("Network or unexpected error:", err)
+          //   }
+
+            try {
               const { data, error } = await supabase.auth.signInWithPassword({
                 email,
                 password
-              })
+              });
 
               if (error) {
-                setIsLoading(false)
-                setError(true)
+                setError(true);
                 alert(error.message);
+                console.log("Login error:", error);
                 return;
               }
 
-              if (data.session) {
-                // ✅ session created and stored automatically
-                const userId = data.user.id;
-                console.log(data)
-                
-                const { data: profile, error: profileError } = await supabase
-                    .from('admins')
-                    .select('handle')
-                    .eq('id', userId)
-                    .single()
+              if (data.session && data.user) {
+                // ✅ Get handle from user_metadata
+                const handle = data.user.user_metadata?.handle;
 
-                  if (profileError || !profile) {
-                    console.error('Profile fetch error:', profileError)
-                    alert('Profile not found. Please sign in again.')
-                    setIsLoading(false)
-                    return
-                  }
-              
+                if (!handle) {
+                  alert("Profile handle not found. Please contact support.");
+                  return;
+                }
 
-                  // ✅ Step 3: Profile is complete → go to dashboard
-                  router.push(`/admin/${profile.handle}`);
-                  // setIsLoading(false)
-        
+                // ✅ Redirect directly
+                router.push(`/users/${handle}`);
               }
 
             } catch (err) {
-              // Request itself failed (network issue, CORS, etc.)
-              setIsLoading(false)
-              setError(true)
-              toast("Network error, Retry")
-              console.log("Network or unexpected error:", err)
+              setError(true);
+              toast("Network error, Retry");
+              console.log("Network or unexpected error:", err);
+
+            } finally {
+              // ✅ Always stop loading
+              setIsLoading(false);
             }
+
         }
   }
 
-      useEffect(() => {
-        const url = new URL(window.location.href);
-        const isConfirmed = url.searchParams.get('confirmed');
+      // useEffect(() => {
+      //   const url = new URL(window.location.href);
+      //   const isConfirmed = url.searchParams.get('confirmed');
         
-        if (isConfirmed) {
-          setEmail(isConfirmed)
-          setDialogOpen(true)
-          // Clean up the URL so it doesn't repeat on reload
-          router.replace('/accounts/login');
-        }
-      }, []);
+      //   if (isConfirmed) {
+      //     setEmail(isConfirmed)
+      //     setDialogOpen(true)
+      //     // Clean up the URL so it doesn't repeat on reload
+      //     router.replace('/accounts/login');
+      //   }
+      // }, []);
 
       supabase.auth.onAuthStateChange((event, session) => {
         if (event === "SIGNED_IN") {
@@ -153,6 +190,13 @@ export default function LoginPage() {
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </Button>
                 </div>
+                <div className="flex items-center justify-between gap-2 mt-2">
+                  <Link href="/accounts/forgot-password">
+                    <Button type="button" variant="ghost" className="h-auto p-0 text-xs text-gray-600 hover:text-gray-800">
+                      Forgot password?
+                    </Button>
+                  </Link>
+                </div>
                 <FieldDescription className="mt-0 text-xs ml-0.5 transition-all">
                   {error && (errorMessage==message.passwordError||errorMessage==message.passwordError2) && (
                       <span className="text-orange-500">{errorMessage}</span>
@@ -196,5 +240,6 @@ export default function LoginPage() {
     </Dialog>
   )
 }
+
 
 

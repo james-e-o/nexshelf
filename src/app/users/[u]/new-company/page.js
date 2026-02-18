@@ -60,7 +60,7 @@ export default function AdminUserPage() {
             branchAddress: "",
             branchCity: "",
         });
-          const requiredFields = ["name", "email", "type", "currencies","phone"];
+          const requiredFields = ["name", "email", "currencies","phone"];
 
           const handleChange = (e) => {
                 setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -220,8 +220,8 @@ export default function AdminUserPage() {
                     }
                 }
 
-            setIsLoading(false);
-            router.push(`/admin/${params.u}`);
+            // setIsLoading(false);
+            router.push(`/users/${params.u}`);
             };
 
 
@@ -315,7 +315,7 @@ export default function AdminUserPage() {
                                     <h1 className='text-2xl font-bold text-slate-900 mb-2'>Create a new company</h1>
                                     <p className='text-sm text-slate-600'>Set up your company profile and initial settings</p>
                                 </div>
-                                <Link href={`/admin/${params.u}`}><Button variant={'outline'} className="text-neutral-500 relative -top-10 h-7 hover:text-black text-xs">✕</Button></Link>
+                                <Link href={`/users/${params.u}`}><Button variant={'outline'} className="text-neutral-500 relative -top-10 h-7 hover:text-black text-xs">✕</Button></Link>
                             </div>
 
                             {/* Step indicators */}

@@ -92,7 +92,7 @@ export default function AdminUserPage() {
                       </div>
                       :
                      data && data.profile &&!data.companies?.length && data.profile?
-                      <div className=' bg-neutral-50 rounded-2xl px-5 py-7 text-center'>
+                      <div className=' bg-armylight rounded-2xl px-5 py-7 text-center'>
                         <div className="flex flex-col items-center gap-4">
                           
                           <div className="p-4 rounded-full bg-white">
@@ -103,7 +103,7 @@ export default function AdminUserPage() {
                               No Companies yet created
                             </h3>
                           </div>
-                          <Link href={`/admin/${params.u}/new-company`}><Button className='mt-2 h-8 hover:bg-core/90 text-xs bg-core'>Create Company</Button></Link>
+                          <Link href={`/users/${params.u}/new-company`}><Button className='mt-2 h-8 hover:bg-core/90 text-xs bg-core'>Create Company</Button></Link>
                         </div>
                       </div>:""
                       }

@@ -1567,3 +1567,4 @@ const handleDuplicate = async () => {
 }
 
 export default EditImage
+

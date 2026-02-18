@@ -16,3 +16,4 @@ export function StaffSidebarHeader({ ...props }) {
     </SidebarHeader>
   )
 }
+

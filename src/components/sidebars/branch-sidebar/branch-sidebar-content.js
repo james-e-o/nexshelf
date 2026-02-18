@@ -15,12 +15,12 @@ export default function BranchSidebarContent({modules, company}) {
     <SidebarContent className={'bg-[white]  text-zinc-100'} >
         <SidebarGroup>
             <SidebarMenu>
-                <NoCollapsibleButton className={`capitalize`} url={`/admin/${params.u}/company/${params.companySlug}`} title={'Dashboard'} icon={Building2} active={false} name={`${params.companySlug.toUpperCase()} Dashboard`}/>
+                <NoCollapsibleButton className={`capitalize`} url={`/users/${params.u}/company/${params.companySlug}`} title={'Dashboard'} icon={Building2} active={false} name={`${params.companySlug.toUpperCase()} Dashboard`}/>
                 {modules&&modules.length>0&&(
                     <CollapsibleButton caps={'capitalize'} defaultOpen={true} sidebarOpen={true} className={``} title={'Business Modules'} icon={Group} 
                     items={[
                       
-                        ...modules.map((module) => ({ title: module.title, url: `/admin/${params.u}/company/${params.companySlug}/branches/${params.branch}/modules/${module.slug}`}))]}
+                        ...modules.map((module) => ({ title: module.title, url: `/users/${params.u}/company/${params.companySlug}/branches/${params.branch}/modules/${module.slug}`}))]}
                         sidebarCollapse={false}
                     />
                 )}
