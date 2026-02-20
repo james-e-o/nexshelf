@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useContext } from 'react';
-import { DataContext } from '@/app/admin/[u]/layout';
+import { DataContext } from '@/app/users/[u]/layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -51,7 +51,7 @@ export default function ActiveStaffPage() {
       try {
         setIsLoading(true);
         const response = await fetch(
-          `/api/admin/staff?companySlug=${companySlug}`
+          `/api/users/staff?companySlug=${companySlug}`
         );
         const data = await response.json();
 
