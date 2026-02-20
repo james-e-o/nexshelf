@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useContext } from 'react';
-import { DataContext } from '@/app/admin/[u]/layout';
+import { DataContext } from '@/app/users/[u]/layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -56,7 +56,7 @@ export default function StaffApplicationsPage() {
       try {
         setIsLoading(true);
         const response = await fetch(
-          `/api/admin/staff-applications?companySlug=${companySlug}`
+          `/api/users/staff-applications?companySlug=${companySlug}`
         );
         const data = await response.json();
 
@@ -87,7 +87,7 @@ export default function StaffApplicationsPage() {
     try {
       setIsApproving(true);
       const response = await fetch(
-        `/api/admin/staff-applications/${selectedApp.id}/approve`,
+        `/api/users/staff-applications/${selectedApp.id}/approve`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -126,7 +126,7 @@ export default function StaffApplicationsPage() {
     try {
       setIsRejecting(true);
       const response = await fetch(
-        `/api/admin/staff-applications/${selectedApp.id}/reject`,
+        `/api/users/staff-applications/${selectedApp.id}/reject`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
