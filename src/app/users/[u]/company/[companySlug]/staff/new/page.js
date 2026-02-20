@@ -27,6 +27,8 @@ export default function StaffOnboarding({ companyId, companyName, companyLogo })
     setLoading(true);
     const checkingToast = toast.loading("Checking...");
 
+    
+
     try {
       // First, check if the email already exists for this company
       const { data: existingData, error: checkError } = await supabase

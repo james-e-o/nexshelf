@@ -9,10 +9,10 @@ export function AppSidebarHeader({...props }) {
   return (
     <SidebarHeader className={'bg-white '} {...props} >
         <div className="flex scale-[85%] justify-center items-center w-full ">
-            <div className="flex pt-0 md:pt-0 size-8 justify-center">
+            <div className="flex pt-0 md:pt-0 size-7 justify-center">
                 <Image className="dark:invert w-7/8 scale-75 " src="/logo.png" alt="logo" width={200} height={200} priority />
             </div>
-            <p className="font-Madetommy text-army text-xl font-extrabold">{open?'NEXSHELF':''}</p>
+            <p className="font-Lato tracking-tighter scale-105 relative -left-0.5 text-army text-xl font-extrabold">{open?'NEXSHELF':''}</p>
         </div>
     </SidebarHeader>
   )

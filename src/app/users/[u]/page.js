@@ -26,34 +26,84 @@ export default function AdminUserPage() {
     useEffect(()=>{
       async function fetchCompany(){
         setIsLoading(true)
-        const { data: companies, error: companyError } = await supabase
-                  .from('companies')
-                  .select('id, name, slug')
-                  .eq('owner', data.profile.id)
-        
-                if (companyError) {
-                  console.error('Company fetch error:', companyError)
-                  toast('Unable to load your companies. Please try again later.')
-                  setData(prev => ({ ...prev, companies: [] }))
-                  setIsLoading(false )
-                  return
-                }
-        
-                if (!companies || companies.length === 0) {
-                  setData(prev => ({ ...prev, companies: [] }))
-                  setIsLoading(false )
-                  return
-                }
-        
-                // ✅ Save both profile and companies together
-                setData(prev => ({
-                  ...prev,
-                  companies,
-                }))
-                setIsLoading(false)
+        try {
+          // Fetch companies owned by user
+          const { data: ownedCompanies, error: companyError } = await supabase
+                    .from('companies')
+                    .select('id, name, slug')
+                    .eq('owner', data.profile.id)
+          
+          if (companyError) {
+            console.error('Company fetch error:', companyError)
+            toast('Unable to load your companies. Please try again later.')
+            setData(prev => ({ ...prev, companies: [] }))
+            setIsLoading(false)
+            return
           }
-          fetchCompany()
-    },[])
+
+          // Fetch companies where user is staff
+          const { data: staffRecords, error: staffError } = await supabase
+                    .from('staff')
+                    .select('company')
+                    .eq('id', data.profile.id)
+          
+          if (staffError) {
+            console.error('Staff fetch error:', staffError)
+          }
+
+          // Get unique company IDs from staff records
+          const staffCompanyIds = staffRecords 
+            ? [...new Set(staffRecords.map(record => record.company))]
+            : []
+
+          // Fetch company details for staff companies
+          let staffCompanies = []
+          if (staffCompanyIds.length > 0) {
+            const { data: companies, error: fetchError } = await supabase
+                      .from('companies')
+                      .select('id, name, slug')
+                      .in('id', staffCompanyIds)
+            
+            if (!fetchError && companies) {
+              staffCompanies = companies.map(company => ({
+                ...company,
+                badge: 'staff'
+              }))
+            }
+          }
+
+          // Add badge to owned companies
+          const ownedWithBadge = (ownedCompanies || []).map(company => ({
+            ...company,
+            badge: 'owner'
+          }))
+
+          // Combine both lists (owned first, then staff)
+          const allCompanies = [...ownedWithBadge, ...staffCompanies]
+
+          if (allCompanies.length === 0) {
+            setData(prev => ({ ...prev, companies: [] }))
+            setIsLoading(false)
+            return
+          }
+
+          // ✅ Save combined list of companies
+          setData(prev => ({
+            ...prev,
+            companies: allCompanies,
+          }))
+        } catch (err) {
+          console.error('Unexpected error fetching companies:', err)
+          toast('An error occurred while loading companies.')
+          setData(prev => ({ ...prev, companies: [] }))
+        } finally {
+          setIsLoading(false)
+        }
+      }
+      if (data.profile?.id) {
+        fetchCompany()
+      }
+    },[data.profile?.id])
     // const companies = [...data?.companies]
 
 

@@ -48,9 +48,22 @@ export const CollapsibleButton = ({title,icon,items,sidebarCollapse,sidebarOpen,
             <SidebarMenuSub>
                 {items?.map((subItem) => (
                 <SidebarMenuSubItem key={subItem.title}>
-                    <SidebarMenuSubButton className={`text-black text-xs`} asChild>
-                    <Link href={subItem.url}>
-                        <span data-caps={caps} className="font-medium data-[caps=capitalize]:capitalize data-[caps=lowercase]:lowercase data-[caps=uppercase]:uppercase font-WixMade text-xs ml-1">{subItem.title}</span>
+                    <SidebarMenuSubButton className={`text-black text-xs relative`} asChild>
+                    <Link href={subItem.url} className="relative w-full flex items-center">
+                        <span data-caps={caps} className="font-medium data-[caps=capitalize]:capitalize data-[caps=lowercase]:lowercase data-[caps=uppercase]:uppercase tracking-tighter font-WixMade text-xs ml-1">{subItem.title}</span>
+                        
+                        {/* Badge for company type */}
+                        {subItem.badge && (
+                          <span className={`absolute font-thin bottom-0 -right-0.5 min-w-max h-4 px-2 py-px rounded-full text-white scale-90 text-[8px] flex items-center justify-center leading-none ${
+                            subItem.badge === 'owner' 
+                              ? 'bg-core' 
+                              : subItem.badge === 'staff'
+                              ? 'bg-orange-500'
+                              : 'bg-gray-500'
+                          }`}>
+                            <span className="relative scale-x-125 scale-y-110 font-semibold">{subItem.badge}</span>
+                          </span>
+                        )}
                     </Link>
                     </SidebarMenuSubButton>
                 </SidebarMenuSubItem>

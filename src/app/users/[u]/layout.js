@@ -91,10 +91,10 @@ const PageLayout = ({ children }) => {
 
   // ✅ Fully authorized and data loaded
   return (
-     <RefreshContext.Provider value={{ refreshKey, setRefreshKey }}>
-    <DataContext.Provider value={{ data, setData }}>
-      {children}
-    </DataContext.Provider>
+    <RefreshContext.Provider value={{ refreshKey, setRefreshKey }}>
+      <DataContext.Provider value={{ data, setData }}>
+        {children}
+      </DataContext.Provider>
     </RefreshContext.Provider>
   )
 }
