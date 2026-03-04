@@ -22,25 +22,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "
 
 export default function AdminUserPage() {
 
-    const CURRENCIES = [
-        { code: "USD", name: "US Dollar", flag: "https://flagcdn.com/w20/us.png" },
-        { code: "EUR", name: "Euro", flag: "https://flagcdn.com/w20/eu.png" },
-        { code: "GBP", name: "British Pound", flag: "https://flagcdn.com/w20/gb.png" },
-        { code: "NGN", name: "Nigerian Naira", flag: "https://flagcdn.com/w20/ng.png" },
-        { code: "GHS", name: "Ghana Cedi", flag: "https://flagcdn.com/w20/gh.png" },
-        { code: "KES", name: "Kenyan Shilling", flag: "https://flagcdn.com/w20/ke.png" },
-        { code: "ZAR", name: "South African Rand", flag: "https://flagcdn.com/w20/za.png" },
-        { code: "CAD", name: "Canadian Dollar", flag: "https://flagcdn.com/w20/ca.png" },
-        { code: "AUD", name: "Australian Dollar", flag: "https://flagcdn.com/w20/au.png" },
-        { code: "JPY", name: "Japanese Yen", flag: "https://flagcdn.com/w20/jp.png" },
-        { code: "CNY", name: "Chinese Yuan", flag: "https://flagcdn.com/w20/cn.png" },
-        { code: "INR", name: "Indian Rupee", flag: "https://flagcdn.com/w20/in.png" },
-        { code: "CHF", name: "Swiss Franc", flag: "https://flagcdn.com/w20/ch.png" },
-        { code: "AED", name: "UAE Dirham", flag: "https://flagcdn.com/w20/ae.png" },
-        { code: "SAR", name: "Saudi Riyal", flag: "https://flagcdn.com/w20/sa.png" },
-        { code: "SGD", name: "Singapore Dollar", flag: "https://flagcdn.com/w20/sg.png" },
-    ];
-
         const router = useRouter()
         const params = useParams()
         const {data,setData} = useContext(DataContext)
@@ -48,6 +29,7 @@ export default function AdminUserPage() {
         const [isLoading,setIsLoading] = useState(false);
         const [checkingName, setCheckingName] = useState(false);
         const [nameExists, setNameExists] = useState(null);
+        const [currencies, setCurrencies] = useState([]);
         const [formData, setFormData] = useState({
             name: "",
             type: "",
@@ -60,67 +42,20 @@ export default function AdminUserPage() {
             branchAddress: "",
             branchCity: "",
         });
-          const requiredFields = ["name", "email", "currencies","phone"];
+        const requiredFields = ["name", "email", "currencies","phone"];
 
-          const handleChange = (e) => {
-                setFormData({ ...formData, [e.target.name]: e.target.value });
-            };
+        const handleChange = (e) => {
+            setFormData({ ...formData, [e.target.name]: e.target.value });
+        };
 
-            const nextStep = () => setStep((prev) => Math.min(prev + 1, 3));
-            const prevStep = () => setStep((prev) => Math.max(prev - 1, 1));
-            const goToStep = (num) => setStep(num);
+        const nextStep = () => setStep((prev) => Math.min(prev + 1, 3));
+        const prevStep = () => setStep((prev) => Math.max(prev - 1, 1));
+        const goToStep = (num) => setStep(num);
 
-            const isFormValid = requiredFields.every((field) => {
-                if (field === "currencies") return formData.currencies.length > 0;
-                return formData[field].trim() !== "";
-            }) && !nameExists // ✅ also require unique name
-
-          
-
-                        const createHeadOfficeBranch = async (
-                            companyId,
-                            companyName,
-                            companyEmail,
-                            companyPhone,
-                            companyCountry,
-                            companyCurrencies,
-                            branchAddress,
-                            branchCity
-                        ) => {
-                        try {
-                                const { data: branch, error: branchError } = await supabase
-                                    .from('branches')
-                                    .insert([
-                                        {
-                                            company: companyId,
-                                            name: 'HEAD OFFICE',
-                                            address: branchAddress || '',
-                                            city: branchCity || '',
-                                            country: companyCountry,
-                                            phone: companyPhone,
-                                            email: companyEmail,
-                                            isheadoffice: true,
-                                            status: 'active',
-                                            currencies: companyCurrencies,
-                                        },
-                                    ])
-                                    .select()
-                                    .single();
-
-                if (branchError) {
-                  console.error('Error creating head office branch:', branchError);
-                  toast.error('Head office branch creation failed');
-                  return false;
-                }
-
-                toast.success('✓ Head office branch created!');
-                return true;
-              } catch (err) {
-                console.error('Unexpected error creating branch:', err);
-                toast.error('Unexpected error creating branch');
-                return false;
-              }
-            };
+        const isFormValid = requiredFields.every((field) => {
+            if (field === "currencies") return formData.currencies.length > 0;
+            return formData[field].trim() !== "";
+        }) && !nameExists // ✅ also require unique name
 
             const handleSubmit = async () => {
             if (!isFormValid) {
@@ -158,55 +93,7 @@ export default function AdminUserPage() {
                     toast.success("✨ Company created successfully!");
                     console.log(insertedCompany);
 
-                    const companyType = insertedCompany.type;
-                    const companyName = insertedCompany.name;
                     const companyId = insertedCompany.id;
-                    console.log(companyType,companyId);
-
-                    // 2️⃣ Create head office branch
-                                        const branchCreated = await createHeadOfficeBranch(
-                                            companyId,
-                                            companyName,
-                                            formData.email,
-                                            formData.phone,
-                                            formData.country,
-                                            formData.currencies,
-                                            formData.branchAddress,
-                                            formData.branchCity
-                                        );
-
-                    if (!branchCreated) {
-                      console.warn('Branch creation failed but company exists');
-                    }
-
-                    // 3️⃣ Fetch and assign default modules
-                    const { data: defaultModules, error: modulesError } = await supabase
-                    .from("modules")
-                    .select("key, defaulttypes,name")
-                    .contains("defaulttypes", [companyType]);
-
-                    if (modulesError) {
-                        console.log("Error fetching default modules:", modulesError);
-                        toast.error("Failed to assign default modules.");
-                    } else {
-                        console.log(defaultModules);
-                        const moduleRows = defaultModules.map((mod) => ({
-                            company: companyId,
-                            company_name: companyName,
-                            mod_key: mod.key,
-                            name: mod.name,
-                        }));
-
-                        const { error: addModuleError } = await supabase
-                        .from("company_modules")
-                        .insert(moduleRows);
-
-                        if (addModuleError) {
-                          console.log("Error adding company modules:", addModuleError);
-                          toast.error("Failed to add default modules.");
-                        }
-
-                    }
 
                     const { data: companies, error: reloadError } = await supabase
                         .from("companies")
@@ -251,7 +138,6 @@ export default function AdminUserPage() {
                 return () => clearTimeout(timer)
             }, [formData.name])
 
-            // Fetch companies on mount
             useEffect(() => {
                 const fetchCompanies = async () => {
                     const { data: companies, error } = await supabase
@@ -271,6 +157,25 @@ export default function AdminUserPage() {
                     fetchCompanies();
                 }
             }, [data.profile, setData]);
+
+            // Fetch available currencies from database
+            useEffect(() => {
+                const fetchCurrencies = async () => {
+                    const { data: currenciesData, error } = await supabase
+                        .from("currencies")
+                        .select("code, name, flag")
+                        .order("code");
+
+                    if (error) {
+                        console.error("Error fetching currencies:", error);
+                        setCurrencies([]);
+                    } else {
+                        setCurrencies(currenciesData || []);
+                    }
+                };
+
+                fetchCurrencies();
+            }, []);
 
 
 
@@ -463,27 +368,33 @@ export default function AdminUserPage() {
                                     ) : null}
                                     </FieldLabel>
                                     <div className="grid grid-cols-2 gap-3 p-4 bg-slate-50 rounded-lg border-2 border-slate-200 max-h-64 overflow-y-auto">
-                                        {CURRENCIES.map((curr) => (
-                                            <div key={curr.code} className="flex items-center space-x-3 p-2 hover:bg-white rounded-md transition-colors cursor-pointer">
-                                                <Checkbox
-                                                    id={curr.code}
-                                                    checked={formData.currencies.includes(curr.code)}
-                                                    onCheckedChange={(checked) => {
-                                                        if (checked) {
-                                                            setFormData({ ...formData, currencies: [...formData.currencies, curr.code] });
-                                                        } else {
-                                                            setFormData({ ...formData, currencies: formData.currencies.filter(c => c !== curr.code) });
-                                                        }
-                                                    }}
-                                                    className="w-4 h-4"
-                                                />
-                                                <label htmlFor={curr.code} className="text-sm cursor-pointer flex items-center space-x-2 flex-1">
-                                                    <img src={curr.flag} alt={curr.code} className="w-5 h-4 rounded-sm" />
-                                                    <span className="font-medium text-slate-700">{curr.code}</span>
-                                                    <span className="text-slate-500 text-xs">{curr.name}</span>
-                                                </label>
+                                        {currencies && currencies.length > 0 ? (
+                                            currencies.map((curr) => (
+                                                <div key={curr.code} className="flex items-center space-x-3 p-2 hover:bg-white rounded-md transition-colors cursor-pointer">
+                                                    <Checkbox
+                                                        id={curr.code}
+                                                        checked={formData.currencies.includes(curr.code)}
+                                                        onCheckedChange={(checked) => {
+                                                            if (checked) {
+                                                                setFormData({ ...formData, currencies: [...formData.currencies, curr.code] });
+                                                            } else {
+                                                                setFormData({ ...formData, currencies: formData.currencies.filter(c => c !== curr.code) });
+                                                            }
+                                                        }}
+                                                        className="w-4 h-4"
+                                                    />
+                                                    <label htmlFor={curr.code} className="text-sm cursor-pointer flex items-center space-x-2 flex-1">
+                                                        <img src={curr.flag} alt={curr.code} className="w-5 h-4 rounded-sm" />
+                                                        <span className="font-medium text-slate-700">{curr.code}</span>
+                                                        <span className="text-slate-500 text-xs">{curr.name}</span>
+                                                    </label>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="col-span-2 text-sm text-slate-500 p-4 text-center">
+                                                Loading currencies...
                                             </div>
-                                        ))}
+                                        )}
                                     </div>
                                     <p className="text-xs text-slate-500 mt-2">{formData.currencies.length} currency/currencies selected</p>
                                 </Field>

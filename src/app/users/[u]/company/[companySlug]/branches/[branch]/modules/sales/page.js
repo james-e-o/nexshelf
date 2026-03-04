@@ -1,11 +1,7 @@
-import React from 'react'
+'use client'
 
-const SalesPage = () => {
-  return (
-    <div>
-      
-    </div>
-  )
+import SalesEntryPage from "@/components/modules/sales/sales-entry";
+
+export default function AdminSalesEntryPage() {
+  return <SalesEntryPage />
 }
-
-export default SalesPage

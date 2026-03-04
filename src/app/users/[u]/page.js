@@ -60,9 +60,9 @@ export default function AdminUserPage() {
           let staffCompanies = []
           if (staffCompanyIds.length > 0) {
             const { data: companies, error: fetchError } = await supabase
-                      .from('companies')
-                      .select('id, name, slug')
-                      .in('id', staffCompanyIds)
+                      .from('companies_lite')
+                      .select('company_id, name, slug')
+                      .in('company_id', staffCompanyIds)
             
             if (!fetchError && companies) {
               staffCompanies = companies.map(company => ({
