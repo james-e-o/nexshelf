@@ -42,52 +42,6 @@ export default function LoginPage() {
         else {
 
           setIsLoading(true)
-          //  try {
-          //     const { data, error } = await supabase.auth.signInWithPassword({
-          //       email,
-          //       password
-          //     })
-
-          //     if (error) {
-          //       setIsLoading(false)
-          //       setError(true)
-          //       alert(error.message);
-          //       return;
-          //     }
-
-          //     if (data.session) {
-          //       // ✅ session created and stored automatically
-          //       const userId = data.user.id;
-          //       console.log(data)
-                
-          //       const { data: profile, error: profileError } = await supabase
-          //           .from('admins')
-          //           .select('handle')
-          //           .eq('id', userId)
-          //           .single()
-
-          //         if (profileError || !profile) {
-          //           console.error('Profile fetch error:', profileError)
-          //           alert('Profile not found. Please sign in again.')
-          //           setIsLoading(false)
-          //           return
-          //         }
-              
-
-          //         // ✅ Step 3: Profile is complete → go to dashboard
-          //         router.push(`/users/${profile.handle}`);
-          //         // setIsLoading(false)
-        
-          //     }
-
-          //   } catch (err) {
-          //     // Request itself failed (network issue, CORS, etc.)
-          //     setIsLoading(false)
-          //     setError(true)
-          //     toast("Network error, Retry")
-          //     console.log("Network or unexpected error:", err)
-          //   }
-
             try {
               const { data, error } = await supabase.auth.signInWithPassword({
                 email,

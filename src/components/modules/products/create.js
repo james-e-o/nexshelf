@@ -589,63 +589,141 @@ const CreateProductPage = () => {
         }
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (validateForm()) {
-            // Proceed with submission
-            console.log('Form is valid, submitting...');
-            
-            // Log all inputs and selections
-            console.log('=== PRODUCT DETAILS ===');
-            console.log('Title:', title);
-            console.log('Subtitle:', subtitle);
-            console.log('Handle:', handle);
-            console.log('Description:', description);
-            console.log('Product Type:', productType);
-            
-            console.log('=== SPECIFICATIONS ===');
-            console.log('Dimensions:', dimensions);
-            console.log('Dimension Unit:', dimensionUnit);
-            console.log('Weight:', weight);
-            console.log('Weight Unit:', weightUnit);
-            console.log('Brand:', brand);
-            console.log('UPC:', upc);
-            console.log('MPN:', mpn);
-            console.log('EAN:', ean);
-            console.log('ISBN:', isbn);
-            
-            console.log('=== SERVICE SPECIFIC ===');
-            console.log('Service Duration:', serviceDuration);
-            console.log('Requires Staff:', requiresStaff);
-            console.log('Selected Staff:', selectedStaff);
-            
-            console.log('=== PRICING & CONTEXTS ===');
-            console.log('Cost Price:', costPrice);
-            console.log('All Pricing Contexts:', pricingContexts);
-            console.log('Selected Pricing Contexts:', selectedPricingContexts);
-            
-            console.log('=== INVENTORY & POLICY ===');
-            console.log('Reorder Level:', reorderLevel);
-            console.log('Selected Return Policy ID:', selectedReturnPolicyId);
-            console.log('Return Policy Override:', returnPolicy);
-            
-            console.log('=== MEDIA ===');
-            console.log('Selected Images:', selectedImages);
-            
-            console.log('=== VARIANTS ===');
-            console.log('Has Variants:', hasVariants);
-            console.log('Options:', options);
-            console.log('Variant Combinations:', variantCombinations);
-            
-            console.log('=== CATEGORIES & COLLECTIONS ===');
-            console.log('Selected Category ID:', selectedCategoryId);
-            console.log('Selected Category Name:', selectedCategoryName);
-            console.log('Selected Collection ID:', selectedCollectionId);
-            console.log('Selected Collection Name:', selectedCollectionName);
-            console.log('Selected Tags:', selectedTags);
-            
-            console.log('=== END OF PRODUCT DATA ===');
-            
-            toast.success('Product submitted successfully');
+            try {
+                // 1️⃣ Create base product entry
+                const baseProductData = {
+                    branch_id: currentBranch?.id,
+                    title,
+                    subtitle,
+                    slug: convertToSlug(handle),
+                    description,
+                    product_type: productType,
+                    category_id: selectedCategoryId || null,
+                    collection_id: selectedCollectionId || null,
+                    tags: selectedTags,
+                    
+                    // Specifications
+                    dimensions: dimensions.length || dimensions.width || dimensions.height ? dimensions : null,
+                    dimension_unit: dimensionUnit,
+                    weight: weight || null,
+                    weight_unit: weightUnit,
+                    brand: brand || null,
+                    upc: upc || null,
+                    mpn: mpn || null,
+                    ean: ean || null,
+                    isbn: isbn || null,
+                    
+                    // Service specific
+                    service_duration: serviceDuration || null,
+                    requires_staff: requiresStaff,
+                    
+                    // Pricing & Inventory
+                    cost_price: costPrice || null,
+                    reorder_level: reorderLevel || null,
+                    return_policy_id: selectedReturnPolicyId || null,
+                    return_policy_override: returnPolicy || null,
+                    
+                    // Measurement
+                    measurement_type: selectedMeasurementType,
+                    total_product_units: totalProductUnits || null,
+                    total_product_units_type: totalProductUnitsType,
+                    minimum_product_units: minimumProductUnits || null,
+                    bulk_quantity: bulkQuantity || null,
+                    
+                    created_at: new Date().toISOString(),
+                };
+
+                const { data: baseProduct, error: baseProductError } = await supabase
+                    .from('base_products')
+                    .insert([baseProductData])
+                    .select()
+                    .single();
+
+                if (baseProductError) {
+                    console.error('Error creating base product:', baseProductError);
+                    toast.error('Failed to create base product');
+                    return;
+                }
+
+                toast.success('✓ Base product created');
+
+                // 2️⃣ Create product entries (one for each variant, or single product if no variants)
+                const productEntries = variantCombinations.map((variant) => ({
+                    base_product_id: baseProduct.id,
+                    branch_id: currentBranch?.id,
+                    title: variant.combination?.length > 0 
+                        ? `${title} - ${variant.combination.join(' / ')}`
+                        : title,
+                    sku: variant.sku || `${convertToSlug(handle)}-${variant.id}`,
+                    variant_combination: variant.combination || [],
+                    variant_data: variant,
+                    
+                    // Pricing per variant
+                    pricing_contexts: selectedPricingContexts.map(contextId => {
+                        const context = pricingContexts.find(c => c.id === contextId);
+                        return {
+                            context_id: contextId,
+                            selling_price: variant.sellingPrice || context?.sellingPrice || null,
+                            bulk_price: variant.bulkPrice || context?.bulkPrice || null,
+                            min_selling_price: variant.minSellingPrice || context?.minSellingPrice || null,
+                            discount: variant.discount || context?.discount || 0,
+                        };
+                    }),
+                    
+                    // Inventory tracking (if managed per variant)
+                    managed: variant.managed || false,
+                    quantity: variant.quantity || 0,
+                    
+                    created_at: new Date().toISOString(),
+                }));
+
+                const { data: products, error: productsError } = await supabase
+                    .from('products')
+                    .insert(productEntries)
+                    .select();
+
+                if (productsError) {
+                    console.error('Error creating products:', productsError);
+                    toast.error('Failed to create product variants');
+                    return;
+                }
+
+                toast.success(`✓ Created ${products.length} product variant(s)`);
+
+                // 3️⃣ Handle image uploads if any
+                if (selectedImages.length > 0) {
+                    const imageEntries = selectedImages.map((img, index) => ({
+                        base_product_id: baseProduct.id,
+                        image_url: img.url || img.src,
+                        alt_text: img.alt || title,
+                        display_order: index,
+                        is_primary: index === 0,
+                        created_at: new Date().toISOString(),
+                    }));
+
+                    const { error: imagesError } = await supabase
+                        .from('product_images')
+                        .insert(imageEntries);
+
+                    if (imagesError) {
+                        console.error('Error saving product images:', imagesError);
+                        toast.warning('Product created but image records failed');
+                    } else {
+                        toast.success(`✓ Added ${selectedImages.length} image(s)`);
+                    }
+                }
+
+                toast.success('🎉 Product created successfully!');
+                
+                // Redirect to products list
+                router.push(`/users/${u}/company/${companySlug}/branches/${branch}/modules/products`);
+                
+            } catch (err) {
+                console.error('Unexpected error during product creation:', err);
+                toast.error('Unexpected error creating product');
+            }
         } else {
             toast.error('Please fill in all required fields');
         }

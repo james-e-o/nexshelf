@@ -1,5 +1,5 @@
 "use client";
-import { useState, useContext } from "react";
+import { useState, useContext, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +13,7 @@ import {  AlertDialog,  AlertDialogAction,  AlertDialogCancel,  AlertDialogConte
 
 export default function StaffOnboarding({ companyId, companyName, companyLogo }) {
   const [loading, setLoading] = useState(false);
-  const { info } = useContext(CompanyInfoContext);
+  const { info, user } = useContext(CompanyInfoContext);
 
   // Invite Staff Form State
   const [inviteEmail, setInviteEmail] = useState("");
@@ -21,13 +21,31 @@ export default function StaffOnboarding({ companyId, companyName, companyLogo })
   const [showAlreadyAcceptedDialog, setShowAlreadyAcceptedDialog] = useState(false);
   const [existingInvite, setExistingInvite] = useState(null);
   const [resendLoading, setResendLoading] = useState(false);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
+
+  const COOLDOWN_MINUTES = 3;
+
+  // Cooldown timer effect
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return;
+
+    const timer = setInterval(() => {
+      setCooldownSeconds((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [cooldownSeconds]);
 
   async function handleInviteSubmit(e) {
     e.preventDefault();
     setLoading(true);
     const checkingToast = toast.loading("Checking...");
-
-    
 
     try {
       // First, check if the email already exists for this company
@@ -50,6 +68,21 @@ export default function StaffOnboarding({ companyId, companyName, companyLogo })
         toast.dismiss(checkingToast);
         const invite = existingData[0];
         setExistingInvite(invite);
+        
+        // Calculate cooldown from last_sent
+        if (invite.last_sent) {
+          const lastSent = new Date(invite.last_sent).getTime();
+          const now = new Date().getTime();
+          const diffMs = now - lastSent;
+          const diffMinutes = diffMs / 1000 / 60;
+
+          if (diffMinutes < COOLDOWN_MINUTES) {
+            const remainingSeconds = Math.ceil((COOLDOWN_MINUTES - diffMinutes) * 60);
+            setCooldownSeconds(remainingSeconds);
+          } else {
+            setCooldownSeconds(0);
+          }
+        }
         
         // If accepted is true, show the already accepted dialog
         if (invite.accepted === true) {
@@ -78,19 +111,22 @@ export default function StaffOnboarding({ companyId, companyName, companyLogo })
     const t = toast.loading("Sending invite...");
 
     try {
-      // Calculate expiry date (7 days from now)
+      // Calculate expiry date (24 hours from now)
       const expiryDate = new Date();
-      expiryDate.setDate(expiryDate.getDate() + 7);
+      expiryDate.setHours(expiryDate.getHours() + 24);
 
       // Insert into company_invites table
-      const { data, error } = await supabase
+      const { data: insertData, error } = await supabase
         .from('company_invites')
         .insert([
           {
             email: inviteEmail,
             company_id: info.id,
             company_name: info.name,
-            expiry: expiryDate.getTime()
+            expiry: expiryDate.getTime(),
+            last_sent: new Date().toISOString(),
+            status: 'pending',
+            invited_by: user.id
           },
         ])
         .select();
@@ -113,19 +149,26 @@ export default function StaffOnboarding({ companyId, companyName, companyLogo })
   }
 
   async function handleResend() {
+    // Check cooldown
+    if (cooldownSeconds > 0) {
+      toast.error(`Please wait ${cooldownSeconds} second(s) before resending`);
+      return;
+    }
+
     setResendLoading(true);
     const t = toast.loading("Resending invite...");
 
     try {
-      // Calculate new expiry date (7 days from now)
+      // Calculate new expiry date (24 hours from now)
       const expiryDate = new Date();
-      expiryDate.setDate(expiryDate.getDate() + 7);
-
-      // Update the existing invite record
+      expiryDate.setHours(expiryDate.getHours() + 24);
+      
+      // Update the existing invite record with new last_sent
       const { data, error } = await supabase
         .from('company_invites')
         .update({
-          expiry: expiryDate.getTime()
+          expiry: expiryDate.getTime(),
+          last_sent: new Date().toISOString()
         })
         .eq('id', existingInvite.id)
         .select();
@@ -142,7 +185,7 @@ export default function StaffOnboarding({ companyId, companyName, companyLogo })
         setShowExistsDialog(false);
         setExistingInvite(null);
         setInviteEmail("");
-        setResendLoading(false);
+        setCooldownSeconds(COOLDOWN_MINUTES * 60); // Start cooldown
       }
     } catch (err) {
       console.error(err);
@@ -235,15 +278,22 @@ export default function StaffOnboarding({ companyId, companyName, companyLogo })
               setShowExistsDialog(false);
               setExistingInvite(null);
               setInviteEmail("");
+              setCooldownSeconds(0);
             }}>
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleResend}
-              disabled={resendLoading}
-              className="bg-core hover:bg-army"
+              disabled={resendLoading || cooldownSeconds > 0}
+              className="bg-core hover:bg-army disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {resendLoading ? "Resending..." : "Resend"}
+              {resendLoading ? (
+                "Resending..."
+              ) : cooldownSeconds > 0 ? (
+                `Resend in ${cooldownSeconds}s`
+              ) : (
+                "Resend"
+              )}
             </AlertDialogAction>
           </div>
         </AlertDialogContent>

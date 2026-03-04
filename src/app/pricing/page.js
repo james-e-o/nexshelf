@@ -3,12 +3,16 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
 import Link from "next/link";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { supabase } from "../../../config/supabaseClient";
 import LandingHeader from "@/components/landing-header";
+import { Spinner } from "@/components/ui/spinner";
 
 const Pricing = () => {
   const [dropState, setDropState] = useState(false);
   const [billingPeriod, setBillingPeriod] = useState("monthly");
+  const [plans, setPlans] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     document.onpointerdown = ({ target }) => {
@@ -18,107 +22,119 @@ const Pricing = () => {
       }
     };
   });
-  
-     const basicFeatures = [
-  "Inventory management",
-  "Product & variant management",
-  "Customer management",
-  "Sales & invoices",
-  "Purchase tracking",
-  "Single warehouse / stock location",
-  "Basic stock alerts",
-  "Company-level access control",
-  "Email support",
-];
-const standardFeatures = [
-  "Everything in Basic",
-  "Multiple warehouses / stock locations",
-  "Advanced inventory reports",
-  "Order & fulfillment management",
-  "Service & booking management",
-  "Project tracking",
-  "Basic logistics management",
-  "Staff roles & permissions",
-  "Automated stock movements",
-  "Priority email support",
-];
-const proFeatures = [
-  "Everything in Standard",
-  "E-commerce integration",
-  "Advanced logistics & warehousing",
-  "Custom inventory workflows",
-  "Analytics & performance dashboards",
-  "API & integrations access",
-  "Advanced reporting & exports",
-  "Multi-company management",
-  "Audit logs & activity tracking",
-  "Dedicated onboarding support",
-];
 
-  
-  const PLANS = [
-      {
-        key: "basic",
-        title: "Basic",
-        description: "Core tools to run your business",
-        price: (period) => (period === "monthly" ? 1900 : 1900 * 12 * 0.85),
-        originalPrice: (period) => (period === "monthly" ? 6300 : 6300 * 12),
-        features: basicFeatures,
-        highlight: false,
-        ctaLabel: "Get started",
-      },
+  // Fetch plans and pricing from database
+  useEffect(() => {
+    async function fetchPlans() {
+      try {
+        setIsLoading(true);
 
-      {
-        key: "standard",
-        title: "Standard",
-        description: "Growing business features",
-        price: (period) => (period === "monthly" ? 2400 : 2400 * 12 * 0.85),
-        originalPrice: (period) => (period === "monthly" ? 8500 : 8500 * 12),
-        features: standardFeatures,
-        highlight: true,
-        badge: "POPULAR",
-        ctaLabel: "Get started",
-      },
+        // Fetch all plans except trial
+        const { data: plansData, error: plansError } = await supabase
+          .from("core_plans")
+          .select("*")
+          .neq("key", "trial")
+          .order("created_at", { ascending: true });
 
-      {
-        key: "pro",
-        title: "Pro",
-        description: "Advanced modules to scale and automate",
-        price: (period) => (period === "monthly" ? 2900 : 2900 * 12 * 0.85),
-        originalPrice: (period) => (period === "monthly" ? 11300 : 11300 * 12),
-        features: proFeatures,
-        badge: "",
-        highlight: false,
-        ctaLabel: "Get started",
-      },
+        if (plansError) throw plansError;
 
-      {
-        key: "custom",
-        title: "Custom",
-        description: "Tailored solutions for complex businesses",
-        price: null,
-        originalPrice: null,
-        features: [
-          "Module remixing",
-          "Scale-based needs",
-          "Advanced features",
-          "Dedicated support",
-        ],
-        ctaLabel: "Coming soon",
-        disabled: true,
-        footerNote: "Custom plan details coming soon",
-      },
-    ];
+        // Fetch all pricing
+        const { data: pricingData, error: pricingError } = await supabase
+          .from("core_plan_pricing")
+          .select("*");
+
+        if (pricingError) throw pricingError;
+
+        // Combine plans with their pricing
+        const combinedPlans = plansData.map((plan) => {
+          try {
+                  let monthlyPrice = pricingData.find((p) => {
+              return Number(p.plan_id) === Number(plan.id) && p.interval === "monthly";
+            });
+
+            let annualPrice = pricingData.find((p) => {
+              return Number(p.plan_id) === Number(plan.id) && p.interval === "yearly";
+            });
 
 
+            // Safely parse features
+            let parsedFeatures = [];
+            if (plan.features) {
+              try {
+                // If it's already an array, use it; otherwise parse as JSON
+                parsedFeatures = Array.isArray(plan.features) 
+                  ? plan.features 
+                  : JSON.parse(plan.features);
+              } catch (e) {
+                // If parsing fails, treat as empty array
+                parsedFeatures = [];
+              }
+            }
+
+            return {
+              key: plan.key,
+              title: plan.title,
+              description: plan.description,
+              features: parsedFeatures,
+              badge: plan.badge || "",
+              highlight: plan.highlight || false,
+              ctaLabel: plan.ctaLabel || "Get started",
+              disabled: plan.disabled || false,
+              footerNote: plan.footer_note || "",
+              // Pricing
+              monthlyPrice: monthlyPrice?.cost ?? 0,
+              monthlyOriginalPrice: monthlyPrice?.base_price ?? 0,
+              annualPrice: annualPrice?.cost ?? 0,
+              annualOriginalPrice: annualPrice?.base_price ?? 0,
+            };
+          } catch (err) {
+            console.error(`Error processing plan ${plan.key}:`, err);
+            return {
+              key: plan.key,
+              title: plan.title,
+              description: plan.description,
+              features: [],
+              badge: plan.badge || "",
+              highlight: plan.highlight || false,
+              ctaLabel: plan.ctaLabel || "Get started",
+              disabled: plan.disabled || false,
+              footerNote: plan.footer_note || "",
+              monthlyPrice: 0,
+              monthlyOriginalPrice: 0,
+              annualPrice: 0,
+              annualOriginalPrice: 0,
+            };
+          }
+        });
+
+        setPlans(combinedPlans);
+        setError(null);
+      } catch (err) {
+        console.error("Error fetching plans:", err);
+        setError("Failed to load pricing plans");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchPlans();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="w-full h-screen flex items-center justify-center bg-white">
+        <Spinner className="size-8 text-core" spinning={true} />
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-full h-screen overflow-y-auto overflow-x-clip z-0 bg-white">
       <LandingHeader />
 
       {/* Hero Section */}
-     <section className="relative bg-linear-to-br from-core via-core/95 to-core/90 text-white overflow-hidden">
-  {/* Background Decorations */}
+      <section className="relative bg-linear-to-br from-core via-core/95 to-core/90 text-white overflow-hidden">
+        {/* Background Decorations */}
         <div className="absolute inset-0 pointer-events-none">
           {/* Glow layers */}
           <div className="absolute -top-40 -right-40 size-128 bg-army/25 rounded-full blur-[140px]" />
@@ -139,63 +155,61 @@ const proFeatures = [
           <div className="absolute top-60 left-60 w-1.5 h-1.5 bg-amber-500/50 rounded-full" />
           <div className="absolute top-36 right-64 w-2 h-2 bg-amber-500/60 rounded-full" />
 
-          <div className="absolute bottom-40 left-52 w-2 h-2 b-arbg-amber-500y/50 rounded-full" />
+          <div className="absolute bottom-40 left-52 w-2 h-2 bg-amber-500/50 rounded-full" />
           <div className="absolute bottom-28 right-52 w-1.5 h-1.5 bg-amber-500/60 rounded-full" />
           <div className="absolute bottom-60 right-24 w-2 h-2 bg-amber-500/50 rounded-full" />
         </div>
 
         {/* Content */}
-       <div className="relative z-10 max-w-6xl mx-auto px-6 md:px-10 lg:px-12 py-16 md:py-24">
-  <div className="text-center">
-    <h1 className="font-ClashDisplay text-3xl md:text-4xl lg:text-5xl font-medium tracking-tight mb-4 leading-tight">
-      Choose the Right Plan for Your Company
-    </h1>
+        <div className="relative z-10 max-w-6xl mx-auto px-6 md:px-10 lg:px-12 py-16 md:py-24">
+          <div className="text-center">
+            <h1 className="font-ClashDisplay text-3xl md:text-4xl lg:text-5xl font-medium tracking-tight mb-4 leading-tight">
+              Choose the Right Plan for Your Company
+            </h1>
 
-    <p className="text-xs md:text-base text-white/75 mb-10 max-w-xl mx-auto leading-relaxed">
-      Flexible pricing designed for businesses of all sizes. Each plan is applied per company, so you can manage multiple businesses with ease.
-    </p>
+            <p className="text-xs md:text-base text-white/75 mb-10 max-w-xl mx-auto leading-relaxed">
+              Flexible pricing designed for businesses of all sizes. Each plan is applied per company, so you can manage multiple businesses with ease.
+            </p>
 
-    {/* Steps visual */}
-    <div className="flex flex-wrap justify-center items-center gap-4 text-base text-white">
-      <div className="flex items-center gap-2">
-        <span className="w-7 h-7 flex items-center justify-center rounded-full bg-white/15">
-          1
-        </span>
-        <span>Create account</span>
-      </div>
+            {/* Steps visual */}
+            <div className="flex flex-wrap justify-center items-center gap-4 text-base text-white">
+              <div className="flex items-center gap-2">
+                <span className="w-7 h-7 flex items-center justify-center rounded-full bg-white/15">
+                  1
+                </span>
+                <span>Create account</span>
+              </div>
 
-      <span className="opacity-50">→</span>
+              <span className="opacity-50">→</span>
 
-      <div className="flex items-center gap-2">
-        <span className="w-7 h-7 flex items-center justify-center rounded-full bg-white/15">
-          2
-        </span>
-        <span>Create company</span>
-      </div>
+              <div className="flex items-center gap-2">
+                <span className="w-7 h-7 flex items-center justify-center rounded-full bg-white/15">
+                  2
+                </span>
+                <span>Create company</span>
+              </div>
 
-      <span className="opacity-50">→</span>
+              <span className="opacity-50">→</span>
 
-      <div className="flex items-center gap-2">
-        <span className="w-7 h-7 flex items-center justify-center rounded-full bg-white/15">
-          3
-        </span>
-        <span>Choose plan</span>
-      </div>
+              <div className="flex items-center gap-2">
+                <span className="w-7 h-7 flex items-center justify-center rounded-full bg-white/15">
+                  3
+                </span>
+                <span>Choose plan</span>
+              </div>
 
-      <span className="opacity-50">→</span>
+              <span className="opacity-50">→</span>
 
-      <div className="flex items-center gap-2">
-        <span className="w-7 h-7 flex items-center justify-center rounded-full bg-white/15">
-          4
-        </span>
-        <span>Run Your Business</span>
-      </div>
-    </div>
-  </div>
-</div>
-
+              <div className="flex items-center gap-2">
+                <span className="w-7 h-7 flex items-center justify-center rounded-full bg-white/15">
+                  4
+                </span>
+                <span>Run Your Business</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
-
 
       {/* Main Content */}
       <main className=" mx-10 px-6 py-16 md:py-20">
@@ -227,25 +241,38 @@ const proFeatures = [
 
         {/* Pricing Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
-          {/* Basic Plan */}
-         {PLANS.map((plan) => (
-            <PricingCard
-              key={plan.key}
-              title={plan.title}
-              description={plan.description}
-              price={plan.price ? plan.price(billingPeriod) : null}
-              originalPrice={
-                plan.originalPrice ? plan.originalPrice(billingPeriod) : null
-              }
-              period={billingPeriod}
-              features={plan.features}
-              badge={plan.badge}
-              highlight={plan.highlight}
-              ctaLabel={plan.ctaLabel}
-              disabled={plan.disabled}
-              footerNote={plan.footerNote}
-            />
-          ))}
+          {error ? (
+            <div className="col-span-full text-center py-16">
+              <p className="text-red-600 text-lg mb-6">{error}</p>
+              <Button onClick={() => window.location.reload()} className="bg-core text-white hover:bg-core/90">
+                Retry
+              </Button>
+            </div>
+          ) : (
+            plans.map((plan) => (
+              <PricingCard
+                key={plan.key}
+                planKey={plan.key}
+                title={plan.title}
+                description={plan.description}
+                price={
+                  billingPeriod === "monthly" ? plan.monthlyPrice : plan.annualPrice
+                }
+                originalPrice={
+                  billingPeriod === "monthly"
+                    ? plan.monthlyOriginalPrice
+                    : plan.annualOriginalPrice
+                }
+                period={billingPeriod}
+                features={plan.features}
+                badge={plan.badge}
+                highlight={plan.highlight}
+                ctaLabel={plan.ctaLabel}
+                disabled={plan.disabled}
+                footerNote={plan.footerNote}
+              />
+            ))
+          )}
         </div>
 
         {/* Bottom CTA Section */}
@@ -263,11 +290,8 @@ const proFeatures = [
 export default Pricing;
 
 
-
-
-
-
 const PricingCard = ({
+  planKey,
   title,
   description,
   price,
@@ -305,18 +329,20 @@ const PricingCard = ({
 
         {/* Price */}
         <div className="mb-6">
-          {price !== null ? (
+          {planKey === "custom" ? (
+            <p className="text-lg font-semibold">Contact us</p>
+          ) : price !== null ? (
             <>
               <div className="flex items-baseline gap-2">
                 <span className={`text-4xl font-bold`}>
-                  ₦{price.toLocaleString()}
+                  ${price.toLocaleString()}
                 </span>
                 <span className="text-sm opacity-70">/mo</span>
               </div>
 
               {originalPrice && (
                 <p className="text-sm line-through opacity-60 mt-2">
-                  ₦{originalPrice.toLocaleString()}
+                  ${originalPrice.toLocaleString()}
                 </p>
               )}
             </>

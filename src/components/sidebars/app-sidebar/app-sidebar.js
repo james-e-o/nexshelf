@@ -61,7 +61,7 @@ export const CollapsibleButton = ({title,icon,items,sidebarCollapse,sidebarOpen,
                               ? 'bg-orange-500'
                               : 'bg-gray-500'
                           }`}>
-                            <span className="relative scale-x-125 scale-y-110 font-semibold">{subItem.badge}</span>
+                            <span className="relative scale-[130%] text-white font-semibold">{subItem.badge}</span>
                           </span>
                         )}
                     </Link>
