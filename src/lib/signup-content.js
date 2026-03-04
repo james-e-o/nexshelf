@@ -1,8 +1,9 @@
+// app/invitations/setup/SignupPageContent.jsx
+// Client component with 'use client'.
+
 'use client'
 
-import { Suspense } from 'react'
-import { useEffect, useState, useRef } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useEffect, useState, useRef, use } from 'react'
 import { cn } from "@/lib/utils"
 import { TriangleAlert } from 'lucide-react'
 import { Button } from "@/components/ui/button"
@@ -10,53 +11,10 @@ import { Field, FieldDescription, FieldGroup, FieldLabel, FieldSeparator } from 
 import { Input } from "@/components/ui/input"
 import Image from "next/image"
 import { isEmpty, isLength, contains } from "validator"
-import { supabase } from '../../../../config/supabaseClient'
+import { supabase } from '../../config/supabaseClient'
 
-export default function SignupPage() {
-  return (
-    <Suspense fallback={<SignupPageFallback />}>
-      <SignupPageContent />
-    </Suspense>
-  )
-}
-
-function SignupPageFallback() {
-  return (
-    <div className="grid min-h-svh lg:grid-cols-2">
-      <div className="bg-linear-to-br from-core/55 to-army/50 relative hidden lg:flex lg:flex-col lg:items-center lg:justify-center overflow-hidden">
-        <img
-          src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=1000&h=1000&fit=crop"
-          alt="Team working together"
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-        <div className="absolute inset-0 bg-linear-to-t from-core/40 to-army/10"></div>
-      </div>
-      <div className="flex flex-col gap-4 p-6 md:p-10 overflow-y-auto max-h-svh">
-        <div className="flex justify-center gap-2 md:justify-start">
-          <a href="/" className="flex items-center gap-2 font-medium">
-            <Image 
-              className="dark:invert w-8 h-8" 
-              src="/logo.png" 
-              alt="Nexshelf" 
-              width={32} 
-              height={32}
-            />
-          </a>
-        </div>
-        <div className="flex flex-1 items-center justify-center">
-          <div className="w-full max-w-xs">
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin h-8 w-8 border-2 border-core border-t-transparent rounded-full"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function SignupPageContent() {
-  const searchParams = useSearchParams()
+export default function SignupPageContent({ searchParams }) {
+  const params = use(searchParams); // Unwrap the searchParams Promise
   const [companyData, setCompanyData] = useState(null)
   const [userEmail, setUserEmail] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -64,15 +22,13 @@ function SignupPageContent() {
   const [caseType, setCaseType] = useState(null) // 'no-invite', 'confirm-failed', 'success'
   const [hasValidated, setHasValidated] = useState(false)
 
-  // console.log(window.location.origin)
-
   useEffect(() => {
     if (hasValidated) return // Prevent multiple runs
 
     const validateUser = async () => {
       try {
-        const emailParam = searchParams.get('email')
-        const errorParam = searchParams.get('error')
+        const emailParam = params.get('email')
+        const errorParam = params.get('error')
         
         // Parse hash fragment for error parameters (from Supabase redirects)
         const hashParams = new URLSearchParams(window.location.hash.substring(1))
@@ -95,14 +51,14 @@ function SignupPageContent() {
             return
           }
           
-        // Case B: No session but error exists → Show email input form
-        if (hasError) {
-          setUserEmail('') // Empty, user will input it
-          setCaseType('reset-password-input')
-          setLoading(false)
-          setHasValidated(true)
-          return
-        }
+          // Case B: No session but error exists → Show email input form
+          if (hasError) {
+            setUserEmail('') // Empty, user will input it
+            setCaseType('reset-password-input')
+            setLoading(false)
+            setHasValidated(true)
+            return
+          }
           
           // Case C: No session, no error but email exists → "Not invited"
           if (emailParam && !hasError) {
@@ -248,7 +204,7 @@ function SignupPageContent() {
     }
 
     validateUser()
-  }, [hasValidated])
+  }, [hasValidated, params]) // Add params to dependencies if needed
 
   return (
     <div className="grid min-h-svh lg:grid-cols-2">
@@ -327,7 +283,7 @@ function SignupPageContent() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 export function SignupForm({
@@ -541,7 +497,7 @@ export function SignupForm({
       
       setError('')
       // Redirect to dashboard
-      window.location.href = `/users/${handle}/company/${companyData?.slug}/dashboard`
+      window.location.href = `/users/${handle}/company/${companyData?.slug}/dashboard` // Note: companyData.slug is not defined in the code; this may need fixing if slug is required
     } catch (err) {
       console.error('Error submitting form:', err)
       setError('An error occurred while setting up your profile')
@@ -584,112 +540,112 @@ export function SignupForm({
         <Field>
           <FieldLabel htmlFor="username">Username</FieldLabel>
           <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 font-medium">@ </span>
-                <Input 
-                  id="username" 
-                  name="username"
-                  className="pl-6" 
-                  value={formData.username.replace('@', '')}
-                  onChange={handleUsernameChange}
-                  type="text" 
-                  placeholder="your_username"
-                  autoComplete="username"
-                />
-                {checkingUsername && (
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
-                    <div className="animate-spin h-4 w-4 border-2 border-core border-t-transparent rounded-full"></div>
-                  </span>
-                )}
-                {!checkingUsername && formData.username && formData.username !== '@' && usernameExists === false && (
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500">✓</div>
-                )}
-              </div>
-              <FieldDescription className="text-xs ml-1">
-                {error === message.usernameError && (
-                  <span className="text-core">{error}</span>
-                )}
-                {error === message.usernameExistsError && (
-                  <span className="text-core">{error}</span>
-                )}
-                {!error && formData.username && formData.username !== '@' && !checkingUsername && usernameExists === false && (
-                  <span className="text-army">username is available</span>
-                )}
-                {!error && formData.username && formData.username !== '@' && !checkingUsername && usernameExists === true && (
-                  <span className="text-core">username already taken</span>
-                )}
-              </FieldDescription>
-            </Field>
-
-            {/* Password */}
-            <Field>
-              <FieldLabel htmlFor="password">Password</FieldLabel>
-              <Input 
-                id="password" 
-                name="password"
-                type="password"
-                placeholder="•••••••••"
-                value={formData.password}
-                onChange={handleChange}
-                required 
-              />
-              <div className="text-xs space-y-1 mt-2">
-                <div className={rules.length ? 'text-army' : 'text-gray-400'}>
-                  ✓ At least 8 characters
-                </div>
-                <div className={rules.number ? 'text-army' : 'text-gray-400'}>
-                  ✓ At least one number
-                </div>
-                <div className={rules.uppercase ? 'text-army' : 'text-gray-400'}>
-                  ✓ At least one uppercase letter
-                </div>
-                <div className={rules.special ? 'text-army' : 'text-gray-400'}>
-                  ✓ At least one special character (!@#$%^&*)
-                </div>
-              </div>
-            </Field>
-
-            {/* Confirm Password */}
-            <Field>
-              <FieldLabel htmlFor="confirm-password">Confirm Password</FieldLabel>
-              <Input 
-                id="confirm-password" 
-                name="confirmPassword"
-                type="password"
-                placeholder="•••••••••"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                required 
-              />
-            </Field>
-
-            {/* Error Message */}
-            {error && (
-              <div className="bg-core/10 border-2 border-core/30 rounded-lg p-4 flex gap-3 items-start">
-                <TriangleAlert className="w-5 h-5 text-army shrink-0 mt-0.5" />
-                <p className="text-core text-sm">{error}</p>
-              </div>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 font-medium">@ </span>
+            <Input 
+              id="username" 
+              name="username"
+              className="pl-6" 
+              value={formData.username.replace('@', '')}
+              onChange={handleUsernameChange}
+              type="text" 
+              placeholder="your_username"
+              autoComplete="username"
+            />
+            {checkingUsername && (
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+                <div className="animate-spin h-4 w-4 border-2 border-core border-t-transparent rounded-full"></div>
+              </span>
             )}
+            {!checkingUsername && formData.username && formData.username !== '@' && usernameExists === false && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500">✓</div>
+            )}
+          </div>
+          <FieldDescription className="text-xs ml-1">
+            {error === message.usernameError && (
+              <span className="text-core">{error}</span>
+            )}
+            {error === message.usernameExistsError && (
+              <span className="text-core">{error}</span>
+            )}
+            {!error && formData.username && formData.username !== '@' && !checkingUsername && usernameExists === false && (
+              <span className="text-army">username is available</span>
+            )}
+            {!error && formData.username && formData.username !== '@' && !checkingUsername && usernameExists === true && (
+              <span className="text-core">username already taken</span>
+            )}
+          </FieldDescription>
+        </Field>
 
-            {/* Submit Button */}
-            <Field>
-              <Button 
-                type="submit"
-                disabled={isSubmitting || usernameExists === true || !allValid || formData.confirmPassword !== formData.password}
-                className="bg-core hover:bg-core/90 text-white font-semibold w-full disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? 'Completing Setup...' : 'Complete Setup'}
-              </Button>
-            </Field>
+        {/* Password */}
+        <Field>
+          <FieldLabel htmlFor="password">Password</FieldLabel>
+          <Input 
+            id="password" 
+            name="password"
+            type="password"
+            placeholder="•••••••••"
+            value={formData.password}
+            onChange={handleChange}
+            required 
+          />
+          <div className="text-xs space-y-1 mt-2">
+            <div className={rules.length ? 'text-army' : 'text-gray-400'}>
+              ✓ At least 8 characters
+            </div>
+            <div className={rules.number ? 'text-army' : 'text-gray-400'}>
+              ✓ At least one number
+            </div>
+            <div className={rules.uppercase ? 'text-army' : 'text-gray-400'}>
+              ✓ At least one uppercase letter
+            </div>
+            <div className={rules.special ? 'text-army' : 'text-gray-400'}>
+              ✓ At least one special character (!@#$%^&*)
+            </div>
+          </div>
+        </Field>
 
-            <FieldSeparator>or</FieldSeparator>
+        {/* Confirm Password */}
+        <Field>
+          <FieldLabel htmlFor="confirm-password">Confirm Password</FieldLabel>
+          <Input 
+            id="confirm-password" 
+            name="confirmPassword"
+            type="password"
+            placeholder="•••••••••"
+            value={formData.confirmPassword}
+            onChange={handleChange}
+            required 
+          />
+        </Field>
 
-            {/* Alternative SignIn Link */}
-            <FieldDescription className="px-6 text-center">
-              Already have an account? <a href="/accounts/login" className="text-core hover:underline font-semibold">Sign in</a>
-            </FieldDescription>
+        {/* Error Message */}
+        {error && (
+          <div className="bg-core/10 border-2 border-core/30 rounded-lg p-4 flex gap-3 items-start">
+            <TriangleAlert className="w-5 h-5 text-army shrink-0 mt-0.5" />
+            <p className="text-core text-sm">{error}</p>
+          </div>
+        )}
+
+        {/* Submit Button */}
+        <Field>
+          <Button 
+            type="submit"
+            disabled={isSubmitting || usernameExists === true || !allValid || formData.confirmPassword !== formData.password}
+            className="bg-core hover:bg-core/90 text-white font-semibold w-full disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? 'Completing Setup...' : 'Complete Setup'}
+          </Button>
+        </Field>
+
+        <FieldSeparator>or</FieldSeparator>
+
+        {/* Alternative SignIn Link */}
+        <FieldDescription className="px-6 text-center">
+          Already have an account? <a href="/accounts/login" className="text-core hover:underline font-semibold">Sign in</a>
+        </FieldDescription>
       </FieldGroup>
     </form>
-  )
+  );
 }
 
 export function ResetPasswordForm({ userEmail }) {
@@ -773,43 +729,24 @@ export function ResetPasswordForm({ userEmail }) {
         </FieldDescription>
       </FieldGroup>
     </form>
-  )
+  );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 async function sendResetEmailToAddress(email) {
   try {
-    const response = await fetch('/api/reset-password', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+    const { data, error } = await supabase.functions.invoke('reset-password', {
+      body: { 
         email,
         redirectUrl: `${window.location.origin}/invitations/setup?email=${encodeURIComponent(email)}`,
-      }),
-    })
-
-    const data = await response.json()
-
-    if (!response.ok) {
-      console.error('Error from API:', data.error)
-      return { success: false, error: data.error }
+      },
+    });
+    
+    if (error) {
+      console.error('Error invoking function:', error);
+      return { success: false, error: error.message }
     }
-
-    console.log('Success:', data)
+    
+    console.log('Success:', data);
     return { success: true }
   } catch (err) {
     console.error('Error sending reset email:', err)
@@ -909,5 +846,5 @@ export function EmailResetForm() {
         </FieldDescription>
       </FieldGroup>
     </form>
-  )
+  );
 }
