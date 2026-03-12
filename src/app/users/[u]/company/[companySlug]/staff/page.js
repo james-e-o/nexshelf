@@ -80,7 +80,7 @@ export default function StaffDashboard() {
   )
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 grow flex flex-col overflow-y-auto">
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard

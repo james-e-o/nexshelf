@@ -1,90 +1,75 @@
 'use client'
+ 
+import { useParams } from 'next/navigation';
+import Link from 'next/link';
+import { Card } from '@/components/ui/card';
+import { Users, Lock, Mail, Shield, FileText, MapPin } from 'lucide-react';
 
-import { useContext } from 'react'
-import Link from 'next/link'
-import { CompanyInfoContext } from '../../layout'
-import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-
-export default function StaffSettings() {
-  const { info, user } = useContext(CompanyInfoContext)
+export default function StaffSettingsPage() {
+  const params = useParams();
+  const { u, companySlug } = params;
+  const sections = [
+    {
+      title: 'Roles',
+      description: 'Manage job roles and module access',
+      href: 'roles',
+      icon: Users,
+    },
+    {
+      title: 'Access Levels',
+      description: 'Define authority hierarchy and permissions',
+      href: 'access-levels',
+      icon: Lock,
+    },
+    {
+      title: 'Invitations',
+      description: 'Control staff onboarding behavior',
+      href: 'invitations',
+      icon: Mail,
+    },
+    {
+      title: 'Security',
+      description: 'Authentication and password policies',
+      href: 'security',
+      icon: Shield,
+    },
+    {
+      title: 'Policies',
+      description: 'Organization rules for staff structure',
+      href: 'policies',
+      icon: FileText,
+    },
+    {
+      title: 'Branches',
+      description: 'Branch interaction and visibility rules',
+      href: 'branches',
+      icon: MapPin,
+    },
+  ];
 
   return (
-    <div className="space-y-6">
-      {/* Settings Sections */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* General Settings */}
-        <Card className="border-gray-200 shadow-sm p-6">
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900">General Settings</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Configure general staff module behavior and defaults
-            </p>
-
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Default staff role
-                </label>
-                <select className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
-                  <option value="staff">Staff</option>
-                  <option value="manager">Manager</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email notifications
-                </label>
-                <input type="checkbox" className="mr-2" />
-                <span className="text-sm text-gray-600">Notify on new staff invitations</span>
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        {/* Invitation Settings */}
-        <Card className="border-gray-200 shadow-sm p-6">
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900">Invitation Settings</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Configure how staff invitations are handled
-            </p>
-
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Invitation expiry (days)
-                </label>
-                <input
-                  type="number"
-                  defaultValue="7"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Auto-enable access
-                </label>
-                <input type="checkbox" className="mr-2" defaultChecked />
-                <span className="text-sm text-gray-600">Automatically enable after acceptance</span>
-              </div>
-            </div>
-          </div>
-        </Card>
+    <div className="space-y-6 ">
+      <div>
+        <h2 className="text-base font-medium tracking-tight">Staff Settings</h2>
+        <p className="text-gray-600 text-sm mt-2">
+          Configure roles, access levels, and staff administration settings
+        </p>
       </div>
 
-      {/* Save Button */}
-      <div className="flex gap-3">
-        <Button className="bg-core hover:bg-core/90 text-white border-0">
-          Save Settings
-        </Button>
-        <Button variant="outline" className="border-gray-300">
-          Cancel
-        </Button>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {sections.map((section) => {
+          const IconComponent = section.icon;
+          return (
+            <Link key={section.href} href={`/users/${u}/company/${companySlug}/staff/settings/${section.href}`}>
+              <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer h-full">
+                <IconComponent className="size-6 mb-3 text-army" />
+                <h3 className="font-semibold text-base mb-2 text-neutral-700">{section.title}</h3>
+                <p className="text-xs text-gray-600">{section.description}</p>
+              </Card>
+            </Link>
+          );
+        })}
       </div>
     </div>
-  )
+  );
 }

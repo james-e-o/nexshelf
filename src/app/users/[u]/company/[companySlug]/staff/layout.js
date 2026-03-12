@@ -1,15 +1,16 @@
 'use client';
 
-import { useContext } from 'react';
+import { useContext, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { CompanyInfoContext, ReusableCompanySidebar } from '../layout';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, List, ChevronLeft } from 'lucide-react';
 
 export default function StaffLayout({ children }) {
   const { info, user } = useContext(CompanyInfoContext);
   const pathname = usePathname();
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Determine active tab
   const isActive = (path) => pathname.includes(path);
@@ -17,74 +18,96 @@ export default function StaffLayout({ children }) {
 
   return (
     <ReusableCompanySidebar>
-      <div className="space-y-5 mx-3 font-WixMade">
-        {/* Header */}
-        <div className="space-y-2">
-          <h1 className="text-xl font-bold text-slate-700">Staff Management</h1>
-          <p className="text-gray-600 text-sm">Manage and view all company staff members</p>
+      <div className="space-y-4 mx-3 h-full flex-col flex overflow-hidden font-WixMade">
+        {/* Header Section with Title and Navigation Buttons */}
+        <div className="flex items-center justify-between gap-6">
+          {/* Left: Title + Navigation Buttons + Collapse */}
+          <div className="flex items-center gap-3">
+            <h1 className="text-lg mr-4 font-bold text-slate-700 whitespace-nowrap">Staff Management</h1>
+            
+            {/* Navigation Buttons */}
+            <div className="flex items-center gap-2">
+              <Link href={`/users/${user.handle}/company/${info.slug}/staff`}>
+                <Button 
+                  variant="ghost"
+                  size="sm"
+                  className={`px-3 py-1.5 rounded-full font-medium text-sm gap-1.5 border ${
+                    isDashboard
+                      ? 'bg-slate-100 text-core border-slate-200'
+                      : 'text-gray-600 border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  <List className="size-4" />
+                  <span className={isCollapsed ? 'hidden' : ''}>Staff</span>
+                </Button>
+              </Link>
+
+              <Link href={`/users/${user.handle}/company/${info.slug}/staff/directory`}>
+                <Button 
+                  variant="ghost"
+                  size="sm"
+                  className={`px-3 py-1.5 rounded-full font-medium text-sm gap-1.5 border ${
+                    isActive('/directory')
+                      ? 'bg-slate-100 text-core border-slate-200'
+                      : 'text-gray-600 border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  <List className="size-4" />
+                  <span className={isCollapsed ? 'hidden' : ''}>Directory</span>
+                </Button>
+              </Link>
+
+              <Link href={`/users/${user.handle}/company/${info.slug}/staff/onboarding`}>
+                <Button 
+                  variant="ghost"
+                  size="sm"
+                  className={`px-3 py-1.5 rounded-full font-medium text-sm gap-1.5 border ${
+                    isActive('/onboarding')
+                      ? 'bg-slate-100 text-core border-slate-200'
+                      : 'text-gray-600 border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  <Plus className="size-4" />
+                  <span className={isCollapsed ? 'hidden' : ''}>Onboarding</span>
+                </Button>
+              </Link>
+
+              <Link href={`/users/${user.handle}/company/${info.slug}/staff/settings`}>
+                <Button 
+                  variant="ghost"
+                  size="sm"
+                  className={`px-3 py-1.5 rounded-full font-medium text-sm gap-1.5 border ${
+                    isActive('/settings')
+                      ? 'bg-slate-100 text-core border-slate-200'
+                      : 'text-gray-600 border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  ⚙️
+                  <span className={isCollapsed ? 'hidden' : ''}>Settings</span>
+                </Button>
+              </Link>
+
+              {/* Collapse Button for Navigation Items */}
+              <button 
+                onClick={() => setIsCollapsed(!isCollapsed)}
+                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <ChevronLeft className={`size-5 text-gray-600 transition-transform ${isCollapsed ? 'rotate-180' : ''}`} />
+              </button>
+            </div>
+          </div>
+
+          {/* Right: Invite Button */}
+          <Link href={`/users/${user.handle}/company/${info.slug}/staff/new`}>
+            <Button variant="ghost" size="sm" className="bg-army hover:bg-army/90 text-white border-0 rounded-md px-5 gap-1.5">
+              <Plus className="size-4" />
+              <span>Invite</span>
+            </Button>
+          </Link>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="flex flex-wrap gap-3 border-b border-gray-200 pb-4">
-          <div className="inline-flex gap-2 bg-gray-100 rounded-lg p-1">
-            <Link href={`/users/${user.handle}/company/${info.slug}/staff`}>
-              <Button 
-                variant="ghost"
-                className={`px-4 py-1 rounded-md font-medium shadow-sm border ${
-                  isDashboard
-                    ? 'bg-white text-core border-gray-200 hover:bg-white'
-                    : 'text-gray-600 hover:text-core hover:bg-gray-50'
-                }`}
-              >
-                Dashboard
-              </Button>
-            </Link>
-            <Link href={`/users/${user.handle}/company/${info.slug}/staff/directory`}>
-              <Button 
-                variant="ghost"
-                className={`px-4 py-1 rounded-md font-medium shadow-sm border ${
-                  isActive('/directory')
-                    ? 'bg-white text-core border-gray-200 hover:bg-white'
-                    : 'text-gray-600 hover:text-core hover:bg-gray-50'
-                }`}
-              >
-                Staff Directory
-              </Button>
-            </Link>
-            <Link href={`/users/${user.handle}/company/${info.slug}/staff/onboarding`}>
-              <Button 
-                variant="ghost"
-                className={`px-4 py-1 rounded-md font-medium shadow-sm border ${
-                  isActive('/onboarding')
-                    ? 'bg-white text-core border-gray-200 hover:bg-white'
-                    : 'text-gray-600 hover:text-core hover:bg-gray-50'
-                }`}
-              >
-                Onboarding
-              </Button>
-            </Link>
-            <Link href={`/users/${user.handle}/company/${info.slug}/staff/settings`}>
-              <Button 
-                variant="ghost"
-                className={`px-4 py-1 rounded-md font-medium shadow-sm border ${
-                  isActive('/settings')
-                    ? 'bg-white text-core border-gray-200 hover:bg-white'
-                    : 'text-gray-600 hover:text-core hover:bg-gray-50'
-                }`}
-              >
-                Settings
-              </Button>
-            </Link>
-          </div>
-          
-          <div className="ml-auto flex gap-2">
-            <Link href={`/users/${user.handle}/company/${info.slug}/staff/new`}>
-              <Button variant="ghost" size="sm" className="bg-army px-6 hover:bg-army/90 text-white border-0">
-                <Plus className="size-4" /> <span className="ml-2">Invite Staff</span>
-              </Button>
-            </Link>
-          </div>
-        </div>
+        {/* Description Text */}
+        <p className="text-gray-600 text-sm">Manage and view all company staff members</p>
 
         {/* Page Content */}
         {children}

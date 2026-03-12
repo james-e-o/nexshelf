@@ -152,6 +152,8 @@ function SignupPageContent() {
               id: metadata.company_id,
               name: metadata.company_name,
               logo_url: metadata.logo_url,
+              invited_by: metadata.invited_by,
+              invite_id: metadata.invite_id
             }
             setCompanyData(companyInfo)
             setUserEmail(user.email)
@@ -330,6 +332,16 @@ function SignupPageContent() {
   )
 }
 
+
+
+
+
+//SIGNUP FORM COMPONENT
+//=====================
+
+
+
+
 export function SignupForm({
   className,
   companyData,
@@ -431,6 +443,33 @@ export function SignupForm({
     }, 500)
   }
 
+  // Helper function: Verify staff record was created by backend trigger
+  const verifyStaffRecord = async (userId, maxAttempts = 15, delayMs = 1000) => {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const { data: staff, error } = await supabase
+          .from('staff')
+          .select('company_id')
+          .eq('user_id', userId)
+          .single()
+
+        if (!error && staff) {
+          console.log(`✓ Staff record verified on attempt ${attempt}:`, staff)
+          return staff
+        }
+
+        // Wait before retrying (except on last attempt)
+        if (attempt < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, delayMs))
+        }
+      } catch (err) {
+        console.error(`Attempt ${attempt}: Error verifying staff record:`, err)
+      }
+    }
+
+    throw new Error('Staff record verification timeout: Backend trigger did not complete in time')
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
@@ -492,7 +531,11 @@ export function SignupForm({
           id: user.id,
           email: userEmail,
           username: formData.username,
-          handle: handle
+          handle: handle,
+          invited_by: companyData?.invited_by,
+          company: companyData?.id,
+          company_invite:true,
+          invite_id: companyData?.invite_id
         })
 
       if (insertUsersError) {
@@ -502,32 +545,21 @@ export function SignupForm({
         return
       }
 
-      // 3️⃣ Add user to staff table
-      const { error: staffError } = await supabase
-        .from('staff')
-        .insert({
-          user_id: user.id,
-          company_id: companyData?.id,
-          email: userEmail,
-          status: 'active'
-        })
+      // 3️⃣ WAIT FOR backend trigger to create staff record and update company_invites
+      // The backend processes this automatically now, so we verify it completed
+      console.log('Waiting for backend processes (staff record creation & invite acceptance)...')
+      const staff = await verifyStaffRecord(user.id)
 
-      if (staffError) {
-        console.error('Error adding to staff table:', staffError)
-        setError('Failed to add user to company staff')
-        setIsSubmitting(false)
-        return
-      }
+      // 4️⃣ Fetch company info from companies_lite (basic access without restrictions)
+      const { data: company, error: companyError } = await supabase
+        .from('companies_lite')
+        .select('*')
+        .eq('company_id', staff.company_id)
+        .single()
 
-      // 4️⃣ Update company_invites status to 'accepted'
-      const { error: inviteError } = await supabase
-        .from('company_invites')
-        .update({ status: 'accepted' })
-        .eq('email', userEmail)
-
-      if (inviteError) {
-        console.error('Error updating company_invites:', inviteError)
-        setError('Failed to complete invitation process')
+      if (companyError || !company) {
+        console.error('Error fetching company info:', companyError)
+        setError('Failed to fetch company information')
         setIsSubmitting(false)
         return
       }
@@ -536,15 +568,15 @@ export function SignupForm({
         email: userEmail,
         username: formData.username,
         handle: handle,
-        companyId: companyData?.id
+        companyId: staff.company_id
       })
       
       setError('')
-      // Redirect to dashboard
-      window.location.href = `/users/${handle}/company/${companyData?.slug}/dashboard`
+      // 5️⃣ Redirect to company dashboard
+      window.location.href = `/company/${staff.company_id}/dashboard`
     } catch (err) {
       console.error('Error submitting form:', err)
-      setError('An error occurred while setting up your profile')
+      setError(err.message || 'An error occurred while setting up your profile. Please refresh and try again.')
       setIsSubmitting(false)
     }
   }
