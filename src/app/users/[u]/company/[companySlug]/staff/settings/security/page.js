@@ -152,7 +152,7 @@ export default function SecurityPage() {
         </div>
 
         <div className="flex gap-2 pt-4 border-t">
-          <Button>Save Settings</Button>
+          <Button className="bg-core text-white">Save Settings</Button>
           <Button variant="outline">Cancel</Button>
         </div>
       </Card>

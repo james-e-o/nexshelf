@@ -31,7 +31,7 @@ export default function CompanyPage() {
           <div className="space-y-1">
             <p className="text-sm">
               <span className="font-medium">Role:</span>{" "}
-              <span className="capitalize">{info?.roleType || "N/A"}</span>
+              <span className="capitalize">{info?.accessLevel || "N/A"}</span>
             </p>
             {info?.roleType === "staff" && (
               <>

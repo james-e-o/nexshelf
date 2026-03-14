@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";    
 import { CollapsibleButton,NoCollapsibleButton } from "./company-sidebar";
 
-export default function CompanySidebarContent({modules, company}) {
+export default function CompanySidebarContent({modules, company,}) {
    const params = useParams()   
 
     return (
@@ -24,7 +24,16 @@ export default function CompanySidebarContent({modules, company}) {
                         sidebarCollapse={false}
                     />
                 )}
-               
+
+                <CollapsibleButton caps={'capitalize'} defaultOpen={true} sidebarOpen={true} className={``} title={'Staff Settings'} icon={Factory} 
+                    items={[
+                        { title: 'Staff Management', url: `/users/${params.u}/company/${params.companySlug}/staff`},
+                        { title: 'Directory', url: `/users/${params.u}/company/${params.companySlug}/staff/directory`},
+                        { title: 'Onboarding', url: `/users/${params.u}/company/${params.companySlug}/staff/onboarding`},
+                        { title: 'Settings', url: `/users/${params.u}/company/${params.companySlug}/staff/settings`},
+                    ]}
+                    sidebarCollapse={false}
+                />
             </SidebarMenu> 
         </SidebarGroup>
       </SidebarContent>

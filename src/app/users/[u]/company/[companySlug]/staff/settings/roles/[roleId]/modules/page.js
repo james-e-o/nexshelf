@@ -1,14 +1,24 @@
 'use client';
 
 import { useState } from 'react';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 
-export default function ModuleAccessPage({ params }) {
+export default function ModuleAccessPage() {
+  const params = useParams();
   const { roleId } = params;
+  
+  const capitalizeId = (str) => {
+    if (!str) return '';
+    return str
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
   
   const [modules, setModules] = useState([
     { key: 'sales', label: 'Sales', enabled: true },
@@ -33,7 +43,7 @@ export default function ModuleAccessPage({ params }) {
           <Link href="../" className="text-blue-600 hover:underline text-sm mb-2 block">
             ← Back to Role
           </Link>
-          <h2 className="text-base font-medium tracking-tight">{roleId} Role - Module Access</h2>
+          <h2 className="text-base font-medium tracking-tight">{capitalizeId(roleId)} - Module Access</h2>
         </div>
       </div>
 
@@ -52,6 +62,7 @@ export default function ModuleAccessPage({ params }) {
                 id={module.key}
                 checked={module.enabled}
                 onCheckedChange={() => handleModuleToggle(module.key)}
+                className="bg-white border-gray-300 [&[data-state=checked]]:bg-army [&[data-state=checked]]:border-army [&[data-state=checked]]:text-white"
               />
               <Label
                 htmlFor={module.key}
@@ -64,7 +75,7 @@ export default function ModuleAccessPage({ params }) {
         </div>
 
         <div className="flex gap-2 pt-4">
-          <Button>Save Module Access</Button>
+          <Button className="bg-core text-white">Save Module Access</Button>
           <Button variant="outline">Cancel</Button>
         </div>
       </Card>

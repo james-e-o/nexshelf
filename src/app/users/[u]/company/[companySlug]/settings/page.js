@@ -51,7 +51,7 @@ export default function CompanySettingsPage() {
           {settingsSections.map((section, index) => (
             <Button
               key={index}
-              onClick={() => router.push(`/admin/${u}/company/${companySlug}/settings/${section.route}`)}
+              onClick={() => router.push(`/users/${u}/company/${companySlug}/settings/${section.route}`)}
               className="flex items-start gap-4 p-5 rounded-lg h-fit border bg-white hover:bg-armylight hover:shadow-xs transition-all text-left"
             >
               <div className="mt-1">{section.icon}</div>

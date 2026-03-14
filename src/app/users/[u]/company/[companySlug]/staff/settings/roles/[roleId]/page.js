@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -9,8 +10,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 
-export default function RoleDetailPage({ params }) {
+export default function RoleDetailPage() {
+  const params = useParams();
   const { roleId } = params;
+  
+  const capitalizeId = (str) => {
+    if (!str) return '';
+    return str
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
   const [formData, setFormData] = useState({
     name: 'Cashier',
     description: 'Handles customer sales transactions',
@@ -32,7 +42,7 @@ export default function RoleDetailPage({ params }) {
           <Link href="../roles" className="text-blue-600 hover:underline text-sm mb-2 block">
             ← Back to Roles
           </Link>
-          <h2 className="text-base font-medium tracking-tight">Role Configuration</h2>
+          <h2 className="text-base font-medium tracking-tight">{capitalizeId(roleId)}</h2>
         </div>
       </div>
 
@@ -77,7 +87,7 @@ export default function RoleDetailPage({ params }) {
         </div>
 
         <div className="flex gap-2">
-          <Button>Save Changes</Button>
+          <Button className="bg-core text-white">Save Changes</Button>
           <Button variant="outline">Cancel</Button>
         </div>
       </Card>

@@ -1,124 +1,262 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useContext } from 'react';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { RefreshCw } from 'lucide-react';
+import { supabase } from '../../../../../../../../../config/supabaseClient';
+import { CompanyInfoContext } from '../../../layout';
+
+// Dummy roles data - will be fetched from API later
+const DUMMY_ROLES = [
+  { id: 'cashier', name: 'Cashier' },
+  { id: 'operator', name: 'Operator' },
+  { id: 'supervisor', name: 'Supervisor' },
+  { id: 'manager', name: 'Manager' },
+  { id: 'admin', name: 'Admin' },
+];
 
 export default function InvitationsPage() {
+  const params = useParams();
+  const { info } = useContext(CompanyInfoContext);
+  const companyId = info.id;
+// console.log('Company Info from context:', info);
   const [settings, setSettings] = useState({
-    default_role_id: 'basic',
-    default_access_level: 'basic',
-    invite_expiration_hours: 48,
-    allow_role_assignment_on_invite: true,
-    allow_branch_assignment_on_invite: true,
+    default_role_id: 'cashier',
+    default_access_level_key: '',
+    default_branch_id: '',
     auto_activate_staff: false,
-    allow_invite_resend: true,
   });
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setSettings(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
+  const [accessLevels, setAccessLevels] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [branchError, setBranchError] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch access levels
+        const { data: accessData, error: accessError } = await supabase
+          .from('access_level')
+          .select('id, key, name, level_number')
+          .order('level_number', { ascending: true });
+
+        if (accessError) throw accessError;
+
+        setAccessLevels(accessData || []);
+        if (!settings.default_access_level_key && accessData && accessData.length > 0) {
+          setSettings(prev => ({
+            ...prev,
+            default_access_level_key: accessData[0].key,
+          }));
+        }
+      } catch (err) {
+        console.error('Error fetching access levels:', err);
+      } finally {
+        setLoading(false);
+      }
+
+      // Fetch branches separately - don't let it break access levels
+      try {
+        const { data: branchData, error: fetchBranchError } = await supabase
+          .from('branches_lite')
+          .select('id, name')
+          .eq('company', companyId)
+          .order('name', { ascending: true });
+
+        if (fetchBranchError) {
+          console.error('Error fetching branches:', fetchBranchError);
+          setBranchError(fetchBranchError.message);
+          return;
+        }
+
+        setBranches(branchData || []);
+        if (!settings.default_branch_id && branchData && branchData.length > 0) {
+          setSettings(prev => ({
+            ...prev,
+            default_branch_id: branchData[0].id,
+          }));
+        }
+      } catch (err) {
+        console.error('Error fetching branches:', err);
+        setBranchError(err.message);
+      }
+    };
+
+    fetchData();
+  }, [companyId]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    setLoading(true);
+    await new Promise(resolve => setTimeout(resolve, 300));
+    // Re-run the fetch effect by calling fetch directly
+    try {
+      const { data: accessData, error: accessError } = await supabase
+        .from('access_level')
+        .select('id, key, name, level_number')
+        .order('level_number', { ascending: true });
+
+      if (!accessError) {
+        setAccessLevels(accessData || []);
+      }
+
+      const { data: branchData, error: fetchBranchError } = await supabase
+        .from('branches_lite')
+        .select('id, name')
+        .eq('company', companyId)
+        .order('name', { ascending: true });
+
+      if (!fetchBranchError) {
+        setBranches(branchData || []);
+        setBranchError(null);
+      } else {
+        setBranchError(fetchBranchError.message);
+      }
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
   };
 
   return (
     <div className="space-y-6">
-      <div>
-        <Link href="../" className="text-blue-600 hover:underline text-sm mb-2 block">
-          ← Back to Settings
-        </Link>
-        <h2 className="text-base font-medium tracking-tight">Invitation Settings</h2>
-        <p className="text-gray-600 text-sm mt-2">Control staff onboarding behavior</p>
+      <div className="space-y-2">
+        <div className="flex items-center gap-3">
+          <Link href="./" className="text-blue-600 hover:underline text-sm whitespace-nowrap">
+            ← Back to Settings
+          </Link>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="text-blue-600 hover:text-blue-700 p-1 h-auto"
+          >
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </Button>
+          <h2 className="text-base font-medium tracking-tight text-core">Invitation Settings</h2>
+        </div>
+        <p className="text-gray-600 text-sm">Control staff onboarding behavior and defaults</p>
       </div>
 
       <Card className="p-6 space-y-6">
         <div className="grid gap-6">
-          <div>
+          {/* Default Role Selection */}
+          <div className="space-y-2">
             <Label htmlFor="default_role_id">Default Role for New Invitations</Label>
-            <Select name="default_role_id" value={settings.default_role_id} onValueChange={(value) =>
-              setSettings(prev => ({ ...prev, default_role_id: value }))
-            }>
-              <option value="basic">Basic</option>
-              <option value="operator">Operator</option>
-              <option value="supervisor">Supervisor</option>
+            <Select
+              value={settings.default_role_id}
+              onValueChange={(value) =>
+                setSettings(prev => ({ ...prev, default_role_id: value }))
+              }
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select a role" />
+              </SelectTrigger>
+              <SelectContent>
+                {DUMMY_ROLES.map((role) => (
+                  <SelectItem key={role.id} value={role.id}>
+                    {role.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
+            <p className="text-xs text-gray-500">New invitations will be assigned this role by default</p>
           </div>
 
-          <div>
-            <Label htmlFor="default_access_level">Default Access Level</Label>
-            <Select name="default_access_level" value={settings.default_access_level} onValueChange={(value) =>
-              setSettings(prev => ({ ...prev, default_access_level: value }))
-            }>
-              <option value="basic">Basic</option>
-              <option value="operator">Operator</option>
-              <option value="finance">Finance</option>
-            </Select>
+          {/* Default Access Level Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="default_access_level_key">Default Access Level</Label>
+            {loading ? (
+              <p className="text-sm text-gray-500">Loading...</p>
+            ) : (
+              <>
+                <Select
+                  value={settings.default_access_level_key}
+                  onValueChange={(value) =>
+                    setSettings(prev => ({ ...prev, default_access_level_key: value }))
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select an access level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {accessLevels.map((level) => (
+                      <SelectItem key={level.key} value={level.key}>
+                        {level.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500">New invitations will have this access level by default</p>
+              </>
+            )}
           </div>
 
-          <div>
-            <Label htmlFor="invite_expiration_hours">Invitation Expiration (hours)</Label>
-            <Input
-              id="invite_expiration_hours"
-              name="invite_expiration_hours"
-              type="number"
-              value={settings.invite_expiration_hours}
-              onChange={handleChange}
-              className="mt-1"
-            />
-          </div>
-
-          <div className="space-y-3 border-t pt-4">
-            <div className="flex items-center justify-between">
-              <Label>Allow Role Assignment on Invite</Label>
-              <Switch
-                checked={settings.allow_role_assignment_on_invite}
-                onCheckedChange={(checked) =>
-                  setSettings(prev => ({ ...prev, allow_role_assignment_on_invite: checked }))
-                }
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label>Allow Branch Assignment on Invite</Label>
-              <Switch
-                checked={settings.allow_branch_assignment_on_invite}
-                onCheckedChange={(checked) =>
-                  setSettings(prev => ({ ...prev, allow_branch_assignment_on_invite: checked }))
-                }
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label>Auto-activate Staff</Label>
-              <Switch
-                checked={settings.auto_activate_staff}
-                onCheckedChange={(checked) =>
-                  setSettings(prev => ({ ...prev, auto_activate_staff: checked }))
-                }
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label>Allow Invite Resend</Label>
-              <Switch
-                checked={settings.allow_invite_resend}
-                onCheckedChange={(checked) =>
-                  setSettings(prev => ({ ...prev, allow_invite_resend: checked }))
-                }
-              />
-            </div>
+          {/* Default Branch Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="default_branch_id">Default Branch</Label>
+            {branchError ? (
+              <p className="text-sm text-red-600">Error loading branches: {branchError}</p>
+            ) : (
+              <>
+                <Select
+                  value={settings.default_branch_id}
+                  onValueChange={(value) =>
+                    setSettings(prev => ({ ...prev, default_branch_id: value }))
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a branch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branches.map((branch) => (
+                      <SelectItem key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500">New invitations will be assigned to this branch by default</p>
+              </>
+            )}
           </div>
         </div>
 
-        <div className="flex gap-2 pt-4 border-t">
-          <Button>Save Settings</Button>
+        {/* Activation Option */}
+        <div className="border-t pt-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label>Auto-activate Staff</Label>
+              <p className="text-xs text-gray-500 mt-1">Staff accounts activate immediately without verification</p>
+            </div>
+            <Switch
+              checked={settings.auto_activate_staff}
+              onCheckedChange={(checked) =>
+                setSettings(prev => ({ ...prev, auto_activate_staff: checked }))
+              }
+            />
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-2 border-t pt-4">
+          <Button className="bg-core text-white">Save Settings</Button>
           <Button variant="outline">Cancel</Button>
         </div>
       </Card>

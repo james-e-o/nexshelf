@@ -48,7 +48,7 @@ export default function StaffSettingsPage() {
   ];
 
   return (
-    <div className="space-y-6 ">
+    <div className="space-y-6 grow flex flex-col overflow-y-auto">
       <div>
         <h2 className="text-base font-medium tracking-tight">Staff Settings</h2>
         <p className="text-gray-600 text-sm mt-2">

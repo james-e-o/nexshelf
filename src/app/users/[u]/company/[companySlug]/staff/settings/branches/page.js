@@ -91,7 +91,7 @@ export default function BranchesPage() {
         </div>
 
         <div className="flex gap-2 pt-4 border-t">
-          <Button>Save Branch Policies</Button>
+          <Button className="bg-core text-white">Save Branch Policies</Button>
           <Button variant="outline">Cancel</Button>
         </div>
       </Card>

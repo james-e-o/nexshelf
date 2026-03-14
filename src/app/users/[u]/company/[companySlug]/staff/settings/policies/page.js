@@ -102,7 +102,7 @@ export default function PoliciesPage() {
         </div>
 
         <div className="flex gap-2 pt-4 border-t">
-          <Button>Save Policies</Button>
+          <Button className="bg-core text-white">Save Policies</Button>
           <Button variant="outline">Cancel</Button>
         </div>
       </Card>
