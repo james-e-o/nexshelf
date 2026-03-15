@@ -23,6 +23,7 @@ export default function CompanyLayout({ children }) {
   const [modules, setModules] = useState([])  // ← ADD MODULES STATE
   const [branches, setBranches] = useState([])  // ← ADD BRANCHES STATE
   const [currencies, setCurrencies] = useState([])  // ← ADD CURRENCIES STATE
+  const [accessLevels, setAccessLevels] = useState([])  // ← ADD ACCESS LEVELS STATE
   const [isLoading, setIsLoading] = useState(true)
 
   const { u, companySlug } = params
@@ -82,9 +83,9 @@ export default function CompanyLayout({ children }) {
             return
           }
 
-          accessLevel = staffLiteData.access_level || "operator"
+          accessLevel = staffLiteData.access_level 
           branchId = staffLiteData.branch || null
-          suspended = staffLiteData.status === "suspended" || staffLiteData.status === "terminated"
+          suspended = staffLiteData.status === "suspended" 
         }
 
         // Step 3: Set company info with access context
@@ -173,10 +174,23 @@ export default function CompanyLayout({ children }) {
 
         setBranches(allowedBranches || [])
 
-      } catch (e) {
-        console.error("Company access error:", e)
-        toast("Unexpected error occurred.")
-        router.push("/accounts/login")
+        // Step 7: Fetch access levels
+        const { data: accessLevelsData, error: accessLevelsError } = await supabase
+          .from("access_level")
+          .select("*")
+          .order("level_number", { descending: false })
+
+        if (accessLevelsError) {
+          console.error("Access levels fetch error:", accessLevelsError)
+          setAccessLevels([])
+        } else {
+          setAccessLevels(accessLevelsData || [])
+        }
+      
+      } catch (err) {
+        console.error("Error during access check:", err)  
+        toast("Failed to fetch company data.")
+        router.push(`/users/${u}`)
       } finally {
         setIsLoading(false)
       }
@@ -203,6 +217,7 @@ export default function CompanyLayout({ children }) {
         modules,
         branches,
         currencies,
+        accessLevels,
         user: data?.profile,
         accessLevel: info?.accessLevel,
         branchId: info?.branchId,
@@ -217,11 +232,13 @@ export default function CompanyLayout({ children }) {
 
 
 export const ReusableCompanySidebar = ({ children }) => {
-  const { info, modules } = useContext(CompanyInfoContext)
+  const { info, modules, branches } = useContext(CompanyInfoContext)
 
   return (
     <SidebarProvider className="relative">
-      <AppSidebar company={info} 
+      <AppSidebar 
+        company={info} 
+        branches={branches}
       // modules={modules}
        />
       <SidebarInset className="h-svh overflow-hidden static">

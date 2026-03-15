@@ -2,7 +2,7 @@
 
 import { Suspense } from 'react'
 import { useEffect, useState, useRef } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams,useParams } from 'next/navigation'
 import { cn } from "@/lib/utils"
 import { TriangleAlert } from 'lucide-react'
 import { Button } from "@/components/ui/button"
@@ -73,11 +73,15 @@ function SignupPageContent() {
       try {
         const emailParam = searchParams.get('email')
         const errorParam = searchParams.get('error')
+        const errorCode = searchParams.get('error_code')
         
         // Parse hash fragment for error parameters (from Supabase redirects)
         const hashParams = new URLSearchParams(window.location.hash.substring(1))
         const hashError = hashParams.get('error')
+        const hashErrorCode = hashParams.get('error_code')
         const hasError = errorParam || hashError
+
+        console.log('Validation parameters:', { emailParam, errorParam, errorCode, hashError, hashErrorCode })
 
         // STEP 1: Get the current session first
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
@@ -95,16 +99,7 @@ function SignupPageContent() {
             return
           }
           
-        // Case B: No session but error exists → Show email input form
-        if (hasError) {
-          setUserEmail('') // Empty, user will input it
-          setCaseType('reset-password-input')
-          setLoading(false)
-          setHasValidated(true)
-          return
-        }
-          
-          // Case C: No session, no error but email exists → "Not invited"
+          // Case B: No session, no error but email exists → "Not invited"
           if (emailParam && !hasError) {
             setError('You have not been invited by any company.')
             setCaseType('no-invite')
@@ -112,23 +107,27 @@ function SignupPageContent() {
             setHasValidated(true)
             return
           }
-        }
-
-        // STEP 2: User HAS SESSION - Check if email is confirmed
-        const user = sessionData.session.user
-        
-        if (!user.email_confirmed_at) {
-          // Email not confirmed - show password reset form
-          setUserEmail(user.email)
-          setCaseType('reset-password')
+          
+          // Case C: No session but error and error code exists → Show email input form
+        if (hasError && emailParam && (errorCode === 'otp_expired' || hashErrorCode === 'otp_expired')) {
+          setUserEmail(emailParam)
+          setCaseType('continue-onboarding')
+          setLoading(false)
+          setHasValidated(true)
+          return
+        } else if (hasError) {
+          setError('System failure, contact your inviting company.')
+          setCaseType('error')
           setLoading(false)
           setHasValidated(true)
           return
         }
+      }
 
+        // STEP 2: User HAS SESSION -  Check if user exists in public.users table
+        const user = sessionData&& sessionData.session.user
         setUserEmail(user.email)
 
-        // STEP 3: Email confirmed - Check if user exists in public.users table
         const { data: publicUserData, error: userError } = await supabase
           .from('users')
           .select('id')
@@ -163,80 +162,16 @@ function SignupPageContent() {
             return
           } else {
             setError('Company information not found. Please contact your administrator.')
-            setCaseType('confirm-failed')
-            setLoading(false)
-            setHasValidated(true)
-            return
-          }
-        }
-
-        // STEP 4: User exists in public.users AND email confirmed - Check if already staff member
-        const metadata = user.user_metadata
-        if (!metadata?.company_id) {
-          setError('Company information not found. Please contact your administrator.')
-          setCaseType('confirm-failed')
-          setLoading(false)
-          setHasValidated(true)
-          return
-        }
-
-        // Check if user is already a staff member of the company
-        const { data: staffData, error: staffCheckError } = await supabase
-          .from('staff')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('company_id', metadata.company_id)
-          .maybeSingle()
-
-        if (staffCheckError) {
-          console.error('Error checking staff table:', staffCheckError)
-          setError('An error occurred. Please contact your administrator.')
-          setCaseType('error')
-          setLoading(false)
-          setHasValidated(true)
-          return
-        }
-
-        // If not already a staff member, add them to staff table
-        if (!staffData) {
-          const { error: insertStaffError } = await supabase
-            .from('staff')
-            .insert({
-              user_id: user.id,
-              company_id: metadata.company_id,
-              email: user.email,
-              status: 'active'
-            })
-
-          if (insertStaffError) {
-            console.error('Error adding to staff table:', insertStaffError)
-            setError('Failed to add user to company staff')
             setCaseType('error')
             setLoading(false)
             setHasValidated(true)
             return
           }
-
-          // Update company_invites status to 'accepted'
-          const { error: updateInviteError } = await supabase
-            .from('company_invites')
-            .update({ status: 'accepted' })
-            .eq('email', user.email)
-
-          if (updateInviteError) {
-            console.error('Error updating company_invites:', updateInviteError)
-          }
         }
 
-        // Show signup form
-        const companyInfo = {
-          id: metadata.company_id,
-          name: metadata.company_name,
-          logo_url: metadata.logo_url,
-        }
-        setCompanyData(companyInfo)
-        setUserEmail(user.email)
-        setCaseType('success')
+        // User already signed up - direct to login
+        setError('You\'ve been successfully signed up. Log in to check your invite status.')
+        setCaseType('already-signed-up')
         setLoading(false)
         setHasValidated(true)
 
@@ -253,7 +188,7 @@ function SignupPageContent() {
   }, [hasValidated])
 
   return (
-    <div className="grid min-h-svh lg:grid-cols-2">
+    <div className="grid min-h-svh font-WixMade lg:grid-cols-2">
       {/* Left Side - Company Logo/Image (Always visible, fallback to default if no companyData) */}
       <div className="bg-linear-to-br from-core/55 to-army/50 relative hidden lg:flex lg:flex-col lg:items-center lg:justify-center overflow-hidden">
         {companyData?.logo_url ? (
@@ -318,12 +253,31 @@ function SignupPageContent() {
               <SignupForm companyData={companyData} userEmail={userEmail} />
             )}
             
+            {!loading && caseType === 'continue-onboarding' && (
+              <ContinueOnboardingForm userEmail={userEmail} />
+            )}
+
             {!loading && caseType === 'reset-password' && (
               <ResetPasswordForm userEmail={userEmail} />
             )}
             
             {!loading && caseType === 'reset-password-input' && (
               <EmailResetForm />
+            )}
+            
+            {!loading && caseType === 'already-signed-up' && (
+              <div className="flex flex-col items-center justify-center gap-4 py-12">
+                <div className="text-army mb-2">
+                  <TriangleAlert className="size-20" />
+                </div>
+                <div className="bg-core/10 border-2 border-core/30 rounded-lg p-6 text-center">
+                  <p className="text-core font-semibold mb-2">Already Signed Up</p>
+                  <p className="text-core/80 text-sm">{error}</p>
+                </div>
+                <a href="/accounts/login" className="text-core hover:underline text-sm font-medium">
+                  Go to Login
+                </a>
+              </div>
             )}
           </div>
         </div>
@@ -719,6 +673,116 @@ export function SignupForm({
             <FieldDescription className="px-6 text-center">
               Already have an account? <a href="/accounts/login" className="text-core hover:underline font-semibold">Sign in</a>
             </FieldDescription>
+      </FieldGroup>
+    </form>
+  )
+}
+
+
+
+
+
+
+
+
+
+
+
+
+export function ContinueOnboardingForm({ userEmail }) {
+  const [isSending, setIsSending] = useState(false)
+  const [sentSuccessfully, setSentSuccessfully] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleSendOTP = async () => {
+    setIsSending(true)
+    setError('')
+
+    try {
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email: userEmail,
+        options: {
+          emailRedirectTo: `${window.location.origin}/invitations/setup?email=${encodeURIComponent(userEmail)}`
+        }
+      })
+      
+      if (otpError) throw otpError
+      setSentSuccessfully(true)
+    } catch (err) {
+      console.error('Error sending OTP:', err)
+      setError('Failed to send verification code. Please try again.')
+    } finally {
+      setIsSending(false)
+    }
+  }
+
+  if (sentSuccessfully) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-12">
+        <div className="text-army mb-2">
+          <TriangleAlert className="size-20" />
+        </div>
+        <div className="bg-core/10 border-2 border-core/30 rounded-lg p-6 text-center">
+          <p className="text-core font-semibold mb-2">Verification Code Sent</p>
+          <p className="text-core/80 text-sm">We've sent a verification code to {userEmail}</p>
+          <p className="text-core/80 text-sm mt-3">Please check your email to continue with your onboarding.</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <form className="space-y-6">
+      <FieldGroup>
+        <div className="mb-6">
+          <h2 className="text-lg text-center font-bold text-army mb-2">Continue Your Onboarding</h2>
+          <p className="text-gray-600 text-sm">Your invitation has expired. Click the button below to generate a new verification code and continue onboarding.</p>
+        </div>
+
+        {/* Expired Warning */}
+        <div className="bg-amber-50 border-2 border-amber-200 rounded-lg p-4 flex gap-3 items-start">
+          <TriangleAlert className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-amber-800 text-sm font-semibold">Your one-time session has expired</p>
+            <p className="text-amber-700 text-xs mt-1">Generate a new session to continue onboarding.</p>
+          </div>
+        </div>
+
+        {/* Email Display */}
+        <Field>
+          <FieldLabel>Email Address</FieldLabel>
+          <Input 
+            type="email"
+            value={userEmail}
+            className="bg-gray-50"
+            disabled
+          />
+        </Field>
+
+        {/* Error Message */}
+        {error && (
+          <div className="bg-core/10 border-2 border-core/30 rounded-lg p-4 flex gap-3 items-start">
+            <TriangleAlert className="w-5 h-5 text-army shrink-0 mt-0.5" />
+            <p className="text-core text-sm">{error}</p>
+          </div>
+        )}
+
+        {/* Send OTP Button */}
+        <Field>
+          <Button 
+            type="button"
+            onClick={handleSendOTP}
+            disabled={isSending}
+            className="bg-core hover:bg-core/90 text-white font-semibold w-full disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSending ? 'Sending...' : 'Get Link'}
+          </Button>
+        </Field>
+
+        {/* Alternative SignIn Link */}
+        <FieldDescription className="px-6 text-center">
+          Already have an account? <a href="/accounts/login" className="text-core hover:underline font-semibold">Sign in</a>
+        </FieldDescription>
       </FieldGroup>
     </form>
   )

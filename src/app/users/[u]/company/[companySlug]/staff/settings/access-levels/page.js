@@ -1,59 +1,39 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useContext } from 'react';
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '../../../../../../../../../config/supabaseClient';
+import { CompanyInfoContext } from '../../../layout';
+
 export default function AccessLevelsPage() {
-  const [levels, setLevels] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { accessLevels, suspended } = useContext(CompanyInfoContext);
 
-  useEffect(() => {
-    const fetchAccessLevels = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('access_level')
-          .select()
-          .order('level_number', { ascending: true });
-
-        if (error) throw error;
-        setLevels(data || []);
-      } catch (error) {
-        console.error('Error fetching access levels:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAccessLevels();
-  }, []);
-
-  if (loading) {
+  if (!accessLevels || accessLevels.length === 0) {
     return (
       <div className="space-y-6">
         <div>
-          <h2 className="text-base font-medium tracking-tight">Access Levels</h2>
+          <h2 className="text-base font-medium tracking-tight text-core">Access Levels</h2>
           <p className="text-gray-600 text-sm mt-2">
             Define authority hierarchy (Owner is excluded)
           </p>
         </div>
-        <p className="text-gray-600">Loading access levels...</p>
+        <p className="text-gray-600">No access levels available.</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 grow flex flex-col overflow-y-auto ">
+    <div className="space-y-6 grow flex flex-col overflow-y-auto">
       <div>
-        <h2 className="text-base font-medium tracking-tight">Access Levels</h2>
+        <h2 className="text-base font-medium tracking-tight text-core">Access Levels</h2>
         <p className="text-gray-600 text-sm mt-2">
           Define authority hierarchy (Owner is excluded)
         </p>
       </div>
 
       <div className="space-y-3 flex flex-col">
-        {levels.map((level) => (
+        {accessLevels.map((level) => (
           <Link className='' key={level.key} href={`access-levels/${level.key}`}>
             <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer">
               <div className="flex justify-between items-start">

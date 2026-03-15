@@ -17,7 +17,7 @@ import CompanySidebarFooter from "./company-sidebar-footer";
 import { AppSidebarHeader } from "../app-sidebar/app-sidebar-header";
 
 
-export function AppSidebar({modules, company,...props }) {
+export function AppSidebar({modules,branches, company,...props }) {
     const isMobile = useIsMobile()
     const params = useParams()
     const {data,setData} = useContext(DataContext)
@@ -25,7 +25,7 @@ export function AppSidebar({modules, company,...props }) {
   return (
     <Sidebar  className={''} collapsible="icon" {...props}>
       <AppSidebarHeader/>
-      <CompanySidebarContent modules={modules} company={company} />
+      <CompanySidebarContent modules={modules} company={company} branches={branches} />
       <CompanySidebarFooter params={params} profile={data.profile}/>
       <SidebarRail />
     </Sidebar>

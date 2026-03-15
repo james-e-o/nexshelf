@@ -30,7 +30,7 @@ const DUMMY_ROLES = [
 
 export default function InvitationsPage() {
   const params = useParams();
-  const { info } = useContext(CompanyInfoContext);
+  const { info, accessLevels } = useContext(CompanyInfoContext);
   const companyId = info.id;
 // console.log('Company Info from context:', info);
   const [settings, setSettings] = useState({
@@ -40,38 +40,23 @@ export default function InvitationsPage() {
     auto_activate_staff: false,
   });
 
-  const [accessLevels, setAccessLevels] = useState([]);
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [branchError, setBranchError] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchBranches = async () => {
       try {
-        // Fetch access levels
-        const { data: accessData, error: accessError } = await supabase
-          .from('access_level')
-          .select('id, key, name, level_number')
-          .order('level_number', { ascending: true });
-
-        if (accessError) throw accessError;
-
-        setAccessLevels(accessData || []);
-        if (!settings.default_access_level_key && accessData && accessData.length > 0) {
+        // Set default access level from context on first load
+        if (!settings.default_access_level_key && accessLevels && accessLevels.length > 0) {
           setSettings(prev => ({
             ...prev,
-            default_access_level_key: accessData[0].key,
+            default_access_level_key: accessLevels[0].key,
           }));
         }
-      } catch (err) {
-        console.error('Error fetching access levels:', err);
-      } finally {
-        setLoading(false);
-      }
 
-      // Fetch branches separately - don't let it break access levels
-      try {
+        // Fetch branches separately
         const { data: branchData, error: fetchBranchError } = await supabase
           .from('branches_lite')
           .select('id, name')
@@ -94,27 +79,20 @@ export default function InvitationsPage() {
       } catch (err) {
         console.error('Error fetching branches:', err);
         setBranchError(err.message);
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchData();
-  }, [companyId]);
+    fetchBranches();
+  }, [companyId, accessLevels]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     setLoading(true);
     await new Promise(resolve => setTimeout(resolve, 300));
-    // Re-run the fetch effect by calling fetch directly
+    // Refetch only branches - access levels are managed by the layout context
     try {
-      const { data: accessData, error: accessError } = await supabase
-        .from('access_level')
-        .select('id, key, name, level_number')
-        .order('level_number', { ascending: true });
-
-      if (!accessError) {
-        setAccessLevels(accessData || []);
-      }
-
       const { data: branchData, error: fetchBranchError } = await supabase
         .from('branches_lite')
         .select('id, name')
@@ -182,7 +160,7 @@ export default function InvitationsPage() {
           {/* Default Access Level Selection */}
           <div className="space-y-2">
             <Label htmlFor="default_access_level_key">Default Access Level</Label>
-            {loading ? (
+            {!accessLevels || accessLevels.length === 0 ? (
               <p className="text-sm text-gray-500">Loading...</p>
             ) : (
               <>

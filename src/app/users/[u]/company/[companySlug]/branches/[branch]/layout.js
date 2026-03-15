@@ -27,7 +27,7 @@ export default function CompanyLayout({ children }) {
   const [branchModules, setBranchModules] = useState([])  // ← ADD BRANCH MODULES STATE
   const [isLoading, setIsLoading] = useState(true)
 
-  const { u, companySlug } = params
+  const { u, companySlug, branch } = params
 
   function capitalizeFirstLetter(string) {
     if (typeof string !== 'string' || string.length === 0) {
@@ -52,7 +52,7 @@ export default function CompanyLayout({ children }) {
         const { data: branchData, error: branchError } = await supabase
           .from("branches")
           .select("*")
-          .eq("id", params.branch)
+          .eq("slug", branch)
           .single()
 
         if (branchError || !branchData) {

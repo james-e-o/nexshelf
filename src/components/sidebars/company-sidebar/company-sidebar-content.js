@@ -1,5 +1,5 @@
 
-import { ChevronRight, Factory,Files,LayoutDashboard,Plus, Group,Building2,Rocket } from "lucide-react"
+import { ChevronRight, Factory,Files,LayoutDashboard,Plus, Group,Building2,Rocket, SquareStack } from "lucide-react"
 import {  Collapsible,  CollapsibleContent,  CollapsibleTrigger,} from "@/components/ui/collapsible"
 import { Sidebar,  SidebarContent,  SidebarFooter,  SidebarHeader,SidebarTrigger,  SidebarRail, SidebarGroup,  SidebarGroupLabel,  SidebarMenu,  SidebarMenuButton,  SidebarMenuItem,  SidebarMenuSub,  SidebarMenuSubButton,  SidebarMenuSubItem,} from "@/components/ui/sidebar"
 import { Button,buttonVariants } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";    
 import { CollapsibleButton,NoCollapsibleButton } from "./company-sidebar";
 
-export default function CompanySidebarContent({modules, company,}) {
+export default function CompanySidebarContent({modules, branches, company,}) {
    const params = useParams()   
 
     return (
@@ -25,12 +25,13 @@ export default function CompanySidebarContent({modules, company,}) {
                     />
                 )}
 
-                <CollapsibleButton caps={'capitalize'} defaultOpen={true} sidebarOpen={true} className={``} title={'Staff Settings'} icon={Factory} 
+                <CollapsibleButton caps={'capitalize'} defaultOpen={true} sidebarOpen={true} className={``} title={'Branches'} icon={SquareStack} 
                     items={[
-                        { title: 'Staff Management', url: `/users/${params.u}/company/${params.companySlug}/staff`},
-                        { title: 'Directory', url: `/users/${params.u}/company/${params.companySlug}/staff/directory`},
-                        { title: 'Onboarding', url: `/users/${params.u}/company/${params.companySlug}/staff/onboarding`},
-                        { title: 'Settings', url: `/users/${params.u}/company/${params.companySlug}/staff/settings`},
+
+                        
+                        //  ...branches.filter(branch => branch.company === company?.company_id).map((branch) => ({ title: branch.name, url: `/users/${params.u}/company/${params.companySlug}/branches/${branch.branch_id}`}))
+                        ...branches.map((branch) => ({ title: branch.name, url: `/users/${params.u}/company/${params.companySlug}/branches/${branch.slug}`})),
+                        { title: 'All Branches', url: `/users/${params.u}/company/${params.companySlug}/branches`},
                     ]}
                     sidebarCollapse={false}
                 />
