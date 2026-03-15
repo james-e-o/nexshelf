@@ -81,17 +81,17 @@ export default function LoginPage() {
         }
   }
 
-      // useEffect(() => {
-      //   const url = new URL(window.location.href);
-      //   const isConfirmed = url.searchParams.get('confirmed');
+      useEffect(() => {
+        const url = new URL(window.location.href);
+        const isConfirmed = url.searchParams.get('confirmed');
         
-      //   if (isConfirmed) {
-      //     setEmail(isConfirmed)
-      //     setDialogOpen(true)
-      //     // Clean up the URL so it doesn't repeat on reload
-      //     router.replace('/accounts/login');
-      //   }
-      // }, []);
+        if (isConfirmed) {
+          setEmail(isConfirmed)
+          setDialogOpen(true)
+          // Clean up the URL so it doesn't repeat on reload
+          router.replace('/accounts/login');
+        }
+      }, []);
 
       supabase.auth.onAuthStateChange((event, session) => {
         if (event === "SIGNED_IN") {

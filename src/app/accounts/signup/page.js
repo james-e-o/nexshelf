@@ -133,7 +133,7 @@ export default function SignupPage() {
         else{
             setIsLoading(true)
             const handle = username.substring(1); // Remove @ symbol from username
-            // console.log('Form Submitted',username,handle,email,password)
+            console.log('Form Submitted',username,handle,email,password)
       
             try {
               // Network call to Supabase
@@ -141,7 +141,7 @@ export default function SignupPage() {
                   email: email,
                   password: password,
                   options:{
-                    emailRedirectTo:`http://localhost:3000/accounts/login?confirmed=${email}`,
+                    emailRedirectTo:`https://nexshelf-pro.vercel.app//accounts/login?confirmed=${email}`,
                     data:{
                       username:username,
                       handle:handle,
