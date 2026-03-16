@@ -527,7 +527,7 @@ export function SignupForm({
       
       setError('')
       // 5️⃣ Redirect to company dashboard
-      window.location.href = `/company/${staff.company}/dashboard`
+      window.location.href = `/users/${handle}/company/${company.slug}?newly_invited_staff=true`
     } catch (err) {
       console.error('Error submitting form:', err)
       setError(err.message || 'An error occurred while setting up your profile. Please refresh and try again.')
