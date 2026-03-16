@@ -72,7 +72,7 @@ export default function CompanyLayout({ children }) {
           const { data: staffLiteData, error: staffError } = await supabase
             .from("staff_lite")
             .select("access_level, branch, status")
-            .eq("user_id", user.id)
+            .eq("staff_id", user.id)
             .eq("company", companiesLiteData.company_id)
             .single()
 
