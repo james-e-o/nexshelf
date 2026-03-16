@@ -159,7 +159,7 @@ export default function AccessLevelDetailPage() {
               id={perm.key}
               checked={perm.enabled}
               onCheckedChange={() => handlePermissionToggle(groupKey, perm.key)}
-              className="bg-white border-gray-300 [&[data-state=checked]]:bg-army [&[data-state=checked]]:border-army [&[data-state=checked]]:text-white"
+              className="bg-white border-gray-300 data-[state=checked]:bg-army data-[state=checked]:border-army data-[state=checked]:text-white"
             />
             <div className="flex-1">
               <Label htmlFor={perm.key} className="cursor-pointer font-medium text-sm">
