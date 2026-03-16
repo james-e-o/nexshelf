@@ -63,10 +63,27 @@ export default function CompanyLayout({ children }) {
         let accessLevel = null
         let branchId = null
         let suspended = false
+        let accessLevelScope = null // 'company' or 'branch'
+
+        // Step 3a: Fetch ALL access levels once (will be used for scope lookup AND display)
+        const { data: accessLevelsData, error: accessLevelsError } = await supabase
+          .from("access_level")
+          .select("*")
+          .order("level_number", { descending: false })
+
+        if (accessLevelsError) {
+          console.error("Access levels fetch error:", accessLevelsError)
+          toast("Could not load access levels.")
+          router.push(`/users/${u}`)
+          return
+        }
+
+        setAccessLevels(accessLevelsData || [])
 
         // Check if user is owner
         if (companiesLiteData.owner === user.id) {
           accessLevel = "owner"
+          accessLevelScope = "company" // Owners have company-wide access
         } else {
           // Check if user is staff of this company
           const { data: staffLiteData, error: staffError } = await supabase
@@ -84,15 +101,27 @@ export default function CompanyLayout({ children }) {
           }
 
           accessLevel = staffLiteData.access_level 
-          branchId = staffLiteData.branch || null
-          suspended = staffLiteData.status === "suspended" 
+          suspended = staffLiteData.status === "suspended"
+
+          // Look up access level scope from already-fetched data (no additional query)
+          const accessLevelRecord = accessLevelsData?.find(al => al.key === staffLiteData.access_level)
+          accessLevelScope = accessLevelRecord?.access || "branch" // Default to 'branch' if not set
+
+          // Only restrict branchId if they have 'branch' access scope
+          if (accessLevelScope === "branch") {
+            branchId = staffLiteData.branch || null
+          } else if (accessLevelScope === "company") {
+            // Company-level staff can see all branches, no restriction
+            branchId = null
+          }
         }
 
-        // Step 3: Set company info with access context
+        // Step 3b: Set company info with access context
         setInfo({
           ...companiesLiteData,
           id: companiesLiteData.company_id,
           accessLevel,
+          accessLevelScope, // New property to track scope
           branchId,
           suspended
         })
@@ -161,31 +190,20 @@ export default function CompanyLayout({ children }) {
 
         if (branchesError) {
           console.error("Branches fetch error:", branchesError)
-        } else if (accessLevel === "owner" || accessLevel === "admin") {
-          // Owners and admins see all branches
+        } else if (accessLevelScope === "company") {
+          // Company-level staff (owner, finance, admin_manager) see all branches
           allowedBranches = branchesData
-        } else if (branchId) {
-          // Staff with assigned branch see only their branch
+        } else if (accessLevelScope === "branch" && branchId) {
+          // Branch-level staff see only their assigned branch
           allowedBranches = branchesData.filter(b => b.id === branchId)
         } else {
-          // Staff without assigned branch see no branches (for now)
+          // Staff without proper scope see no branches
           allowedBranches = []
         }
 
         setBranches(allowedBranches || [])
 
-        // Step 7: Fetch access levels
-        const { data: accessLevelsData, error: accessLevelsError } = await supabase
-          .from("access_level")
-          .select("*")
-          .order("level_number", { descending: false })
-
-        if (accessLevelsError) {
-          console.error("Access levels fetch error:", accessLevelsError)
-          setAccessLevels([])
-        } else {
-          setAccessLevels(accessLevelsData || [])
-        }
+        // Access levels already fetched in Step 3a and set in state
       
       } catch (err) {
         console.error("Error during access check:", err)  
@@ -220,6 +238,7 @@ export default function CompanyLayout({ children }) {
         accessLevels,
         user: data?.profile,
         accessLevel: info?.accessLevel,
+        accessLevelScope: info?.accessLevelScope,
         branchId: info?.branchId,
         suspended: info?.suspended
       }}
