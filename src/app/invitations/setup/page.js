@@ -398,13 +398,13 @@ export function SignupForm({
   }
 
   // Helper function: Verify staff record was created by backend trigger
-  const verifyStaffRecord = async (userId, maxAttempts = 15, delayMs = 1000) => {
+  const verifyStaffRecord = async (userId, maxAttempts = 10, delayMs = 2000) => {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         const { data: staff, error } = await supabase
-          .from('staff')
-          .select('company_id')
-          .eq('user_id', userId)
+          .from('staff_lite')
+          .select('company')
+          .eq('staff_id', userId)
           .single()
 
         if (!error && staff) {
@@ -508,7 +508,7 @@ export function SignupForm({
       const { data: company, error: companyError } = await supabase
         .from('companies_lite')
         .select('*')
-        .eq('company_id', staff.company_id)
+        .eq('company_id', staff.company)
         .single()
 
       if (companyError || !company) {
@@ -522,12 +522,12 @@ export function SignupForm({
         email: userEmail,
         username: formData.username,
         handle: handle,
-        companyId: staff.company_id
+        companyId: staff.company
       })
       
       setError('')
       // 5️⃣ Redirect to company dashboard
-      window.location.href = `/company/${staff.company_id}/dashboard`
+      window.location.href = `/company/${staff.company}/dashboard`
     } catch (err) {
       console.error('Error submitting form:', err)
       setError(err.message || 'An error occurred while setting up your profile. Please refresh and try again.')
@@ -641,7 +641,7 @@ export function SignupForm({
                 id="confirm-password" 
                 name="confirmPassword"
                 type="password"
-                placeholder="•••••••••"
+                placeholder=""
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 required 
