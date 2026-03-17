@@ -10,7 +10,7 @@ import { ChartBarMultiple } from "@/components/charts/bar-charts/barchart-multip
 import { ChartRadialStacked } from "@/components/charts/radial-charts/radial-stacked"
 
 export default function CompanyPage() {
-  const { info } = useContext(CompanyInfoContext)
+  const { info, branches } = useContext(CompanyInfoContext)
   const router = useRouter()
   const params = useParams()
   const searchParams = useSearchParams()
@@ -199,7 +199,11 @@ export default function CompanyPage() {
                 </div>
                 <div className="bg-white rounded-lg p-6 shadow border-l-4 border-army">
                   <p className="text-gray-600 text-sm font-medium mb-2">Assigned Branch</p>
-                  <h3 className="text-2xl font-bold text-army">{info?.branchId ? `Branch #${info.branchId}` : "Unassigned"}</h3>
+                  <h3 className="text-2xl font-bold text-army">
+                    {branches && branches.length > 0 
+                      ? branches[0]?.name || "Unassigned" 
+                      : info?.branchId ? `Branch #${info.branchId}` : "Unassigned"}
+                  </h3>
                   <p className="text-xs text-gray-500 mt-2">Location info</p>
                 </div>
               </div>
