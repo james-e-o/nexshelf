@@ -25,6 +25,8 @@ export default function CompanyLayout({ children }) {
   const [currencies, setCurrencies] = useState([])  // ← ADD CURRENCIES STATE
   const [accessLevels, setAccessLevels] = useState([])  // ← ADD ACCESS LEVELS STATE
   const [isLoading, setIsLoading] = useState(true)
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(true)
+  const [noSubscriptionMessage, setNoSubscriptionMessage] = useState(false)
 
   const { u, companySlug } = params
 
@@ -105,11 +107,13 @@ export default function CompanyLayout({ children }) {
 
           // Look up access level scope from already-fetched data (no additional query)
           const accessLevelRecord = accessLevelsData?.find(al => al.key === staffLiteData.access_level)
-          accessLevelScope = accessLevelRecord?.access || "branch" // Default to 'branch' if not set
+          accessLevelScope = accessLevelRecord?.access  
 
+          console.log("Determined access level:", accessLevel)
+          console.log("Determined access level scope:", accessLevelScope)
           // Only restrict branchId if they have 'branch' access scope
           if (accessLevelScope === "branch") {
-            branchId = staffLiteData.branch || null
+            branchId = staffLiteData.branch 
           } else if (accessLevelScope === "company") {
             // Company-level staff can see all branches, no restriction
             branchId = null
@@ -125,6 +129,41 @@ export default function CompanyLayout({ children }) {
           branchId,
           suspended
         })
+
+        // Step 3c: Check for active company subscription
+        const { data: subscriptionData, error: subscriptionError } = await supabase
+          .from("company_subscriptions")
+          .select("*")
+          .eq("company_id", companiesLiteData.company_id)
+          .eq("status", "active")
+          .single()
+
+        if (subscriptionError && subscriptionError.code !== "PGRST116") {
+          // PGRST116 means no rows found - that's expected
+          console.error("Subscription fetch error:", subscriptionError)
+        }
+
+        // TODO: Remove this for testing - always allow access
+        setHasActiveSubscription(true)
+        const hasSubscription = true
+
+        // If no active subscription:
+        // - Company-level staff/owner -> redirect to subscriptions page
+        // - Branch-level staff -> show "no subscription" message
+        if (!hasSubscription) {
+          if (accessLevelScope === "company") {
+            // Owner or company-level staff (finance, admin_manager) -> redirect to subscriptions
+            console.log("No active subscription found, redirecting company-level staff to subscriptions")
+            router.push(`/users/${u}/company/${companySlug}/subscriptions`)
+            return
+          } else if (accessLevelScope === "branch") {
+            // Branch-level staff -> show message
+            console.log("Branch-level staff accessing company with no subscription")
+            setNoSubscriptionMessage(true)
+            setIsLoading(false)
+            return
+          }
+        }
 
         // Step 4: Fetch company currencies
         const { data: currenciesArray, error: currenciesError } = await supabase
@@ -180,27 +219,36 @@ export default function CompanyLayout({ children }) {
         //   setModules(transformedModules.filter(canAccessModule))
         // }
 
-        // Step 6: Fetch branches with access filter
+        // // Step 6: Fetch branches with access filter
+        // console.log("BRANCHES FETCH DEBUG:", { 
+        //   accessLevelScope, 
+        //   branchId, 
+        //   company_id: companiesLiteData.company_id 
+        // })
+        
         const { data: branchesData, error: branchesError } = await supabase
-          .from("branches")
+          .from("branches_lite")
           .select("*")
           .eq("company", companiesLiteData.company_id)
-
+       
         let allowedBranches = []
-
+        
         if (branchesError) {
           console.error("Branches fetch error:", branchesError)
         } else if (accessLevelScope === "company") {
           // Company-level staff (owner, finance, admin_manager) see all branches
+          console.log("COMPANY-LEVEL: showing all branches")
           allowedBranches = branchesData
-        } else if (accessLevelScope === "branch" && branchId) {
+        } else if (accessLevelScope === "branch") {
           // Branch-level staff see only their assigned branch
-          allowedBranches = branchesData.filter(b => b.id === branchId)
-        } else {
-          // Staff without proper scope see no branches
-          allowedBranches = []
-        }
-
+          if (branchId && branchesData) {
+            allowedBranches = branchesData.filter(b => b.id === branchId)
+          } else {
+            console.log("No branch ID assigned to branch-level staff")
+          }
+        } 
+        
+        console.log(branchesData, allowedBranches)
         setBranches(allowedBranches || [])
 
         // Access levels already fetched in Step 3a and set in state
@@ -221,6 +269,36 @@ export default function CompanyLayout({ children }) {
     return (
       <div className='overflow-hidden flex text-core justify-center items-center h-full'>
         <Spinner className='size-8 text-army' spinning={true} />
+      </div>
+    )
+  }
+
+  if (noSubscriptionMessage) {
+    return (
+      <div className='min-h-screen bg-linear-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4'>
+        <div className='bg-white rounded-lg shadow-lg p-8 max-w-md text-center'>
+          <div className='mb-4'>
+            <div className='inline-flex items-center justify-center h-16 w-16 rounded-full bg-amber-100'>
+              <svg className='h-8 w-8 text-amber-600' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 9v2m0 4v2m0-6a4 4 0 110-8 4 4 0 010 8z' />
+              </svg>
+            </div>
+          </div>
+          <h1 className='text-2xl font-bold text-core mb-2'>No Active Subscription</h1>
+          <p className='text-slate-600 mb-6'>
+            Your company does not have a current running subscription, or the subscription has expired.
+          </p>
+          <p className='text-slate-700 font-medium mb-6'>
+            Please contact your Company Administrator to set up or renew a subscription.
+          </p>
+          <Button
+            onClick={() => router.push(`/users/${u}`)}
+            variant='outline'
+            className='w-full border-slate-300 hover:bg-slate-50'
+          >
+            Back to Dashboard
+          </Button>
+        </div>
       </div>
     )
   }

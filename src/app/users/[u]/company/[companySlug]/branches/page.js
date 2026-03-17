@@ -16,7 +16,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 
 export default function BranchesPage() {
-  const { branches, info, currencies, modules } = useContext(CompanyInfoContext)
+  const { branches, info, currencies, modules, accessLevelScope } = useContext(CompanyInfoContext)
   const router = useRouter()
   const params = useParams()
 
@@ -159,10 +159,12 @@ export default function BranchesPage() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xs font-semibold">Branch Management</h2>
             <div className="flex items-center gap-2">
-              <Button className="h-7 inline-flex items-center bg-army hover:bg-army/85 gap-2" onClick={() => setShowAdd((v) => !v)}>
-                <Plus size={14} />
-                <span className="text-[10px]">Add New Branch</span>
-              </Button>
+              {accessLevelScope === "company" && (
+                <Button className="h-7 inline-flex items-center bg-army hover:bg-army/85 gap-2" onClick={() => setShowAdd((v) => !v)}>
+                  <Plus size={14} />
+                  <span className="text-[10px]">Add New Branch</span>
+                </Button>
+              )}
             </div>
           </div>
 
@@ -192,13 +194,17 @@ export default function BranchesPage() {
                   </div>
 
                     <div className="flex items-center gap-2">
-                    <Button variant={'outline'} className="h-6 shadow-none text-[10px]" onClick={() => router.push(`/users/${params.u}/company/${params.companySlug}/branches/${b.id}/settings`)}>
-                      Edit
-                    </Button>
-                    {!b.isheadoffice && (
-                      <Button className="h-6 inline-flex items-center gap-2" variant="destructive" onClick={() => removeBranch(b.id)}>
-                        <Trash2 size={12} />
-                      </Button>
+                    {accessLevelScope === "company" && (
+                      <>
+                        <Button variant={'outline'} className="h-6 shadow-none text-[10px]" onClick={() => router.push(`/users/${params.u}/company/${params.companySlug}/branches/${b.id}/settings`)}>
+                          Edit
+                        </Button>
+                        {!b.isheadoffice && (
+                          <Button className="h-6 inline-flex items-center gap-2" variant="destructive" onClick={() => removeBranch(b.id)}>
+                            <Trash2 size={12} />
+                          </Button>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
