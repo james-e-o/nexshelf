@@ -143,8 +143,8 @@ export default function BranchHeader({ children }) {
                   </BreadcrumbLink>
                 </BreadcrumbItem>
 
-                {/* Dynamic breadcrumbs */}
-                {collapsedItems.map((item, i) => {
+                {/* Dynamic breadcrumbs - skip Admin and Company since already rendered */}
+                {collapsedItems.slice(2).map((item, i) => {
                   if (item.label === "...") {
                     return (
                       <div key={`ellipsis-${i}`} className="flex items-center">
@@ -154,7 +154,8 @@ export default function BranchHeader({ children }) {
                     );
                   }
 
-                  const isLast = i === collapsedItems.length - 1;
+                  const remainingItems = collapsedItems.slice(2);
+                  const isLast = i === remainingItems.length - 1;
 
                   return (
                     <div key={`${item.href ?? item.label}-${i}`} className="flex items-center">

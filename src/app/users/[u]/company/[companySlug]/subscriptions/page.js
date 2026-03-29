@@ -1,223 +1,263 @@
 "use client"
 
-import { useState, useContext } from "react"
-import { useRouter, useParams } from "next/navigation"
+import { useContext, useState } from "react"
 import { CompanyInfoContext } from "../layout"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Check, ArrowRight } from "lucide-react"
+import { useRouter, useParams } from "next/navigation"
+import { Spinner } from "@/components/ui/spinner"
+import { startFreeTrial } from "@/lib/subscription-service"
+import { supabase } from "../../../../../../../config/supabaseClient"
 import { toast } from "sonner"
 
-export default function SubscriptionPage() {
+const getStatusColor = (status) => {
+  const colors = {
+    active: "bg-green-50 border-green-200 text-green-900",
+    trialing: "bg-blue-50 border-blue-200 text-blue-900",
+    paused: "bg-yellow-50 border-yellow-200 text-yellow-900",
+    past_due: "bg-red-50 border-red-200 text-red-900",
+    expired: "bg-gray-50 border-gray-200 text-gray-900",
+    canceled: "bg-gray-50 border-gray-200 text-gray-900",
+  }
+  return colors[status] || "bg-gray-50 border-gray-200 text-gray-900"
+}
+
+const getStatusBadgeColor = (status) => {
+  const colors = {
+    active: "bg-green-100 text-green-800",
+    trialing: "bg-blue-100 text-blue-800",
+    paused: "bg-yellow-100 text-yellow-800",
+    past_due: "bg-red-100 text-red-800",
+    expired: "bg-gray-100 text-gray-800",
+    canceled: "bg-gray-100 text-gray-800",
+  }
+  return colors[status] || "bg-gray-100 text-gray-800"
+}
+
+export default function SubscriptionOverviewPage() {
   const router = useRouter()
   const params = useParams()
-  const { info } = useContext(CompanyInfoContext)
-  const [selectedPlan, setSelectedPlan] = useState(null)
-  const [isLoading, setIsLoading] = useState(false)
-
+  const context = useContext(CompanyInfoContext)
+  const { info, currentPlan, currentSubscription, previousSubscriptions, isLoading, plans } = context || {}
   const { u, companySlug } = params
+  const [trialLoading, setTrialLoading] = useState(false)
 
-  const plans = [
-    {
-      id: "starter",
-      name: "Starter",
-      price: "$0",
-      period: "/month",
-      description: "Perfect for getting started",
-      popular: false,
-      features: [
-        "Up to 5 staff members",
-        "1 branch",
-        "Basic inventory tracking",
-        "Sales reporting",
-        "Email support"
-      ],
-      cta: "Get Started"
-    },
-    {
-      id: "professional",
-      name: "Professional",
-      price: "$99",
-      period: "/month",
-      description: "Best for growing businesses",
-      popular: true,
-      features: [
-        "Up to 50 staff members",
-        "Unlimited branches",
-        "Advanced inventory management",
-        "Multi-branch reporting",
-        "Purchase orders",
-        "Supplier management",
-        "Priority support"
-      ],
-      cta: "Start Free Trial"
-    },
-    {
-      id: "enterprise",
-      name: "Enterprise",
-      price: "Custom",
-      period: "",
-      description: "For large organizations",
-      popular: false,
-      features: [
-        "Unlimited staff members",
-        "Unlimited branches",
-        "Advanced analytics",
-        "API access",
-        "Custom integrations",
-        "Dedicated account manager",
-        "24/7 phone support",
-        "Custom workflows"
-      ],
-      cta: "Contact Sales"
-    }
-  ]
-
-  const handleSelectPlan = async (planId) => {
-    setSelectedPlan(planId)
-    setIsLoading(true)
+  const handleStartFreeTrial = async () => {
+    setTrialLoading(true)
 
     try {
-      // TODO: Integrate with Stripe checkout or subscription API
-      toast.success(`Redirecting to ${planId} plan setup...`)
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
       
-      // Simulate delay before redirect
-      setTimeout(() => {
-        // This will eventually call an API to create subscription
-        router.push(`/users/${u}/company/${companySlug}`)
-      }, 1500)
+      if (userError || !user) {
+        toast.error("Please log in to start a free trial")
+        setTrialLoading(false)
+        return
+      }
+
+      const result = await startFreeTrial(info?.company_id || info?.id, user.id)
+
+      if (result.success) {
+        toast.success("Free trial started! Redirecting...")
+        setTimeout(() => {
+          router.push(`/users/${u}/company/${companySlug}`)
+        }, 1500)
+      } else {
+        setTrialLoading(false)
+      }
     } catch (error) {
-      console.error("Error selecting plan:", error)
-      toast.error("Failed to select plan. Please try again.")
-      setSelectedPlan(null)
-      setIsLoading(false)
+      console.error("Error starting free trial:", error)
+      toast.error("Failed to start free trial. Please try again.")
+      setTrialLoading(false)
     }
   }
 
+  // Get plan title from subscription data
+  const getCurrentPlanTitle = () => {
+    if (currentSubscription?.core_plans?.title) {
+      return currentSubscription.core_plans.title
+    }
+    return currentPlan?.title || "Unknown Plan"
+  }
+
+  // Format date
+  const formatDate = (date) => {
+    if (!date) return "N/A"
+    return new Date(date).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    })
+  }
+
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-3xl font-semibold text-army mb-2">Choose Your Plan</h1>
-          <p className="text-lg text-slate-600">
-            {info?.name ? `Set up a subscription for ${info.name}` : "Select a subscription plan"}
-          </p>
+    <div className="space-y-6">
+      {isLoading ? (
+        <div className="flex justify-center items-center h-64">
+          <Spinner className="size-8 text-core" spinning={true} />
         </div>
-
-        {/* Billing Toggle */}
-        <div className="flex justify-center mb-12">
-          <div className="inline-flex items-center bg-white rounded-lg border border-slate-200 p-1">
-            <button className="px-4 py-2 rounded text-sm font-medium text-slate-600">Annual</button>
-            <button className="px-4 py-2 rounded text-sm font-medium bg-core text-white">Monthly</button>
-          </div>
-        </div>
-
-        {/* Pricing Cards */}
-        <div className="grid md:grid-cols-3 gap-8 mb-12">
-          {plans.map((plan) => (
-            <Card
-              key={plan.id}
-              className={`relative transition-all ${
-                plan.popular
-                  ? "border-2 border-core shadow-2xl md:scale-105"
-                  : "border border-slate-200 hover:border-slate-300"
-              }`}
-            >
-              {plan.popular && (
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                  <span className="bg-linear-to-r from-core to-army text-white px-4 py-1 rounded-full text-xs font-semibold">
-                    MOST POPULAR
+      ) : (
+        <>
+          {/* If there's an active or trialing subscription, show Current Plan */}
+          {currentSubscription ? (
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Current Plan Card */}
+              <div className="border border-gray-200 rounded-lg p-6 shadow-md">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-sm font-semibold text-gray-500 uppercase">Current Plan</h3>
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadgeColor(currentSubscription.status)}`}>
+                    {currentSubscription.status === "trialing" ? "On Trial" : currentSubscription.status.charAt(0).toUpperCase() + currentSubscription.status.slice(1)}
                   </span>
                 </div>
-              )}
+                
+                {/* Plan Title and Description */}
+                <div className="mb-6">
+                  <p className="text-2xl font-bold text-slate-900">{getCurrentPlanTitle()}</p>
+                  <p className="text-xs text-gray-500 mt-1">{currentPlan?.description || "Active subscription"}</p>
+                </div>
 
-              <CardHeader>
-                <CardTitle className="text-2xl">{plan.name}</CardTitle>
-                <CardDescription>{plan.description}</CardDescription>
-              </CardHeader>
-
-              <CardContent className="space-y-6">
-                {/* Pricing */}
-                <div className="space-y-1">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-bold text-core">{plan.price}</span>
-                    <span className="text-slate-600">{plan.period}</span>
+                {/* Two Column Layout - Left: Amount, Right: Trial Info */}
+                <div className="grid grid-cols-2 gap-6 mb-6 pb-6 border-b border-gray-100">
+                  {/* Left: Current Amount */}
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Amount</p>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-2xl font-bold text-slate-900">
+                        ${currentSubscription.amount || "0"}
+                      </span>
+                      <span className="text-xs text-gray-600">/{currentSubscription.auto_renew ? "mo" : "once"}</span>
+                    </div>
                   </div>
-                  {plan.id === "starter" && (
-                    <p className="text-sm text-slate-500">Always free, no credit card required</p>
+
+                  {/* Right: Trial Status (if trialing) */}
+                  {currentSubscription.status === "trialing" && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Free Trial</p>
+                      <p className="text-xs text-slate-900 leading-relaxed">
+                        <span className="font-medium">{formatDate(currentSubscription.trial_start)}</span><br/>
+                        <span className="text-gray-600">to</span><br/>
+                        <span className="font-medium">{formatDate(currentSubscription.trial_end)}</span>
+                      </p>
+                    </div>
                   )}
                 </div>
 
-                {/* Features List */}
-                <ul className="space-y-3">
-                  {plan.features.map((feature, idx) => (
-                    <li key={idx} className="flex items-center gap-3">
-                      <Check className="h-5 w-5 shrink-0 text-army" />
-                      <span className="text-slate-700">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
+                {/* Bottom: Next Payment / Trial Ends */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase mb-2">
+                    {currentSubscription.status === "trialing" ? "Trial Ends" : "Next Payment"}
+                  </p>
+                  <p className="text-sm font-medium text-slate-900">
+                    {formatDate(currentSubscription.status === "trialing" ? currentSubscription.trial_end : currentSubscription.next_billing_date)}
+                  </p>
+                </div>
+              </div>
 
-                {/* CTA Button */}
-                <Button
-                  onClick={() => handleSelectPlan(plan.id)}
-                  disabled={isLoading && selectedPlan === plan.id}
-                  className={`w-full py-6 text-base font-semibold transition-all ${
-                    plan.popular
-                      ? "bg-linear-to-r from-core to-army hover:shadow-lg text-white border-0"
-                      : "border border-slate-300 hover:bg-slate-50"
-                  }`}
-                  variant={plan.popular ? "default" : "outline"}
-                >
-                  {isLoading && selectedPlan === plan.id ? (
-                    <span className="inline-flex items-center gap-2">
-                      <span className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
-                      Processing...
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-2">
-                      {plan.cta}
-                      <ArrowRight className="h-4 w-4" />
-                    </span>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+              {/* Actions Card */}
+              <div className="border border-gray-200 rounded-lg p-6 shadow-md">
+                <h3 className="text-sm font-semibold text-gray-500 uppercase mb-4">Actions</h3>
+                <div className="space-y-3">
+                  <Button
+                    onClick={() => router.push(`/users/${u}/company/${companySlug}/subscriptions/plans`)}
+                    className="w-full bg-core text-white hover:bg-core/90"
+                  >
+                    Upgrade Plan
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push(`/users/${u}/company/${companySlug}/subscriptions/payments`)}
+                    className="w-full"
+                  >
+                    Manage Payment Method
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push(`/users/${u}/company/${companySlug}/subscriptions/billing`)}
+                    className="w-full"
+                  >
+                    Update Billing Address
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* No Active Subscription - Side by Side Layout */}
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* No Active Subscription Message */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 shadow-md">
+                  <p className="text-blue-900 font-semibold">No subscriptions currently active</p>
+                  <p className="text-blue-700 text-sm mt-2">
+                    Start a subscription to unlock all features and get premium support.
+                  </p>
+                </div>
 
-        {/* FAQ Section */}
-        <div className="bg-white rounded-lg border border-slate-200 p-8">
-          <h2 className="text-2xl font-bold text-core mb-6">Frequently Asked Questions</h2>
-          <div className="grid md:grid-cols-2 gap-8">
-            <div>
-              <h3 className="font-semibold text-slate-900 mb-2">Can I change plans later?</h3>
-              <p className="text-slate-600">
-                Yes, you can upgrade or downgrade your plan at any time. Changes take effect at the start of your next billing cycle.
-              </p>
-            </div>
-            <div>
-              <h3 className="font-semibold text-slate-900 mb-2">What payment methods do you accept?</h3>
-              <p className="text-slate-600">
-                We accept all major credit cards, including Visa, Mastercard, and American Express through Stripe.
-              </p>
-            </div>
-            <div>
-              <h3 className="font-semibold text-slate-900 mb-2">Is there a free trial?</h3>
-              <p className="text-slate-600">
-                Yes, Professional and Enterprise plans come with a 14-day free trial. No credit card required to start.
-              </p>
-            </div>
-            <div>
-              <h3 className="font-semibold text-slate-900 mb-2">What if I need more features?</h3>
-              <p className="text-slate-600">
-                Contact our sales team for custom solutions. We can customize any plan to meet your specific needs.
-              </p>
-            </div>
+                {/* Actions Card - for getting a subscription */}
+                <div className="border border-gray-200 rounded-lg p-6 shadow-md">
+                  <h3 className="text-sm font-semibold text-gray-500 uppercase mb-4">Actions</h3>
+                  <div className="space-y-3">
+                    <Button
+                      onClick={() => router.push(`/users/${u}/company/${companySlug}/subscriptions/plans`)}
+                      className="w-full bg-core text-white hover:bg-core/90"
+                    >
+                      Upgrade Plan
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => router.push(`/users/${u}/company/${companySlug}/subscriptions/billing`)}
+                      className="w-full"
+                    >
+                      Update Billing Address
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleStartFreeTrial}
+                      disabled={trialLoading}
+                      className="w-full disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {trialLoading ? (
+                        <span className="inline-flex items-center gap-2">
+                          <span className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                          Starting...
+                        </span>
+                      ) : (
+                        "Start Free Trial"
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Previous Subscriptions - Always Show */}
+          <div className="border border-gray-200 rounded-lg p-6 shadow-md">
+            <h3 className="text-sm font-semibold text-gray-500 uppercase mb-4">Previous Subscriptions</h3>
+            {previousSubscriptions && previousSubscriptions.length > 0 ? (
+              <div className="space-y-3">
+                {previousSubscriptions.map((sub) => (
+                  <div key={sub.id} className="py-4 border-b last:border-b-0">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="font-medium text-slate-900">
+                        {sub.core_plans?.title || "Unknown Plan"}
+                      </p>
+                      <span className={`px-2 py-1 rounded text-xs font-semibold ${getStatusBadgeColor(sub.status)}`}>
+                        {sub.status.charAt(0).toUpperCase() + sub.status.slice(1)}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      {sub.status === "expired" ? "Expired on" : sub.status === "paused" ? "Paused on" : "Ended on"}{" "}
+                      {formatDate(sub.end_date)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="border border-gray-200 rounded-lg p-8 bg-gray-50 text-center">
+                <p className="text-gray-500 text-sm">No previous subscriptions</p>
+              </div>
+            )}
           </div>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   )
 }

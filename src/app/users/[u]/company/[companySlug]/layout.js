@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, createContext, useContext } from "react"
-import { useRouter, useParams } from "next/navigation"
+import { useRouter, useParams, usePathname } from "next/navigation"
 import { supabase } from "../../../../../../config/supabaseClient"
 import { toast } from "sonner"
 import { Spinner } from "@/components/ui/spinner"
@@ -17,28 +17,32 @@ export const CompanyInfoContext = createContext()
 export default function CompanyLayout({ children }) {
   const router = useRouter()
   const params = useParams()
+  const pathname = usePathname()
   const { data } = useContext(DataContext)
 
   const [info, setInfo] = useState()
-  const [modules, setModules] = useState([])  // ← ADD MODULES STATE
-  const [branches, setBranches] = useState([])  // ← ADD BRANCHES STATE
-  const [currencies, setCurrencies] = useState([])  // ← ADD CURRENCIES STATE
-  const [accessLevels, setAccessLevels] = useState([])  // ← ADD ACCESS LEVELS STATE
+  const [modules, setModules] = useState([])
+  const [branches, setBranches] = useState([])
+  const [currencies, setCurrencies] = useState([])
+  const [accessLevels, setAccessLevels] = useState([])
   const [isLoading, setIsLoading] = useState(true)
-  const [hasActiveSubscription, setHasActiveSubscription] = useState(true)
-  const [noSubscriptionMessage, setNoSubscriptionMessage] = useState(false)
+  const [isRedirecting, setIsRedirecting] = useState(false)
+  const [subscriptionVerified, setSubscriptionVerified] = useState(false)
+  const [hasSubscription, setHasSubscription] = useState(null)
 
   const { u, companySlug } = params
 
   function capitalizeFirstLetter(string) {
     if (typeof string !== 'string' || string.length === 0) {
-      return string; // Handle non-string or empty input
+      return string
     }
-    return string.charAt(0).toUpperCase() + string.slice(1);
+    return string.charAt(0).toUpperCase() + string.slice(1)
   }
 
   useEffect(() => {
     async function checkAccess() {
+      let redirectHappened = false
+
       try {
         // Step 1: Auth user
         const { data: { user }, error: userError } = await supabase.auth.getUser()
@@ -49,7 +53,7 @@ export default function CompanyLayout({ children }) {
           return
         }
 
-        // Step 2: Check if user is owner or staff of this company
+        // Step 2: Get company
         const { data: companiesLiteData, error: companiesLiteError } = await supabase
           .from("companies_lite")
           .select("company_id, name, slug, owner, currencies")
@@ -65,9 +69,9 @@ export default function CompanyLayout({ children }) {
         let accessLevel = null
         let branchId = null
         let suspended = false
-        let accessLevelScope = null // 'company' or 'branch'
+        let accessLevelScope = null
 
-        // Step 3a: Fetch ALL access levels once (will be used for scope lookup AND display)
+        // Step 3a: Access levels
         const { data: accessLevelsData, error: accessLevelsError } = await supabase
           .from("access_level")
           .select("*")
@@ -82,12 +86,11 @@ export default function CompanyLayout({ children }) {
 
         setAccessLevels(accessLevelsData || [])
 
-        // Check if user is owner
+        // Owner or staff check
         if (companiesLiteData.owner === user.id) {
           accessLevel = "owner"
-          accessLevelScope = "company" // Owners have company-wide access
+          accessLevelScope = "company"
         } else {
-          // Check if user is staff of this company
           const { data: staffLiteData, error: staffError } = await supabase
             .from("staff_lite")
             .select("access_level, branch, status")
@@ -96,176 +99,125 @@ export default function CompanyLayout({ children }) {
             .single()
 
           if (staffError || !staffLiteData) {
-            console.error("Staff fetch error:", staffError)
             toast("You do not belong to this company.")
             router.push(`/users/${u}`)
             return
           }
 
-          accessLevel = staffLiteData.access_level 
+          accessLevel = staffLiteData.access_level
           suspended = staffLiteData.status === "suspended"
 
-          // Look up access level scope from already-fetched data (no additional query)
           const accessLevelRecord = accessLevelsData?.find(al => al.key === staffLiteData.access_level)
-          accessLevelScope = accessLevelRecord?.access  
+          accessLevelScope = accessLevelRecord?.access
 
-          console.log("Determined access level:", accessLevel)
-          console.log("Determined access level scope:", accessLevelScope)
-          // Only restrict branchId if they have 'branch' access scope
           if (accessLevelScope === "branch") {
-            branchId = staffLiteData.branch 
-          } else if (accessLevelScope === "company") {
-            // Company-level staff can see all branches, no restriction
-            branchId = null
+            branchId = staffLiteData.branch
           }
         }
 
-        // Step 3b: Set company info with access context
-        setInfo({
-          ...companiesLiteData,
-          id: companiesLiteData.company_id,
-          accessLevel,
-          accessLevelScope, // New property to track scope
-          branchId,
-          suspended
-        })
-
-        // Step 3c: Check for active company subscription
-        const { data: subscriptionData, error: subscriptionError } = await supabase
+        // ──────────────────────────────────────────────────────────────
+        // SUBSCRIPTION GATEKEEPER (moved early)
+        // ──────────────────────────────────────────────────────────────
+        const { data: subscriptions, error } = await supabase
           .from("company_subscriptions")
-          .select("*")
-          .eq("company_id", companiesLiteData.company_id)
-          .eq("status", "active")
-          .single()
-
-        if (subscriptionError && subscriptionError.code !== "PGRST116") {
-          // PGRST116 means no rows found - that's expected
-          console.error("Subscription fetch error:", subscriptionError)
-        }
-
-        // TODO: Remove this for testing - always allow access
-        setHasActiveSubscription(true)
-        const hasSubscription = true
-
-        // If no active subscription:
-        // - Company-level staff/owner -> redirect to subscriptions page
-        // - Branch-level staff -> show "no subscription" message
-        if (!hasSubscription) {
-          if (accessLevelScope === "company") {
-            // Owner or company-level staff (finance, admin_manager) -> redirect to subscriptions
-            console.log("No active subscription found, redirecting company-level staff to subscriptions")
-            router.push(`/users/${u}/company/${companySlug}/subscriptions`)
-            return
-          } else if (accessLevelScope === "branch") {
-            // Branch-level staff -> show message
-            console.log("Branch-level staff accessing company with no subscription")
-            setNoSubscriptionMessage(true)
-            setIsLoading(false)
-            return
-          }
-        }
-
-        // Step 4: Fetch company currencies
-        const { data: currenciesArray, error: currenciesError } = await supabase
-          .from("currencies")
-          .select("name, code, flag")
-          .in("code", companiesLiteData.currencies || [])
-
-        if (currenciesError) {
-          console.error("Failed to fetch currencies:", currenciesError)
-          setCurrencies([])
-        } else {
-          setCurrencies(currenciesArray || [])
-        }
-
-        // Step 5: Fetch company modules
-        // const { data: modulesData, error: modulesError } = await supabase
-        //   .from("company_modules")
-        //   .select("name, mod_key")
-        //   .eq("company", companiesLiteData.company_id)
-
-        // if (modulesError) {
-        //   console.error("Company modules fetch error:", modulesError)
-        //   setModules([])
-        // } else {
-        //   const { data: allModulesData, error: allModulesError } = await supabase
-        //     .from("modules")
-        //     .select("key, companylevel, branchlevel")
-        //     .in("key", modulesData.map(mod => mod.mod_key))
-
-        //   const transformedModules = modulesData.map(({ mod_key }) => {
-        //     const levels = allModulesData?.find(m => m.key === mod_key) || {}
-        //     return {
-        //       title: capitalizeFirstLetter(mod_key),
-        //       slug: mod_key,
-        //       levels: {
-        //         companylevel: levels.companylevel || false,
-        //         branchlevel: levels.branchlevel || false
-        //       }
-        //     }
-        //   })
-
-        //   // Module filtering based on access level
-        //   function canAccessModule(module) {
-        //     if (accessLevel === "owner") return true
-        //     if (accessLevel === "admin") return true
-        //     if (accessLevel === "supervisor")
-        //       return module.levels.branchlevel || module.levels.companylevel
-        //     if (accessLevel === "finance") return module.slug.includes("finance")
-        //     if (accessLevel === "operator") return module.levels.branchlevel
-        //     return false
-        //   }
-
-        //   setModules(transformedModules.filter(canAccessModule))
-        // }
-
-        // // Step 6: Fetch branches with access filter
-        // console.log("BRANCHES FETCH DEBUG:", { 
-        //   accessLevelScope, 
-        //   branchId, 
-        //   company_id: companiesLiteData.company_id 
-        // })
-        
-        const { data: branchesData, error: branchesError } = await supabase
-          .from("branches_lite")
-          .select("*")
+          .select("id, status, end_date, grace_period_end")
           .eq("company", companiesLiteData.company_id)
-       
-        let allowedBranches = []
-        
-        if (branchesError) {
-          console.error("Branches fetch error:", branchesError)
-        } else if (accessLevelScope === "company") {
-          // Company-level staff (owner, finance, admin_manager) see all branches
-          console.log("COMPANY-LEVEL: showing all branches")
-          allowedBranches = branchesData
-        } else if (accessLevelScope === "branch") {
-          // Branch-level staff see only their assigned branch
-          if (branchId && branchesData) {
-            allowedBranches = branchesData.filter(b => b.id === branchId)
-          } else {
-            console.log("No branch ID assigned to branch-level staff")
-          }
-        } 
-        
-        console.log(branchesData, allowedBranches)
-        setBranches(allowedBranches || [])
 
-        // Access levels already fetched in Step 3a and set in state
-      
+        if (error) {
+          console.error("Subscription fetch error:", error)
+        }
+
+        const allSubscriptions = subscriptions || []
+
+        // 🎯 Define allowed statuses
+        const allowedStatuses = ["active", "trialing", "past_due"]
+
+        // 🎯 Filter manually
+        const validSubscriptions = allSubscriptions.filter((sub) =>
+          allowedStatuses.includes(sub.status)
+        )
+
+        // ❗ Must be EXACTLY ONE
+        const hasValidSubscription = validSubscriptions.length === 1
+
+        // Extra safety: ensure status is truly valid
+        const currentSubscription = hasValidSubscription
+          ? validSubscriptions[0]
+          : null
+
+        setHasSubscription(!!currentSubscription)
+        setSubscriptionVerified(true)
+
+        if (!currentSubscription && !pathname?.includes("/subscriptions")) {
+          console.log("Invalid subscription state → redirecting")
+          redirectHappened = true
+          setIsRedirecting(true)
+          router.push(`/users/${u}/company/${companySlug}/subscriptions`)
+        }
+
+        // ──────────────────────────────────────────────────────────────
+        // Only continue if we have subscription OR we are already on subscriptions page
+        // ──────────────────────────────────────────────────────────────
+        if (!redirectHappened) {
+          // Set company info
+          setInfo({
+            ...companiesLiteData,
+            id: companiesLiteData.company_id,
+            accessLevel,
+            accessLevelScope,
+            branchId,
+            suspended,
+          })
+
+          // Currencies
+          const { data: currenciesArray } = await supabase
+            .from("currencies")
+            .select("name, code, flag")
+            .in("code", companiesLiteData.currencies || [])
+
+          setCurrencies(currenciesArray || [])
+
+          // Branches (with access filtering)
+          const { data: branchesData } = await supabase
+            .from("branches_lite")
+            .select("*")
+            .eq("company", companiesLiteData.company_id)
+
+          let allowedBranches = []
+          if (accessLevelScope === "company") {
+            allowedBranches = branchesData || []
+          } else if (accessLevelScope === "branch" && branchId) {
+            allowedBranches = branchesData?.filter(b => b.id === branchId) || []
+          }
+
+          setBranches(allowedBranches)
+        }
+
       } catch (err) {
-        console.error("Error during access check:", err)  
+        console.error("Error during access check:", err)
         toast("Failed to fetch company data.")
+        setSubscriptionVerified(true) // Mark as verified even on error
         router.push(`/users/${u}`)
       } finally {
-        setIsLoading(false)
+        // Only stop loading if we are NOT redirecting
+        if (!redirectHappened) {
+          setIsLoading(false)
+          setIsRedirecting(false)
+        }
+        // Ensure subscription is marked as verified
+        setSubscriptionVerified(true)
+        // If redirectHappened = true → spinner stays until navigation completes
       }
     }
 
     checkAccess()
-  }, [companySlug, u, router])
+  }, [companySlug, u, router, pathname])
 
-  if (isLoading) {
+  // ──────────────────────────────────────────────────────────────
+  // RENDER
+  // ──────────────────────────────────────────────────────────────
+  // If subscription not yet verified, show spinner
+  if (!subscriptionVerified) {
     return (
       <div className='overflow-hidden flex text-core justify-center items-center h-full'>
         <Spinner className='size-8 text-army' spinning={true} />
@@ -273,32 +225,19 @@ export default function CompanyLayout({ children }) {
     )
   }
 
-  if (noSubscriptionMessage) {
+  // If no subscription and not on subscriptions page, show spinner while redirecting
+  if (!hasSubscription && !pathname?.includes("/subscriptions")) {
     return (
-      <div className='min-h-screen bg-linear-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4'>
-        <div className='bg-white rounded-lg shadow-lg p-8 max-w-md text-center'>
-          <div className='mb-4'>
-            <div className='inline-flex items-center justify-center h-16 w-16 rounded-full bg-amber-100'>
-              <svg className='h-8 w-8 text-amber-600' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-                <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 9v2m0 4v2m0-6a4 4 0 110-8 4 4 0 010 8z' />
-              </svg>
-            </div>
-          </div>
-          <h1 className='text-2xl font-bold text-core mb-2'>No Active Subscription</h1>
-          <p className='text-slate-600 mb-6'>
-            Your company does not have a current running subscription, or the subscription has expired.
-          </p>
-          <p className='text-slate-700 font-medium mb-6'>
-            Please contact your Company Administrator to set up or renew a subscription.
-          </p>
-          <Button
-            onClick={() => router.push(`/users/${u}`)}
-            variant='outline'
-            className='w-full border-slate-300 hover:bg-slate-50'
-          >
-            Back to Dashboard
-          </Button>
-        </div>
+      <div className='overflow-hidden flex text-core justify-center items-center h-full'>
+        <Spinner className='size-8 text-army' spinning={true} />
+      </div>
+    )
+  }
+
+  if (isLoading || isRedirecting) {
+    return (
+      <div className='overflow-hidden flex text-core justify-center items-center h-full'>
+        <Spinner className='size-8 text-army' spinning={true} />
       </div>
     )
   }
@@ -318,7 +257,7 @@ export default function CompanyLayout({ children }) {
         accessLevel: info?.accessLevel,
         accessLevelScope: info?.accessLevelScope,
         branchId: info?.branchId,
-        suspended: info?.suspended
+        suspended: info?.suspended,
       }}
     >
       {children}
@@ -326,18 +265,13 @@ export default function CompanyLayout({ children }) {
   )
 }
 
-
-
+// ReusableCompanySidebar remains exactly the same
 export const ReusableCompanySidebar = ({ children }) => {
   const { info, modules, branches } = useContext(CompanyInfoContext)
 
   return (
     <SidebarProvider className="relative">
-      <AppSidebar 
-        company={info} 
-        branches={branches}
-      // modules={modules}
-       />
+      <AppSidebar company={info} branches={branches} />
       <SidebarInset className="h-svh overflow-hidden static">
         <div className="flex flex-col h-full">
           <div className="h-12 border-b">
@@ -345,7 +279,9 @@ export const ReusableCompanySidebar = ({ children }) => {
               <div className="flex">
                 <Button variant="ghost" size="icon" className="relative ml-3">
                   <Bell className="h-5 w-5" />
-                  <span className="absolute -top-0.5 -right-0.5 text-[9px] bg-red-600 translate-x-[-48.8%] translate-y-[48.9%] text-white font-semibold flex items-center justify-center size-3.5 rounded-full">3</span>
+                  <span className="absolute -top-0.5 -right-0.5 text-[9px] bg-red-600 translate-x-[-48.8%] translate-y-[48.9%] text-white font-semibold flex items-center justify-center size-3.5 rounded-full">
+                    3
+                  </span>
                 </Button>
               </div>
             </CompanyHeader>
@@ -364,5 +300,4 @@ export const ReusableCompanySidebar = ({ children }) => {
     </SidebarProvider>
   )
 }
-
 

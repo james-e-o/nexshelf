@@ -60,7 +60,7 @@ const PageLayout = ({ children }) => {
         if (params.u !== profile.handle) {
           console.warn(`Unauthorized access attempt by ${profile.handle}`)
           setIsLoading(false)
-          router.push(`/admin/${profile.handle}`)
+          router.push(`/users/${profile.handle}`)
           return
         }
 
