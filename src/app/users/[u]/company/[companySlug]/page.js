@@ -8,7 +8,7 @@ import { ReusableCompanySidebar } from "./layout"
 import { ChartAreaStacked } from "@/components/charts/area-charts/chart-area-stacked"
 import { ChartBarMultiple } from "@/components/charts/bar-charts/barchart-multiple"
 import { ChartRadialStacked } from "@/components/charts/radial-charts/radial-stacked"
-import supabase from "../../../../../config/supabaseClient"
+import supabase from "@/config/supabaseClient"
 import { toast } from "sonner"
 
 export default function CompanyPage() {

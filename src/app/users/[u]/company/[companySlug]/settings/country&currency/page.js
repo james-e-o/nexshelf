@@ -4,7 +4,7 @@ import { useContext,useState,useEffect } from "react";
 import { Pencil, Save, X } from "lucide-react";
 import { CompanyInfoContext } from "../../layout";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { supabase } from "../../../../../../../config/supabaseClient";
+import supabase from "@/config/supabaseClient";
 import { toast } from "sonner";
 
 
