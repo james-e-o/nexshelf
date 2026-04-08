@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useContext } from 'react'
-import { supabase } from '../../../../config/supabaseClient'
+import supabase from '@/config/supabaseClient'
 import { Spinner } from '@/components/ui/spinner'
 import { ArrowLeft, ArrowRight, Check, X } from 'lucide-react'
 import Link from 'next/link'
