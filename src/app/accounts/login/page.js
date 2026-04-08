@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import { Spinner } from "@/components/ui/spinner"
 import { isEmpty,isEmail,isLength,matches,contains } from "validator"
-import { supabase } from "../../../../config/supabaseClient";
+import  supabase  from "../../../config/supabaseClient";
 import { useRouter } from "next/navigation"
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogOverlay, DialogPortal, DialogTitle, DialogTrigger,} from "@/components/ui/dialog"
 import { google,x } from "../signup/page";

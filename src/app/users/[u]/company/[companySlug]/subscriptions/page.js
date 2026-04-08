@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { useRouter, useParams } from "next/navigation"
 import { Spinner } from "@/components/ui/spinner"
 import { startFreeTrial } from "@/lib/subscription-service"
-import { supabase } from "../../../../../../../config/supabaseClient"
+import supabase  from "../../../../../../config/supabaseClient"
 import { toast } from "sonner"
 
 const getStatusColor = (status) => {
@@ -100,7 +100,7 @@ export default function SubscriptionOverviewPage() {
           {currentSubscription ? (
             <div className="grid md:grid-cols-2 gap-6">
               {/* Current Plan Card */}
-              <div className="border border-gray-200 rounded-lg p-6 shadow-md">
+              <div className="border border-gray-200 rounded-lg p-6 shadow">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-sm font-semibold text-gray-500 uppercase">Current Plan</h3>
                   <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadgeColor(currentSubscription.status)}`}>
@@ -152,7 +152,7 @@ export default function SubscriptionOverviewPage() {
               </div>
 
               {/* Actions Card */}
-              <div className="border border-gray-200 rounded-lg p-6 shadow-md">
+              <div className="border border-gray-200 rounded-lg p-6 shadow">
                 <h3 className="text-sm font-semibold text-gray-500 uppercase mb-4">Actions</h3>
                 <div className="space-y-3">
                   <Button
@@ -183,15 +183,15 @@ export default function SubscriptionOverviewPage() {
               {/* No Active Subscription - Side by Side Layout */}
               <div className="grid md:grid-cols-2 gap-6">
                 {/* No Active Subscription Message */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 shadow-md">
-                  <p className="text-blue-900 font-semibold">No subscriptions currently active</p>
+                <div className="bg-blue-50 border border-blue-200 flex flex-col justify-center items-center rounded-lg p-6 shadow">
+                  <p className="text-blue-900 text-lg font-semibold">Your Company does not have an active subscription currently</p>
                   <p className="text-blue-700 text-sm mt-2">
                     Start a subscription to unlock all features and get premium support.
                   </p>
                 </div>
 
                 {/* Actions Card - for getting a subscription */}
-                <div className="border border-gray-200 rounded-lg p-6 shadow-md">
+                <div className="border border-gray-200 rounded-lg p-6 shadow">
                   <h3 className="text-sm font-semibold text-gray-500 uppercase mb-4">Actions</h3>
                   <div className="space-y-3">
                     <Button
@@ -229,8 +229,8 @@ export default function SubscriptionOverviewPage() {
           )}
 
           {/* Previous Subscriptions - Always Show */}
-          <div className="border border-gray-200 rounded-lg p-6 shadow-md">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase mb-4">Previous Subscriptions</h3>
+          <div className="border border-gray-200 rounded-lg p-6 shadow">
+            <h3 className="text-sm font-semibold text-gray-500 uppercase mb-4">Subscriptions history</h3>
             {previousSubscriptions && previousSubscriptions.length > 0 ? (
               <div className="space-y-3">
                 {previousSubscriptions.map((sub) => (

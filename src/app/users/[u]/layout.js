@@ -2,7 +2,7 @@
 import { useEffect, useState, createContext } from "react"
 import { Spinner } from '@/components/ui/spinner'
 import { useParams, useRouter } from 'next/navigation'
-import { supabase } from "../../../../config/supabaseClient"
+import supabase from "../../../config/supabaseClient"
 import { toast } from "sonner"
 
 export const DataContext = createContext()
@@ -12,22 +12,22 @@ const PageLayout = ({ children }) => {
   const params = useParams()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
-  const [data, setData] = useState({ profile: null, companies: null })
+  const [data, setData] = useState({ profile: null, companies: null, companiesLoading: false })
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-      const loginTime = Number(localStorage.getItem("login_timestamp"));
+    const loginTime = Number(localStorage.getItem("login_timestamp"));
 
-      const now = Date.now();
-      const ONE_DAY = 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    const ONE_DAY = 24 * 60 * 60 * 1000;
 
-      // Rule 1: 24 hours passed → logout
-      if (now - loginTime > ONE_DAY) {
-        supabase.auth.signOut();
-        localStorage.setItem("login_timestamp:",'');
-        router.push("/accounts/login");
-        return;
-      }
+    // Rule 1: 24 hours passed → logout
+    if (now - loginTime > ONE_DAY) {
+      supabase.auth.signOut();
+      localStorage.setItem("login_timestamp:", '');
+      router.push("/accounts/login");
+      return;
+    }
   }, []);
 
 

@@ -5,19 +5,16 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import { supabase } from '../../../../../../../../../../config/supabaseClient';
-import { Label } from '@/components/ui/label';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, ArrowLeft } from 'lucide-react';
+import supabase from '../../../../../../../../../config/supabaseClient';
 
 export default function AccessLevelDetailPage() {
   const params = useParams();
   const { level } = params;
-  
+
   const [permissions, setPermissions] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [changed, setChanged] = useState({});
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const capitalizeLevel = (str) => {
@@ -28,11 +25,34 @@ export default function AccessLevelDetailPage() {
       .join(' ');
   };
 
+  const getStatusBadge = (status) => {
+    if (status === true) {
+      return (
+        <span className="px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+          Allowed
+        </span>
+      );
+    } else if (status === false) {
+      return (
+        <span className="px-3 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">
+          Not Allowed
+        </span>
+      );
+    } else {
+      return (
+        <span className="px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+          Not Defined
+        </span>
+      );
+    }
+  };
+
   const fetchPermissionsData = async () => {
     try {
       setLoading(true);
       setError(null);
-      // Fetch all permissions from permission_keys table
+
+      // 1. Get all permission keys
       const { data: allPermissions, error: permError } = await supabase
         .from('permission_keys')
         .select('*')
@@ -42,11 +62,13 @@ export default function AccessLevelDetailPage() {
 
       // Group permissions by permission_group
       const groupedPerms = {};
-      (allPermissions || []).forEach(perm => {
-        const group = perm.permission_group;
+      (allPermissions || []).forEach((perm) => {
+        const group = perm.permission_group || 'ungrouped';
         if (!groupedPerms[group]) {
           groupedPerms[group] = {
-            label: group.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+            label: group
+              .replace(/_/g, ' ')
+              .replace(/\b\w/g, (l) => l.toUpperCase()),
             permissions: [],
           };
         }
@@ -54,11 +76,11 @@ export default function AccessLevelDetailPage() {
           key: perm.permission_key,
           label: perm.name,
           description: perm.description,
-          enabled: false,
+          status: null,
         });
       });
 
-      // Fetch permissions assigned to this access level
+      // 2. Get permissions assigned to this specific access level
       const { data: levelPermissions, error: levelError } = await supabase
         .from('access_level_permissions')
         .select('permission_key, allowed')
@@ -66,18 +88,23 @@ export default function AccessLevelDetailPage() {
 
       if (levelError) throw levelError;
 
-      // Create a map of which permissions are enabled for this level
-      const enabledMap = {};
-      (levelPermissions || []).forEach(perm => {
-        enabledMap[perm.permission_key] = perm.allowed;
+      console.log(level)
+      console.log(levelPermissions)
+
+      // Create lookup map for quick status check
+      const statusMap = {};
+      (levelPermissions || []).forEach((item) => {
+        statusMap[item.permission_key] = item.allowed;
       });
 
-      // Merge database state with fetched permissions
-      Object.keys(groupedPerms).forEach(groupKey => {
-        groupedPerms[groupKey].permissions = groupedPerms[groupKey].permissions.map(perm => ({
-          ...perm,
-          enabled: enabledMap[perm.key] ?? false,
-        }));
+      // Merge status into grouped permissions
+      Object.keys(groupedPerms).forEach((groupKey) => {
+        groupedPerms[groupKey].permissions = groupedPerms[groupKey].permissions.map(
+          (perm) => ({
+            ...perm,
+            status: statusMap[perm.key] !== undefined ? statusMap[perm.key] : null,
+          })
+        );
       });
 
       setPermissions(groupedPerms);
@@ -96,163 +123,112 @@ export default function AccessLevelDetailPage() {
   };
 
   useEffect(() => {
-    fetchPermissionsData();
-  }, [level]);
-
-  const handlePermissionToggle = (groupKey, permissionKey) => {
-    setPermissions(prev => ({
-      ...prev,
-      [groupKey]: {
-        ...prev[groupKey],
-        permissions: prev[groupKey].permissions.map(perm =>
-          perm.key === permissionKey ? { ...perm, enabled: !perm.enabled } : perm
-        ),
-      },
-    }));
-    setChanged(prev => ({
-      ...prev,
-      [permissionKey]: !changed[permissionKey],
-    }));
-  };
-
-  const handleSave = async () => {
-    try {
-      // Upsert each changed permission
-      const permissionsToUpdate = [];
-      Object.keys(permissions).forEach(groupKey => {
-        permissions[groupKey].permissions.forEach(perm => {
-          if (changed[perm.key]) {
-            permissionsToUpdate.push({
-              access_level_key: level,
-              permission_key: perm.key,
-              allowed: perm.enabled,
-            });
-          }
-        });
-      });
-
-      if (permissionsToUpdate.length > 0) {
-        const { error: upsertError } = await supabase
-          .from('access_level_permissions')
-          .upsert(permissionsToUpdate);
-
-        if (upsertError) throw upsertError;
-      }
-
-      setChanged({});
-      alert('Permissions saved successfully!');
-    } catch (err) {
-      console.error('Error saving permissions:', err);
-      alert('Error saving permissions: ' + err.message);
+    if (level) {
+      fetchPermissionsData();
     }
-  };
-
-  const renderCategory = (groupKey, groupData) => (
-    <div key={groupKey} className="space-y-3">
-      <h3 className="font-semibold text-sm text-gray-700 uppercase tracking-wide">
-        {groupData.label}
-      </h3>
-      <div className="space-y-2 pl-2">
-        {groupData.permissions.map((perm) => (
-          <div key={perm.key} className="flex items-center gap-2">
-            <Checkbox
-              id={perm.key}
-              checked={perm.enabled}
-              onCheckedChange={() => handlePermissionToggle(groupKey, perm.key)}
-              className="bg-white border-gray-300 data-[state=checked]:bg-army data-[state=checked]:border-army data-[state=checked]:text-white"
-            />
-            <div className="flex-1">
-              <Label htmlFor={perm.key} className="cursor-pointer font-medium text-sm">
-                {perm.label}
-              </Label>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+  }, [level]);
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Link href="../access-levels" className="text-blue-600 hover:underline text-sm whitespace-nowrap">
-            ← Back to Access Levels
+      <div className="p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <Link href="../access-levels">
+            <Button variant="outline" size="sm">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Access Levels
+            </Button>
           </Link>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="text-blue-600 hover:text-blue-700 p-1 h-auto"
-          >
-            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-          </Button>
-          <h2 className="text-base font-medium tracking-tight text-core">{capitalizeLevel(level)} Access Level</h2>
+          <h1 className="text-2xl font-semibold">{capitalizeLevel(level)} Access Level</h1>
         </div>
-        <p className="text-gray-600">Loading permissions...</p>
+        <p>Loading permissions...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Link href="../access-levels" className="text-blue-600 hover:underline text-sm whitespace-nowrap">
-            ← Back to Access Levels
+      <div className="p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <Link href="../access-levels">
+            <Button variant="outline" size="sm">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Access Levels
+            </Button>
           </Link>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="text-blue-600 hover:text-blue-700 p-1 h-auto"
-          >
-            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-          </Button>
-          <h2 className="text-base font-medium tracking-tight text-core">{capitalizeLevel(level)} Access Level</h2>
+          <h1 className="text-lg  text-core font-semibold">{capitalizeLevel(level)} Access Level</h1>
         </div>
-        <p className="text-red-600">Error loading permissions: {error}</p>
+        <div className="text-red-600">Error: {error}</div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 flex flex-col grow overflow-y-auto">
-      <div className="flex items-center gap-4">
-        <Link href="../access-levels" className="text-blue-600 hover:underline text-sm whitespace-nowrap">
-          ← Back to Access Levels
-        </Link>
+    <div className="p-6   h-full flex flex-col overflow-y-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8 flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <Link href="../access-levels">
+            <Button variant="outline" size="sm">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Access Levels
+            </Button>
+          </Link>
+          <h4 className="text-lg font-semibold text-core">
+            {capitalizeLevel(level)} Access Level
+          </h4>
+        </div>
+
         <Button
-          variant="ghost"
-          size="sm"
           onClick={handleRefresh}
           disabled={isRefreshing}
-          className="text-blue-600 hover:text-blue-700 p-1 h-auto"
+          variant="outline"
         >
-          <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`mr-2 text-army h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          Refresh
         </Button>
-        <h2 className="text-base font-medium tracking-tight text-core">{capitalizeLevel(level)} Access Level</h2>
       </div>
 
-      <Card className="p-6 space-y-6">
+      {/* Permissions Display */}
+      <div className="flex-1 overflow-y-auto">
         {Object.keys(permissions).length === 0 ? (
-          <p className="text-gray-600">No permissions available</p>
+          <Card className="p-8 text-center text-gray-500">
+            No permissions available
+          </Card>
         ) : (
-          Object.entries(permissions).map(([groupKey, perms], index) => (
-            <div key={groupKey} className=''>
-              {renderCategory(groupKey, perms)}
-              {index < Object.keys(permissions).length - 1 && <div className="border-b py-2" />}
-            </div>
+          Object.entries(permissions).map(([groupKey, groupData]) => (
+            <Card key={groupKey} className="mb-8 overflow-hidden">
+              <div className="bg-muted px-6 py-4 border-b">
+                <h2 className="text-xl font-semibold">{groupData.label}</h2>
+              </div>
+
+              <div className="divide-y">
+                {groupData.permissions.map((perm) => (
+                  <div
+                    key={perm.key}
+                    className="grid grid-cols-1 md:grid-cols-12 gap-4 px-6 py-5 items-center hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="md:col-span-5">
+                      <div className="font-medium">{perm.label}</div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        {perm.description}
+                      </div>
+                    </div>
+
+                    <div className="md:col-span-4 text-sm text-muted-foreground font-mono break-all">
+                      {perm.key}
+                    </div>
+
+                    <div className="md:col-span-3 flex justify-end">
+                      {getStatusBadge(perm.status)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
           ))
         )}
-
-        <div className="flex gap-2 pt-4 border-t">
-          <Button variant={''} className={'bg-core text-white'} onClick={handleSave}>Save Permissions</Button>
-          <Button variant="outline">Cancel</Button>
-        </div>
-      </Card>
+      </div>
     </div>
   );
 }
+

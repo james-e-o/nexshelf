@@ -7,7 +7,7 @@ import { Slider } from '@/components/ui/slider'
 import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
 import Image from 'next/image'
-import { supabase } from '../../config/supabaseClient'
+import supabase from '../config/supabaseClient'
 
 const EditImage = ({ editInfo, setEditState, setEditInfo, onSave, onDelete , onDuplicate}) => {
 

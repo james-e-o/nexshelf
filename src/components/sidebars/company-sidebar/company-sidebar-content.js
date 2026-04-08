@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";    
 import { CollapsibleButton,NoCollapsibleButton } from "./company-sidebar";
 
-export default function CompanySidebarContent({modules, branches, company,}) {
+export default function CompanySidebarContent({modules, branches, company, accessLevel, accessLevelScope, branchId, suspended }) {
    const params = useParams()   
 
     return (

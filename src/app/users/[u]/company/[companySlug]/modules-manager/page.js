@@ -4,7 +4,7 @@ import React, { useEffect, useState,useContext } from "react"
 import { CompanyInfoContext } from "../layout"
 import { Button } from "@/components/ui/button"
 import {  LayoutDashboard,  FileChartLine,  ChartCandlestick,  Settings,  Users,  Check,  Plus,  Info,  Package,  Boxes,  Truck,} from "lucide-react"
-import { supabase } from "../../../../../../../config/supabaseClient"
+import supabase from "../../../../../../config/supabaseClient"
 
 // Map module keys → icons (for dynamic assignment)
 const moduleIcons = {

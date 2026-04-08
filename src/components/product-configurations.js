@@ -9,7 +9,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Plus, X, Info, Trash2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { supabase } from '../../config/supabaseClient';
+import supabase from '../config/supabaseClient';
 
 export const ProductConfigurations = forwardRef(({
   selectedCollectionId,
@@ -37,6 +37,10 @@ export const ProductConfigurations = forwardRef(({
   setPricingContexts,
   selectedPricingContexts,
   setSelectedPricingContexts,
+  editingContextId,
+  setEditingContextId,
+  editingContextData,
+  setEditingContextData,
   errors = {},
   shippingProfiles,
   setShippingProfiles,
@@ -52,6 +56,7 @@ export const ProductConfigurations = forwardRef(({
   setMinimumProductUnits,
   bulkQuantity,
   setBulkQuantity,
+  variants = [],
   branch,
   productType = 'physical',
   reorderLevel,
@@ -100,8 +105,6 @@ export const ProductConfigurations = forwardRef(({
   const [isSavingPricingContext, setIsSavingPricingContext] = useState(false);
   const [isDeletingPricingContext, setIsDeletingPricingContext] = useState(null);
   const [pricingContextsFromDb, setPricingContextsFromDb] = useState([]);
-  const [editingContextId, setEditingContextId] = useState(null);
-  const [editingContextData, setEditingContextData] = useState({});
 
   // Default pricing context (always shown, not from database)
   const defaultPricingContext = {
@@ -1002,13 +1005,23 @@ export const ProductConfigurations = forwardRef(({
                           step="0.01"
                           value={editingContextId === context.id ? (editingContextData.margin_percentage || '') : (context.margin_percentage || '')} 
                           onChange={(e) => {
-                            setEditingContextId(context.id);
+                            // If not already editing this context, initialize editingContextData with all current values
+                            if (editingContextId !== context.id) {
+                              setEditingContextId(context.id);
+                              setEditingContextData({
+                                margin_percentage: context.margin_percentage || '',
+                                margin_value: context.margin_value || '',
+                                selling_price: context.selling_price || '',
+                                bulk_reduction_percentage: context.bulk_reduction_percentage || '',
+                                bulk_reduction_value: context.bulk_reduction_value || ''
+                              });
+                            }
                             const percentage = e.target.value;
-                            setEditingContextData({
-                              ...editingContextData,
+                            setEditingContextData(prev => ({
+                              ...prev,
                               margin_percentage: percentage,
                               margin_value: calculateValueFromPercentage(percentage, costPrice)
-                            });
+                            }));
                           }} 
                           className={`mt-1 bg-[#fcfcfc] h-8 ${productType === 'physical' && errors.margin && !((editingContextId === context.id ? editingContextData.margin_percentage : context.margin_percentage) || '') ? 'border-red-500 border-2' : ''}`}
                         />
@@ -1021,13 +1034,23 @@ export const ProductConfigurations = forwardRef(({
                             step="0.01"
                             value={editingContextId === context.id ? (editingContextData.margin_value || '') : (context.margin_value || '')} 
                             onChange={(e) => {
-                              setEditingContextId(context.id);
+                              // If not already editing this context, initialize editingContextData with all current values
+                              if (editingContextId !== context.id) {
+                                setEditingContextId(context.id);
+                                setEditingContextData({
+                                  margin_percentage: context.margin_percentage || '',
+                                  margin_value: context.margin_value || '',
+                                  selling_price: context.selling_price || '',
+                                  bulk_reduction_percentage: context.bulk_reduction_percentage || '',
+                                  bulk_reduction_value: context.bulk_reduction_value || ''
+                                });
+                              }
                               const value = e.target.value;
-                              setEditingContextData({
-                                ...editingContextData,
+                              setEditingContextData(prev => ({
+                                ...prev,
                                 margin_value: value,
                                 margin_percentage: calculatePercentageFromValue(value, costPrice)
-                              });
+                              }));
                             }} 
                             className={'mt-0 bg-[#fcfcfc] h-8'}
                           />
@@ -1052,11 +1075,21 @@ export const ProductConfigurations = forwardRef(({
                             step="0.01"
                             value={editingContextId === context.id ? (editingContextData.selling_price || '') : (context.selling_price || '')} 
                             onChange={(e) => {
-                              setEditingContextId(context.id);
-                              setEditingContextData({
-                                ...editingContextData,
+                              // If not already editing this context, initialize editingContextData with all current values
+                              if (editingContextId !== context.id) {
+                                setEditingContextId(context.id);
+                                setEditingContextData({
+                                  margin_percentage: context.margin_percentage || '',
+                                  margin_value: context.margin_value || '',
+                                  selling_price: context.selling_price || '',
+                                  bulk_reduction_percentage: context.bulk_reduction_percentage || '',
+                                  bulk_reduction_value: context.bulk_reduction_value || ''
+                                });
+                              }
+                              setEditingContextData(prev => ({
+                                ...prev,
                                 selling_price: e.target.value
-                              });
+                              }));
                             }}
                             placeholder="Enter selling price"
                             className={`mt-0 h-8 ${errors.sellingPrice ? 'border-red-500 border-2' : ''}`}
@@ -1080,42 +1113,76 @@ export const ProductConfigurations = forwardRef(({
                     </p>
                   </div>
 
-                  {/* Bulk Price Reduction - Dual Inputs (Percentage & Value) */}
+                  {/* Bulk Quantity */}
                   <div>
-                    <Label className="text-xs font-medium mb-2 block">Bulk Price Reduction (Optional)</Label>
+                    <Label className="text-xs font-medium mb-2 block">Bulk Quantity (Optional)</Label>
+                    <Input 
+                      type='number'
+                      value={bulkQuantity || ''} 
+                      onChange={(e) => {
+                        setBulkQuantity(e.target.value);
+                      }}
+                      placeholder="Enter bulk quantity threshold"
+                      className={`h-8 ${errors.bulkQuantity ? 'border-red-500 border-2' : ''}`}
+                    />
+                  </div>
+
+                  {/* Bulk Pricing - Dual Inputs (Percentage & Value) */}
+                  <div>
+                    <Label className="text-xs font-medium mb-2 block">Bulk Pricing (Optional)</Label>
                     <div className="flex mt-3 gap-3 items-center">
                       <div className="grow">
-                        <Label className='ml-0.5 text-[10px]'>Bulk Reduction %</Label>
+                        <Label className='ml-0.5 text-[10px]'>Bulk Price %</Label>
                         <Input 
                           type='number' 
                           step="0.01"
                           value={editingContextId === context.id ? (editingContextData.bulk_reduction_percentage || '') : (context.bulk_reduction_percentage || '')} 
                           onChange={(e) => {
-                            setEditingContextId(context.id);
+                            // If not already editing this context, initialize editingContextData with all current values
+                            if (editingContextId !== context.id) {
+                              setEditingContextId(context.id);
+                              setEditingContextData({
+                                margin_percentage: context.margin_percentage || '',
+                                margin_value: context.margin_value || '',
+                                selling_price: context.selling_price || '',
+                                bulk_reduction_percentage: context.bulk_reduction_percentage || '',
+                                bulk_reduction_value: context.bulk_reduction_value || ''
+                              });
+                            }
                             const percentage = e.target.value;
-                            setEditingContextData({
-                              ...editingContextData,
+                            setEditingContextData(prev => ({
+                              ...prev,
                               bulk_reduction_percentage: percentage,
                               bulk_reduction_value: calculateValueFromPercentage(percentage, costPrice)
-                            });
+                            }));
                           }} 
                           className={'mt-1 bg-[#fcfcfc] h-8'}
                         />
                       </div>
                       <div className="grow">
-                        <Label className='ml-0.5 text-[10px]'>Bulk Reduction Value</Label>
+                        <Label className='ml-0.5 text-[10px]'>Bulk Price Value</Label>
                         <Input 
                           type='number' 
                           step="0.01"
                           value={editingContextId === context.id ? (editingContextData.bulk_reduction_value || '') : (context.bulk_reduction_value || '')} 
                           onChange={(e) => {
-                            setEditingContextId(context.id);
+                            // If not already editing this context, initialize editingContextData with all current values
+                            if (editingContextId !== context.id) {
+                              setEditingContextId(context.id);
+                              setEditingContextData({
+                                margin_percentage: context.margin_percentage || '',
+                                margin_value: context.margin_value || '',
+                                selling_price: context.selling_price || '',
+                                bulk_reduction_percentage: context.bulk_reduction_percentage || '',
+                                bulk_reduction_value: context.bulk_reduction_value || ''
+                              });
+                            }
                             const value = e.target.value;
-                            setEditingContextData({
-                              ...editingContextData,
+                            setEditingContextData(prev => ({
+                              ...prev,
                               bulk_reduction_value: value,
                               bulk_reduction_percentage: calculatePercentageFromValue(value, costPrice)
-                            });
+                            }));
                           }} 
                           className={'mt-1 bg-[#fcfcfc] h-8'}
                         />

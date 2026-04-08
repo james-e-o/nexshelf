@@ -16,30 +16,25 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { RefreshCw } from 'lucide-react';
-import { supabase } from '../../../../../../../../../config/supabaseClient';
+import  supabase  from '../../../../../../../../config/supabaseClient';
 import { CompanyInfoContext } from '../../../layout';
-
-// Dummy roles data - will be fetched from API later
-const DUMMY_ROLES = [
-  { id: 'cashier', name: 'Cashier' },
-  { id: 'operator', name: 'Operator' },
-  { id: 'supervisor', name: 'Supervisor' },
-  { id: 'manager', name: 'Manager' },
-  { id: 'admin', name: 'Admin' },
-];
 
 export default function InvitationsPage() {
   const params = useParams();
   const { info, accessLevels } = useContext(CompanyInfoContext);
-  const companyId = info.id;
-// console.log('Company Info from context:', info);
+  const companyId = info?.id;
+
+  if (!companyId) {
+    return <div>Loading...</div>;
+  }
   const [settings, setSettings] = useState({
-    default_role_id: 'cashier',
+    default_role_id: null,
     default_access_level_key: '',
     default_branch_id: '',
     auto_activate_staff: false,
   });
 
+  const [roles, setRoles] = useState([]);
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [branchError, setBranchError] = useState(null);
@@ -54,6 +49,20 @@ export default function InvitationsPage() {
             ...prev,
             default_access_level_key: accessLevels[0].key,
           }));
+        }
+
+        // Fetch roles from company_roles table
+        const { data: rolesData, error: fetchRolesError } = await supabase
+          .from('company_roles')
+          .select('id, role')
+          .eq('company_id', companyId)
+          .eq('is_active', true)
+          .order('created_at', { ascending: true });
+
+        if (fetchRolesError) {
+          console.error('Error fetching roles:', fetchRolesError);
+        } else {
+          setRoles(rolesData || []);
         }
 
         // Fetch branches separately
@@ -91,8 +100,21 @@ export default function InvitationsPage() {
     setIsRefreshing(true);
     setLoading(true);
     await new Promise(resolve => setTimeout(resolve, 300));
-    // Refetch only branches - access levels are managed by the layout context
+    // Refetch roles and branches
     try {
+      const { data: rolesData, error: fetchRolesError } = await supabase
+        .from('company_roles')
+        .select('id, role')
+        .eq('company_id', companyId)
+        .eq('is_active', true)
+        .order('created_at', { ascending: true });
+
+      if (fetchRolesError) {
+        console.error('Error fetching roles:', fetchRolesError);
+      } else {
+        setRoles(rolesData || []);
+      }
+
       const { data: branchData, error: fetchBranchError } = await supabase
         .from('branches_lite')
         .select('id, name')
@@ -138,18 +160,21 @@ export default function InvitationsPage() {
           <div className="space-y-2">
             <Label htmlFor="default_role_id">Default Role for New Invitations</Label>
             <Select
-              value={settings.default_role_id}
+              value={settings.default_role_id === null ? 'none' : String(settings.default_role_id)}
               onValueChange={(value) =>
-                setSettings(prev => ({ ...prev, default_role_id: value }))
+                setSettings(prev => ({ ...prev, default_role_id: value === 'none' ? null : value }))
               }
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select a role" />
               </SelectTrigger>
               <SelectContent>
-                {DUMMY_ROLES.map((role) => (
-                  <SelectItem key={role.id} value={role.id}>
-                    {role.name}
+                <SelectItem value="none">
+                  No Selection
+                </SelectItem>
+                {roles.map((role) => (
+                  <SelectItem key={role.id} value={String(role.id)}>
+                    {role.role}
                   </SelectItem>
                 ))}
               </SelectContent>

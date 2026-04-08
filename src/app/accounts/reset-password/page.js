@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import { Spinner } from "@/components/ui/spinner"
 import { isEmpty, isLength, contains } from "validator"
-import { supabase } from "../../../../config/supabaseClient";
+import  supabase  from "../../../config/supabaseClient";
 import Image from "next/image";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"

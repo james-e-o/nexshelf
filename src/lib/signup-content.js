@@ -11,7 +11,7 @@ import { Field, FieldDescription, FieldGroup, FieldLabel, FieldSeparator } from 
 import { Input } from "@/components/ui/input"
 import Image from "next/image"
 import { isEmpty, isLength, contains } from "validator"
-import { supabase } from '../../config/supabaseClient'
+import { supabase } from '../config/supabaseClient'
 
 export default function SignupPageContent({ searchParams }) {
   const params = use(searchParams); // Unwrap the searchParams Promise

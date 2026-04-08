@@ -3,7 +3,7 @@
 import { useEffect, useState, createContext } from 'react';
 import { Spinner } from '@/components/ui/spinner';
 import { useParams, useRouter } from 'next/navigation';
-import { supabase } from '../../../../config/supabaseClient';
+import { supabase } from '../../../config/supabaseClient';
 import { toast } from 'sonner';
 
 export const StaffDataContext = createContext();

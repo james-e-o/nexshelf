@@ -1,9 +1,11 @@
 'use client'
 
-import { useContext, useState } from 'react'
+import { useContext, useMemo } from 'react'
 import { CompanyInfoContext } from '../layout'
+import { StaffContext } from '@/components/contexts/staff-context'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import Link from 'next/link'
 import {
   Users,
@@ -17,17 +19,59 @@ import {
 
 export default function StaffDashboard() {
   const { info, user } = useContext(CompanyInfoContext)
-  const [stats] = useState({
-    totalStaff: 0,
-    activeStaff: 0,
-    suspendedStaff: 0,
-    pendingInvites: 0,
-    newThisMonth: 0,
-    byAccessLevel: {},
-    byBranch: {},
-    recentHires: [],
-    recentSuspensions: [],
-  })
+  const { staffData, isLoadingStaff } = useContext(StaffContext)
+
+  // Calculate statistics from real data
+  const stats = useMemo(() => {
+    if (!staffData || staffData.length === 0) {
+      return {
+        totalStaff: 0,
+        activeStaff: 0,
+        suspendedStaff: 0,
+        pendingInvites: 0,
+        newThisMonth: 0,
+        byAccessLevel: {},
+        byBranch: {},
+        recentHires: [],
+        recentSuspensions: [],
+      }
+    }
+
+    const now = new Date()
+    const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+
+    const calculated = {
+      totalStaff: staffData.length,
+      activeStaff: staffData.filter(s => s.status === 'active').length,
+      suspendedStaff: staffData.filter(s => s.status === 'suspended').length,
+      pendingInvites: staffData.filter(s => s.status === 'pending').length,
+      newThisMonth: staffData.filter(s => {
+        const hireDate = new Date(s.date_hired)
+        return hireDate >= oneMonthAgo
+      }).length,
+      byAccessLevel: {},
+      byBranch: {},
+      recentHires: staffData
+        .filter(s => s.status !== 'terminated')
+        .slice(0, 5),
+      recentSuspensions: staffData
+        .filter(s => s.status === 'suspended')
+        .slice(0, 5),
+    }
+
+    // Calculate distributions
+    staffData.forEach(staff => {
+      // By access level
+      const level = staff.access_level || 'Unassigned'
+      calculated.byAccessLevel[level] = (calculated.byAccessLevel[level] || 0) + 1
+
+      // By branch
+      const branch = staff.branch || 'Main Branch'
+      calculated.byBranch[branch] = (calculated.byBranch[branch] || 0) + 1
+    })
+
+    return calculated
+  }, [staffData])
 
   // Stat Card Component
   const StatCard = ({ icon: Icon, label, value, color, bgColor }) => (
@@ -81,8 +125,14 @@ export default function StaffDashboard() {
 
   return (
     <div className="space-y-5 grow flex flex-col overflow-y-auto">
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      {isLoadingStaff ? (
+        <div className="flex items-center justify-center h-96">
+          <Spinner className="size-8 text-core" spinning={true} />
+        </div>
+      ) : (
+        <>
+          {/* Key Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard
           icon={Users}
           label="Total Staff"
@@ -283,6 +333,8 @@ export default function StaffDashboard() {
           </div>
         </Card>
       </div>
+        </>
+      )}
     </div>
   )
 }

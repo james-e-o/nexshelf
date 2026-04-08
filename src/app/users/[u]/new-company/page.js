@@ -1,26 +1,23 @@
 'use client'
 
-import { useEffect, useState,useContext } from 'react'
-import { supabase } from '../../../../../config/supabaseClient'
+import { useEffect, useState, useContext } from 'react'
+import { supabase } from '../../../../config/supabaseClient'
 import { Spinner } from '@/components/ui/spinner'
-import { ArrowLeft, ArrowRight, Bell, TriangleAlert, Check,X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, X } from 'lucide-react'
 import Link from 'next/link'
 import { DataContext } from '../layout'
-import { AppSidebar } from '@/components/sidebars/app-sidebar/app-sidebar'
-import {SidebarInset,SidebarProvider,SidebarTrigger,} from "@/components/ui/sidebar"
 import { useParams, useRouter } from 'next/navigation'
-import Header from '@/components/headers/dashboard-header'
 import { Button } from '@/components/ui/button'
-import {Field,FieldDescription,FieldGroup,FieldLabel,FieldSeparator,} from "@/components/ui/field"
+import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import ComboDropTemplate from '@/components/combo-drop'
 import { cn } from '@/lib/utils'
-import { Tabs,TabsTrigger,TabsList,TabsContent } from "@/components/ui/tabs"
+import { Tabs, TabsTrigger, TabsList, TabsContent } from '@/components/ui/tabs'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
-export default function AdminUserPage() {
+export default function NewCompanyPage() {
 
         const router = useRouter()
         const params = useParams()
@@ -181,47 +178,22 @@ export default function AdminUserPage() {
 
 
   return (
-
-    <SidebarProvider className={'relative'}>
-      <AppSidebar />
-      <SidebarInset className={'overflow-hidden h-svh static'}>
-
-        <div className="flex h-full overflow-hidden flex-col">
-            <div className='flex-col overflow-hidden h-full flex'>
-                <div className='h-12'>
-                    <Header>
-                        <div className="flex">
-                            <div className='md:flex gap-2 hidden mr-1 items-center '>
-                        
-                            </div>
-                            <Button variant='ghost' size='icon' className='relative ml-3'>
-                            <Bell className='h-5 w-5'/>
-                            <span className='absolute -top-0.5 -right-0.5 text-[9px] bg-red-600 translate-x-[-48.8%] translate-y-[48.9%] text-white font-semibold flex items-center justify-center size-3.5 rounded-full'>3</span>
-                            </Button>
-                        </div>
-                    </Header>
-                </div>
-                <div className='flex-col overflow-y-auto grow p-8 flex px-8' style={{background: 'linear-gradient(to bottom right, #f8fafc, #f1f5f9)'}}>
-                    
-
-                    <div className=' flex font-WixMade inset-0  bg-neutral-500 shadow-md shadow- absolute z-40 '>
-                        <div className='bg-armylight flex border-zinc-400 border absolute inset-2 shadow-0 justify-center p-12 overflow-auto rounded-lg'>
-                        
-                        <div className='w-full max-w-2xl h-fit'>
-                   
-                        <div className="p-8 rounded-2xl bg-white shadow-lg ">
-                            {/* Header */}
-                            {/* <div className="mb-8">
-                                <h1 className='text-2xl font-bold text-slate-900 mb-2'>Create a new company</h1>
-                                <p className='text-sm text-slate-600'>Set up your company profile and initial settings</p>
-                            </div> */}
-                              <div className='flex justify-between items-center'>
-                                <div className="mb-8">
-                                    <h1 className='text-2xl font-bold text-slate-900 mb-2'>Create a new company</h1>
-                                    <p className='text-sm text-slate-600'>Set up your company profile and initial settings</p>
-                                </div>
-                                <Link href={`/users/${params.u}`}><Button variant={'outline'} className="text-neutral-500 relative -top-10 h-7 hover:text-black text-xs">✕</Button></Link>
-                            </div>
+    <div className="flex font-WixMade inset-0 bg-neutral-500 shadow-md shadow- absolute z-40">
+      <div className="bg-armylight flex border-zinc-400 border absolute inset-2 shadow-0 justify-center p-12 overflow-auto rounded-lg">
+        <div className="w-full max-w-2xl h-fit">
+          <div className="p-8 rounded-2xl bg-white shadow-lg">
+            {/* Header */}
+            <div className="flex justify-between items-center">
+              <div className="mb-8">
+                <h1 className="text-2xl font-bold text-slate-900 mb-2">Create a new company</h1>
+                <p className="text-sm text-slate-600">Set up your company profile and initial settings</p>
+              </div>
+              <Link href={`/users/${params.u}`}>
+                <Button variant={'outline'} className="text-neutral-500 relative -top-10 h-7 hover:text-black text-xs">
+                  ✕
+                </Button>
+              </Link>
+            </div>
 
                             {/* Step indicators */}
                             <div className="mb-8">
@@ -479,17 +451,9 @@ export default function AdminUserPage() {
                                 </Button>
                                 )}
                             </div>
-
+                          </div>
                         </div>
-                        </div>
+                      </div>
                     </div>
-                    </div>
-                    
-                </div>       
-            </div>
-        </div>
-
-      </SidebarInset>
-    </SidebarProvider>
   )
 }

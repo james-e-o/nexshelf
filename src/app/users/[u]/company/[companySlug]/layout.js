@@ -2,7 +2,7 @@
 
 import { useEffect, useState, createContext, useContext } from "react"
 import { useRouter, useParams, usePathname } from "next/navigation"
-import { supabase } from "../../../../../../config/supabaseClient"
+import supabase from "../../../../../config/supabaseClient"
 import { toast } from "sonner"
 import { Spinner } from "@/components/ui/spinner"
 import { AppSidebar } from "@/components/sidebars/company-sidebar/company-sidebar"
@@ -267,11 +267,18 @@ export default function CompanyLayout({ children }) {
 
 // ReusableCompanySidebar remains exactly the same
 export const ReusableCompanySidebar = ({ children }) => {
-  const { info, modules, branches } = useContext(CompanyInfoContext)
+  const { info, modules, branches, accessLevel, accessLevelScope, branchId, suspended } = useContext(CompanyInfoContext)
 
   return (
     <SidebarProvider className="relative">
-      <AppSidebar company={info} branches={branches} />
+      <AppSidebar 
+        company={info} 
+        branches={branches}
+        accessLevel={accessLevel}
+        accessLevelScope={accessLevelScope}
+        branchId={branchId}
+        suspended={suspended}
+      />
       <SidebarInset className="h-svh overflow-hidden static">
         <div className="flex flex-col h-full">
           <div className="h-12 border-b">

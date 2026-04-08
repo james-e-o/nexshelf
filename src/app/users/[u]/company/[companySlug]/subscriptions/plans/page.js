@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Toast } from "sonner"
 import { Spinner } from "@/components/ui/spinner"
 import { startFreeTrial } from "@/lib/subscription-service"
-import { supabase } from "../../../../../../../../config/supabaseClient"
+import  supabase  from "../../../../../../../config/supabaseClient"
 import {
   Sheet,
   SheetContent,
@@ -84,7 +84,7 @@ export default function PlansPage() {
       if (result.success) {
         // toast.success("Free trial started! Redirecting...")
         setTimeout(() => {
-          router.push(`/users/${u}/company/${companySlug}/subscriptions`)
+          router.push(`/users/${u}/company/${companySlug}`)
         }, 1500)
       } else {
         setTrialLoading(false)

@@ -1,8 +1,8 @@
 'use client'
 
 import { useContext, useState, useEffect } from 'react'
-import { CompanyInfoContext } from '../../layout'
-import { supabase } from '../../../../../../../../config/supabaseClient'
+import { CompanyInfoContext } from '../../../layout'
+import supabase from '@/config/supabaseClient'
 import { useParams, useRouter } from 'next/navigation'
 import { Card } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -10,8 +10,9 @@ import { Spinner } from '@/components/ui/spinner'
 import { ChevronLeft } from 'lucide-react'
 import Link from 'next/link'
 import StaffOverview from './page'
+import EditStaffTab from './edit-staff/page'
 import PermissionsTab from './permissions/page'
-import SecurityTab from './security/page'
+import { toast } from 'sonner'
 
 export default function StaffDetailLayout() {
   const params = useParams()
@@ -19,34 +20,38 @@ export default function StaffDetailLayout() {
   const { info, user: currentUser } = useContext(CompanyInfoContext)
   const [staffData, setStaffData] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState('overview')
 
   useEffect(() => {
     const fetchStaffData = async () => {
-      try {
+      setIsLoading(true)
+      try {        
         const { data, error } = await supabase
           .from('staff')
-          .select(`
-            *,
-            users:user_id (id, handle, username, email)
-          `)
+          .select('*')
           .eq('id', params.id)
-          .eq('company_id', info.id)
+          .eq('company', info.id)
           .single()
 
-        if (error) throw error
+        if (error) {
+          console.error('Supabase error:', error)
+          throw error
+        }
 
+       toast('Staff data fetched')
         setStaffData(data)
       } catch (err) {
         console.error('Error fetching staff:', err)
+        setStaffData(null)
       } finally {
         setIsLoading(false)
       }
     }
 
-    if (info?.id && params.id) {
+    if (info?.id && params?.id) {
       fetchStaffData()
     }
-  }, [info?.id, params.id])
+  }, [info?.id, params?.id])
 
   if (isLoading) {
     return (
@@ -83,44 +88,21 @@ export default function StaffDetailLayout() {
   return (
     <div className="space-y-6">
       {/* Header with Back Button */}
-      <div className="flex items-center gap-4">
-        <Link
-          href={`/users/${currentUser.handle}/company/${info.slug}/staff/directory`}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-        >
-          <ChevronLeft className="size-5" />
-          Back to Directory
-        </Link>
-      </div>
-
-      {/* Staff Info Card */}
-      <Card className="border-gray-200 shadow-sm p-6">
-        <div className="flex items-start justify-between">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-gray-900">
-                @{staffData.users?.handle}
-              </h1>
-              <span
-                className={`inline-block px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(
-                  staffData.status
-                )}`}
-              >
-                {staffData.status}
-              </span>
-            </div>
-            <p className="text-gray-600">{staffData.users?.email}</p>
-          </div>
-          <div className="text-right text-sm text-gray-600">
-            <p className="font-semibold text-gray-900">Role: {staffData.role || 'Staff'}</p>
-            <p>Access Level: {staffData.access_level || 'Basic'}</p>
-          </div>
-        </div>
-      </Card>
 
       {/* Tabs */}
-      <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-gray-100 p-1">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full h-[calc(100vh-200px)] flex flex-col">
+        <div className='flex items-center justify-start gap-6'>
+
+        <div className="flex items-center gap-4">
+          <Link
+            href={`/users/${currentUser.handle}/company/${info.slug}/staff/directory`}
+            className="flex items-center gap-2 text-army hover:text-gray-900 transition-colors"
+          >
+            <ChevronLeft className="size-5 text-core" />
+            Back to Directory
+          </Link>
+        </div>
+        <TabsList className="grid w-fit gap-5 grid-cols-3 bg-gray-100 p-1 shrink-0">
           <TabsTrigger
             value="overview"
             className="data-[state=active]:bg-white data-[state=active]:text-core data-[state=active]:shadow-sm"
@@ -128,33 +110,30 @@ export default function StaffDetailLayout() {
             Overview
           </TabsTrigger>
           <TabsTrigger
+            value="edit-staff"
+            className="data-[state=active]:bg-white data-[state=active]:text-core data-[state=active]:shadow-sm"
+          >
+            Edit Staff
+          </TabsTrigger>
+          <TabsTrigger
             value="permissions"
             className="data-[state=active]:bg-white data-[state=active]:text-core data-[state=active]:shadow-sm"
           >
             Permissions
           </TabsTrigger>
-          <TabsTrigger
-            value="security"
-            className="data-[state=active]:bg-white data-[state=active]:text-core data-[state=active]:shadow-sm"
-          >
-            Security
-          </TabsTrigger>
         </TabsList>
+        </div>
 
-        <TabsContent value="overview" className="space-y-4">
+        <TabsContent value="overview" className="space-y-4 flex-1 overflow-y-auto">
           <StaffOverview staffData={staffData} setStaffData={setStaffData} />
         </TabsContent>
 
-        <TabsContent value="permissions" className="space-y-4">
-          <PermissionsTab staffData={staffData} setStaffData={setStaffData} />
+        <TabsContent value="edit-staff" className="space-y-4 flex-1 overflow-y-auto">
+          <EditStaffTab staffData={staffData} setStaffData={setStaffData} onSaveSuccess={() => setActiveTab('overview')} />
         </TabsContent>
 
-        <TabsContent value="security" className="space-y-4">
-          <SecurityTab
-            staffData={staffData}
-            setStaffData={setStaffData}
-            isOwner={currentUser.id === info.owner}
-          />
+        <TabsContent value="permissions" className="space-y-4 flex-1 overflow-y-auto">
+          <PermissionsTab staffData={staffData} setStaffData={setStaffData} companyId={info.id} />
         </TabsContent>
       </Tabs>
     </div>

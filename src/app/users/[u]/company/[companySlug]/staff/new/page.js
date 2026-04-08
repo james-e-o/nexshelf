@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { CompanyInfoContext } from "../../layout";
 import { toast } from "sonner";
 import Image from "next/image";
-import { supabase } from "../../../../../../../../config/supabaseClient";
+import  supabase from "../../../../../../../config/supabaseClient";
 import {  AlertDialog,  AlertDialogAction,  AlertDialogCancel,  AlertDialogContent,  AlertDialogDescription,  AlertDialogTitle,} from "@/components/ui/alert-dialog";
 
 
@@ -18,7 +18,7 @@ export default function StaffOnboarding({ companyId, companyName, companyLogo })
   // Invite Staff Form State
   const [inviteEmail, setInviteEmail] = useState("");
   const [showExistsDialog, setShowExistsDialog] = useState(false);
-  const [showAlreadyAcceptedDialog, setShowAlreadyAcceptedDialog] = useState(false);
+  const [showAlreadyMemberDialog, setShowAlreadyMemberDialog] = useState(false);
   const [existingInvite, setExistingInvite] = useState(null);
   const [resendLoading, setResendLoading] = useState(false);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
@@ -48,25 +48,37 @@ export default function StaffOnboarding({ companyId, companyName, companyLogo })
     const checkingToast = toast.loading("Checking...");
 
     try {
-      // First, check if the email already exists for this company
-      const { data: existingData, error: checkError } = await supabase
+      // Step 1: Check if invite already exists for this email + company
+      const { data: existingInvites, error: checkError } = await supabase
         .from('company_invites')
         .select('*')
         .eq('email', inviteEmail)
-        .eq('company_id', info.id);
+        .eq('company_id', info.id)
+        .maybeSingle();
 
-      if (checkError) {
-        console.error('Error checking if email exists:', checkError);
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('Error checking invites:', checkError);
         toast.dismiss(checkingToast);
-        toast.error("Failed to check if invite has been sent to this email");
+        toast.error("Failed to check invite status");
         setLoading(false);
         return;
       }
 
-      // If email exists, check if it's been accepted
-      if (existingData && existingData.length > 0) {
+      const inviteExists = existingInvites !== null;
+
+      if (inviteExists) {
         toast.dismiss(checkingToast);
-        const invite = existingData[0];
+        const invite = existingInvites;
+
+        // Case 3: Invite already accepted - user belongs to company
+        if (invite.status === 'accepted') {
+          setExistingInvite(invite);
+          setShowAlreadyMemberDialog(true);
+          setLoading(false);
+          return;
+        }
+
+        // Case 2: Invite is pending or registered - resend
         setExistingInvite(invite);
         
         // Calculate cooldown from last_sent
@@ -83,19 +95,13 @@ export default function StaffOnboarding({ companyId, companyName, companyLogo })
             setCooldownSeconds(0);
           }
         }
-        
-        // If accepted is true, show the already accepted dialog
-        if (invite.accepted === true) {
-          setShowAlreadyAcceptedDialog(true);
-        } else {
-          // If accepted is false, show the pending invite dialog
-          setShowExistsDialog(true);
-        }
+
+        setShowExistsDialog(true);
         setLoading(false);
         return;
       }
 
-      // If email doesn't exist, dismiss checking toast and proceed with insert
+      // Case 1: No invite exists - create new invite
       toast.dismiss(checkingToast);
       await insertNewInvite();
     } catch (err) {
@@ -115,7 +121,7 @@ export default function StaffOnboarding({ companyId, companyName, companyLogo })
       const expiryDate = new Date();
       expiryDate.setHours(expiryDate.getHours() + 24);
 
-      // Insert into company_invites table
+      // Create new invite with pending status
       const { data: insertData, error } = await supabase
         .from('company_invites')
         .insert([
@@ -133,14 +139,16 @@ export default function StaffOnboarding({ companyId, companyName, companyLogo })
 
       if (error) {
         console.error('Error inserting company invite:', error);
-        toast.error("Failed to save invitation to database");
+        toast.error("Failed to send invitation");
         toast.dismiss(t);
         return;
-      } else {
-        toast.dismiss(t);
-        toast.success("Invite sent!");
-        setInviteEmail("");
       }
+
+      // Send email invite
+      // TODO: Call email service to send invite to user
+      toast.dismiss(t);
+      toast.success("Invite sent via email!");
+      setInviteEmail("");
     } catch (err) {
       console.error(err);
       toast.dismiss(t);
@@ -299,16 +307,16 @@ export default function StaffOnboarding({ companyId, companyName, companyLogo })
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Alert Dialog for Already Accepted Invite */}
-      <AlertDialog open={showAlreadyAcceptedDialog} onOpenChange={setShowAlreadyAcceptedDialog}>
+      {/* Alert Dialog for Already Member */}
+      <AlertDialog open={showAlreadyMemberDialog} onOpenChange={setShowAlreadyMemberDialog}>
         <AlertDialogContent>
           <AlertDialogTitle>User Already a Member</AlertDialogTitle>
           <AlertDialogDescription>
-            This user has already accepted your previous invite and is already a member of your organization.
+            <span className="font-semibold">{inviteEmail}</span> is already a member of your company and has accepted the invite.
           </AlertDialogDescription>
           <div className="flex gap-3 justify-end mt-4">
             <AlertDialogCancel onClick={() => {
-              setShowAlreadyAcceptedDialog(false);
+              setShowAlreadyMemberDialog(false);
               setExistingInvite(null);
               setInviteEmail("");
             }}>

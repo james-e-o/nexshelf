@@ -74,6 +74,16 @@ const EditableCell = ({ row, column, table, getValue, productType = 'physical' }
       updates[`${contextId}_margin_percentage`] = newMarginPercentage
       updates[`${contextId}_selling_price`] = calculateSellingPrice(costPrice, value)
     }
+    // If updating bulk_reduction_percentage, auto-calculate bulk_reduction_value
+    else if (fieldType === 'bulk_reduction_percentage') {
+      const newBulkValue = calculateValueFromPercentage(value, costPrice)
+      updates[`${contextId}_bulk_reduction_value`] = newBulkValue
+    }
+    // If updating bulk_reduction_value, auto-calculate bulk_reduction_percentage
+    else if (fieldType === 'bulk_reduction_value') {
+      const newBulkPercentage = calculatePercentageFromValue(value, costPrice)
+      updates[`${contextId}_bulk_reduction_percentage`] = newBulkPercentage
+    }
     
     // Update all related fields
     Object.entries(updates).forEach(([key, val]) => {
@@ -100,7 +110,7 @@ const EditableCell = ({ row, column, table, getValue, productType = 'physical' }
   )
 }
 
-export function VariantTable({ combinations = [], costPrice, pricingContexts, updateValue, productType = 'physical' }) {
+export function VariantTable({ combinations = [], costPrice, pricingContexts, updateValue, productType = 'physical', bulkQuantity = '' }) {
   // track pending edits per row index: { rowIndex: { sku: 'value', ... }, ... }
   const [pendingEdits, setPendingEdits] = useState({})
   const [allTracked, setAllTracked] = useState(false)
@@ -289,7 +299,7 @@ export function VariantTable({ combinations = [], costPrice, pricingContexts, up
               header: () => (
                 <div className="flex flex-col gap-1 justify-start items-center">
                   <span className="text-[8px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded w-fit">{context.name}</span>
-                  <span className='text-xs text-center'>Bulk <br/> Reduction %</span>
+                  <span className='text-xs text-center'>Bulk<br/>Price %</span>
                 </div>
               ),
               accessorKey: `${context.id}_bulk_reduction_percentage`,
@@ -300,7 +310,7 @@ export function VariantTable({ combinations = [], costPrice, pricingContexts, up
               header: () => (
                 <div className="flex flex-col gap-1 justify-start items-center">
                   <span className="text-[8px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded w-fit">{context.name}</span>
-                  <span className='text-xs text-center'>Bulk <br/>Reduction Value</span>
+                  <span className='text-xs text-center'>Bulk<br/>Price Value</span>
                 </div>
               ),
               accessorKey: `${context.id}_bulk_reduction_value`,
@@ -311,11 +321,15 @@ export function VariantTable({ combinations = [], costPrice, pricingContexts, up
               header: () => (
                 <div className="flex flex-col gap-1 justify-start items-center">
                   <span className="text-[8px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded w-fit">{context.name}</span>
-                  <span className='text-xs text-center'>Bulk <br/> Price</span>
+                  <span className='text-xs text-center'>Bulk <br/>Quantity</span>
                 </div>
               ),
-              accessorKey: `${context.id}_bulk_price`,
-              cell: ({ row, column, table, getValue }) => <EditableCell row={row} column={column} table={table} getValue={getValue} />,
+              accessorKey: `${context.id}_bulk_quantity`,
+              cell: () => (
+                <div className="p-2 text-center">
+                  <span className="text-xs font-medium">{bulkQuantity || '-'}</span>
+                </div>
+              ),
               size: 85,
             },
           ],

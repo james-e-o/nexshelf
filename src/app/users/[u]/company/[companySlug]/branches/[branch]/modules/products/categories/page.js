@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { motion, AnimatePresence } from "framer-motion"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent } from "@/components/ui/dropdown-menu"
-import { supabase } from "../../../../../../../../../../../config/supabaseClient"
+import { supabase } from "../../../../../../../../../../config/supabaseClient"
 import { uploadImagesToSupabase } from '@/lib/supabaseUpload'
 import { Switch } from "@/components/ui/switch";
 import { ca, se, sl } from "date-fns/locale"

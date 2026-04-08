@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useContext, createContext } from "react"
 import { useRouter, useParams } from "next/navigation"
-import { supabase } from "../../../../../../../../config/supabaseClient"
+import supabase from "@/config/supabaseClient"
 import { toast } from "sonner"
 import { Spinner } from "@/components/ui/spinner"
 import { BranchSidebar } from "@/components/sidebars/branch-sidebar/branch-sidebar"

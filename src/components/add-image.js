@@ -16,7 +16,7 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 import { CompanyInfoContext } from '@/app/users/[u]/company/[companySlug]/layout';
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input"
-import { supabase } from '../../config/supabaseClient';
+import supabase from '../config/supabaseClient';
 import Image from 'next/image';
 import Link from "next/link"
 import AvatarEditor from "react-avatar-editor";
@@ -340,6 +340,7 @@ const AddImage = () => {
      }
 
      async function fetchTrashedImages(companyName) {
+       const safeCompanyName = companyName ? companyName.replace(/\s+/g, '_') : 'company';
        const { data, error } = await supabase
          .from("trash")
          .select("*")
@@ -365,10 +366,12 @@ const AddImage = () => {
      }
 
      async function fetchCompanyImages(companyName) {
+      console.log("Fetchingcompany:", companyName);
+      const safeCompanyName = companyName ? companyName.replace(/\s+/g, '_') : 'company';
         const { data, error } = await supabase
           .from("images")
           .select("*")
-          .ilike("path", `${companyName}/%`);  // all images under company folder
+          .ilike("path", `${safeCompanyName}/%`);  // all images under company folder
 
         if (error) {
           console.error("Fetch images error:", error);
@@ -379,7 +382,7 @@ const AddImage = () => {
         return data.map(row => ({
           id: row.id,
           name: row.name,
-          url: `${row.url}?t=${Date.now()}`, // Add cache-busting parameter
+          url: `${row.url}`, // Add cache-busting parameter
           folderId: row.folder || null,
           path: row.path,
           bucket: row.storage,
@@ -396,7 +399,7 @@ const AddImage = () => {
           .eq("owner", info.id);  // folders owned by this company
 
         if (error) {
-          console.error("Fetch folders error:", error);
+         toast.error("Fetch folders error:", error);
           return [];
         }
 
@@ -452,7 +455,6 @@ const AddImage = () => {
 
   return (
      <DndProvider backend={HTML5Backend}>
-
           <>
                   {editState&&editInfo?
                     (
@@ -709,7 +711,6 @@ const AddImage = () => {
                   }
               
                                     
-          </>
 
           {/* Modal for upload - appears when `customDialog` is true */}
           {customDialog && (
@@ -803,6 +804,7 @@ const AddImage = () => {
            }}
          />
          
+      </>
      </DndProvider>
   )
 }
@@ -1105,8 +1107,8 @@ const Files = ({ file, grid, checked, onCheck, onFileClick, onCtrlClick }) => {
           checked={checked}
           onCheckedChange={(status) => onCheck(status)}
           className={`
-            text-white fill-white border scale-90
-            data-[grid=true]:scale-75
+            text-white fill-white border scale-110
+            data-[grid=true]:scale-110
           `}
         />
       </p>

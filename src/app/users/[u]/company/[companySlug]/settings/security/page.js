@@ -9,7 +9,7 @@ import {Shield,UserCog,KeyRound,Trash2,Edit3,Save,X,Mail, RotateCcwKey} from "lu
 import { CompanyInfoContext } from "../../layout";
 import { useRouter, useParams } from "next/navigation";
 import { Spinner } from "@/components/ui/spinner";
-import { supabase } from "../../../../../../../../config/supabaseClient";
+import { supabase } from "../../../../../../../config/supabaseClient";
 import { toast } from "sonner";
 
 

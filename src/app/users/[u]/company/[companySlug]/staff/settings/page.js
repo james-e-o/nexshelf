@@ -3,7 +3,7 @@
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
-import { Users, Lock, Mail, Shield, FileText, MapPin } from 'lucide-react';
+import { Users, Lock, Mail, Shield, FileText } from 'lucide-react';
 
 export default function StaffSettingsPage() {
   const params = useParams();
@@ -26,25 +26,7 @@ export default function StaffSettingsPage() {
       description: 'Control staff onboarding behavior',
       href: 'invitations',
       icon: Mail,
-    },
-    {
-      title: 'Security',
-      description: 'Authentication and password policies',
-      href: 'security',
-      icon: Shield,
-    },
-    {
-      title: 'Policies',
-      description: 'Organization rules for staff structure',
-      href: 'policies',
-      icon: FileText,
-    },
-    {
-      title: 'Branches',
-      description: 'Branch interaction and visibility rules',
-      href: 'branches',
-      icon: MapPin,
-    },
+    }
   ];
 
   return (

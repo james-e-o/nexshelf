@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { supabase } from '../../../../../config/supabaseClient'
+import supabase from '@/config/supabaseClient'
 import { getAllPlans } from '@/lib/pricing-plans'
 import { PricingCard } from '@/components/billing/pricing-card'
 import { Button } from '@/components/ui/button'

@@ -54,14 +54,14 @@ export const CollapsibleButton = ({title,icon,items,sidebarCollapse,sidebarOpen,
                         
                         {/* Badge for company type */}
                         {subItem.badge && (
-                          <span className={`absolute font-thin bottom-0 -right-0.5 min-w-max h-4 px-2 py-px rounded-full text-white scale-90 text-[8px] flex items-center justify-center leading-none ${
+                          <span className={`absolute font-thin bottom-0 right-1 min-w-max h-5 px-3 py-1.5 rounded-full text-white scale-95 text-[10px] flex items-center justify-center leading-none ${
                             subItem.badge === 'owner' 
                               ? 'bg-core' 
                               : subItem.badge === 'staff'
                               ? 'bg-orange-500'
                               : 'bg-gray-500'
                           }`}>
-                            <span className="relative scale-[130%] text-white font-semibold">{subItem.badge}</span>
+                            <span className="relative tracking-wider scale-[130%] text-white font-medium">{subItem.badge}</span>
                           </span>
                         )}
                     </Link>

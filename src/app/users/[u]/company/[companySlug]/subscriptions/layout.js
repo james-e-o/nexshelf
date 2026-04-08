@@ -3,157 +3,29 @@
 import { useEffect, useState, useContext } from "react"
 import { useRouter, useParams, usePathname } from "next/navigation"
 import Link from "next/link"
-import { supabase } from "../../../../../../../config/supabaseClient"
+import  supabase  from "../../../../../../config/supabaseClient"
 import { toast } from "sonner"
 import { Spinner } from "@/components/ui/spinner"
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/sidebars/company-sidebar/company-sidebar"
-import CompanyHeader from "@/components/headers/company-dashboard-header"
-import { Bell } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { CompanyInfoContext } from "../layout"
+import { CompanyInfoContext, ReusableCompanySidebar } from "../layout"
 
 export default function SubscriptionsLayout({ children }) {
   const router = useRouter()
   const params = useParams()
+  const companyCtx = useContext(CompanyInfoContext)
   
-  const [info, setInfo] = useState()
-  const [accessLevels, setAccessLevels] = useState([])
-  const [branches, setBranches] = useState([])
-  const [isLoading, setIsLoading] = useState(true)
   const [plans, setPlans] = useState([])
   const [currentPlan, setCurrentPlan] = useState(null)
   const [currentSubscription, setCurrentSubscription] = useState(null)
   const [previousSubscriptions, setPreviousSubscriptions] = useState([])
   const [billingPeriod, setBillingPeriod] = useState("monthly")
+  const [isLoading, setIsLoading] = useState(true)
 
   const { u, companySlug } = params
+  const info = companyCtx?.info
+  const accessLevelScope = info?.accessLevelScope
 
-  useEffect(() => {
-    async function loadSubscriptionData() {
-      try {
-        console.log("SubscriptionsLayout - Loading data...")
-
-        // Step 1: Auth user
-        const { data: { user }, error: userError } = await supabase.auth.getUser()
-
-        if (userError || !user) {
-          toast("Please log in to continue.")
-          router.push("/accounts/login")
-          return
-        }
-
-        console.log("SubscriptionsLayout - User authenticated:", user.id)
-
-        // Step 2: Check if user is owner or staff of this company
-        const { data: companiesLiteData, error: companiesLiteError } = await supabase
-          .from("companies_lite")
-          .select("company_id, name, slug, owner, currencies")
-          .eq("slug", companySlug)
-          .single()
-
-        if (companiesLiteError || !companiesLiteData) {
-          console.error("SubscriptionsLayout - Company not found:", companiesLiteError)
-          toast("Company not found.")
-          router.push(`/users/${u}`)
-          return
-        }
-
-        console.log("SubscriptionsLayout - Company loaded:", companiesLiteData)
-
-        let accessLevel = null
-        let branchId = null
-        let accessLevelScope = null
-
-        // Step 3a: Fetch ALL access levels
-        const { data: accessLevelsData, error: accessLevelsError } = await supabase
-          .from("access_level")
-          .select("*")
-          .order("level_number", { descending: false })
-
-        if (accessLevelsError) {
-          console.error("SubscriptionsLayout - Access levels fetch error:", accessLevelsError)
-          setIsLoading(false)
-          return
-        }
-
-        console.log("SubscriptionsLayout - Access levels loaded:", accessLevelsData)
-        setAccessLevels(accessLevelsData || [])
-
-        // Check if user is owner
-        if (companiesLiteData.owner === user.id) {
-          accessLevel = "owner"
-          accessLevelScope = "company"
-          console.log("SubscriptionsLayout - User is owner, access level scope: company")
-        } else {
-          // Check if user is staff of this company
-          const { data: staffLiteData, error: staffError } = await supabase
-            .from("staff_lite")
-            .select("access_level, branch, status")
-            .eq("staff_id", user.id)
-            .eq("company", companiesLiteData.company_id)
-            .single()
-
-          if (staffError || !staffLiteData) {
-            console.error("SubscriptionsLayout - Staff fetch error:", staffError)
-            toast("You do not belong to this company.")
-            router.push(`/users/${u}`)
-            return
-          }
-
-          console.log("SubscriptionsLayout - Staff data loaded:", staffLiteData)
-
-          accessLevel = staffLiteData.access_level
-
-          // Look up access level scope
-          const accessLevelRecord = accessLevelsData?.find(al => al.key === staffLiteData.access_level)
-          accessLevelScope = accessLevelRecord?.access
-
-          if (accessLevelScope === "branch") {
-            branchId = staffLiteData.branch
-          }
-
-          console.log("SubscriptionsLayout - User is staff, access level scope:", accessLevelScope)
-        }
-
-        // Set company info with access context
-        const infoData = {
-          ...companiesLiteData,
-          id: companiesLiteData.company_id,
-          accessLevel,
-          accessLevelScope,
-          branchId
-        }
-
-        console.log("SubscriptionsLayout - Setting info:", infoData)
-        setInfo(infoData)
-
-        // Fetch branches for sidebar
-        const { data: branchesData } = await supabase
-          .from("branches_lite")
-          .select("*")
-          .eq("company", companiesLiteData.company_id)
-
-        let allowedBranches = []
-        if (accessLevelScope === "company") {
-          allowedBranches = branchesData || []
-        } else if (accessLevelScope === "branch" && branchId) {
-          allowedBranches = branchesData?.filter(b => b.id === branchId) || []
-        }
-
-        setBranches(allowedBranches)
-        setIsLoading(false)
-      } catch (err) {
-        console.error("SubscriptionsLayout - Error loading subscription data:", err)
-        toast("Failed to load data.")
-        router.push(`/users/${u}`)
-      }
-    }
-
-    loadSubscriptionData()
-  }, [companySlug, u, router])
-
-  // Fetch subscription and plans data
+  // Only fetch subscription-specific data
   useEffect(() => {
     async function fetchSubscriptionData() {
       try {
@@ -271,6 +143,8 @@ export default function SubscriptionsLayout({ children }) {
       } catch (err) {
         console.error("SubscriptionsLayout - Error fetching subscription data:", err)
         toast.error("Failed to load subscription data. Please try again.")
+      } finally {
+        setIsLoading(false)
       }
     }
 
@@ -288,68 +162,48 @@ export default function SubscriptionsLayout({ children }) {
   }
 
   if (!info) {
-    console.log("SubscriptionsLayout - No info, returning null")
     return null
   }
 
-  // console.log("SubscriptionsLayout - Rendering with info:", info)
-
-  // Get access level scope to differentiate view
-  const accessLevelScope = info?.accessLevelScope
-  const isCompanyLevel = accessLevelScope === "company"
   const isBranchLevel = accessLevelScope === "branch"
 
-  return (
-    <CompanyInfoContext.Provider
-      value={{
-        info,
-        accessLevels,
-        branches,
-        accessLevel: info?.accessLevel,
-        accessLevelScope: info?.accessLevelScope,
-        branchId: info?.branchId,
-        plans,
-        currentPlan,
-        currentSubscription,
-        previousSubscriptions,
-        billingPeriod,
-        setBillingPeriod,
-        isCompanyLevel,
-        isBranchLevel
-      }}
-    >
-      {isBranchLevel ? (
-        <div className="min-h-screen font-WixMade bg-white p-6">
-          <div className="mt-12">
-            <div className="border border-blue-200 bg-blue-50 rounded-lg p-6">
-              <h2 className="text-xl font-semibold text-blue-900 mb-2">Subscription Management</h2>
-              <p className="text-slate-700 mb-2">
-                You have branch-level access to <strong>{info?.name}</strong>. Subscription management is handled by company-level administrators.
-              </p>
-              <p className="text-slate-600 text-sm mb-4">
-                Contact your company administrator or finance team to upgrade, downgrade, or manage subscription plans.
-              </p>
-              <Button
-                onClick={() => router.push(`/users/${params.u}/company/${params.companySlug}`)}
-                className="w-full"
-              >
-                Back to Dashboard
-              </Button>
-            </div>
+  // If branch-level user, show restricted message
+  if (isBranchLevel) {
+    return (
+      <div className="min-h-screen font-WixMade bg-white p-6">
+        <div className="mt-12">
+          <div className="border border-blue-200 bg-blue-50 rounded-lg p-6">
+            <h2 className="text-xl font-semibold text-blue-900 mb-2">Subscription Management</h2>
+            <p className="text-slate-700 mb-2">
+              You have branch-level access to <strong>{info?.name}</strong>. Subscription management is handled by company-level administrators.
+            </p>
+            <p className="text-slate-600 text-sm mb-4">
+              Contact your company administrator or finance team to upgrade, downgrade, or manage subscription plans.
+            </p>
+            <Button
+              onClick={() => router.push(`/users/${u}/company/${companySlug}`)}
+              className="w-full"
+            >
+              Back to Dashboard
+            </Button>
           </div>
         </div>
-      ) : (
-        <ReusableSubscriptionsSidebar children={children}/>
-      )}
-    </CompanyInfoContext.Provider>
+      </div>
+    )
+  }
+
+  // For company-level users, use the reusable sidebar from parent layout
+  return (
+    <SubscriptionPageContent plans={plans} currentPlan={currentPlan} currentSubscription={currentSubscription} previousSubscriptions={previousSubscriptions} billingPeriod={billingPeriod} setBillingPeriod={setBillingPeriod}>
+      {children}
+    </SubscriptionPageContent>
   )
 }
 
-// ReusableSubscriptionsSidebar - same pattern as company page
-export const ReusableSubscriptionsSidebar = ({ children }) => {
-  const { info, branches } = useContext(CompanyInfoContext)
-  const pathname = usePathname()
+// Subscription-specific page layout using the shared sidebar
+export const SubscriptionPageContent = ({ children, plans, currentPlan, currentSubscription, previousSubscriptions, billingPeriod, setBillingPeriod }) => {
   const params = useParams()
+  const pathname = usePathname()
   const { u, companySlug } = params
 
   const baseUrl = `/users/${u}/company/${companySlug}/subscriptions`
@@ -361,94 +215,88 @@ export const ReusableSubscriptionsSidebar = ({ children }) => {
     return pathname.includes(`/subscriptions/${path}`)
   }
 
+  // Provide subscription data via context that was populated in parent
+  const contextValue = useContext(CompanyInfoContext)
+  const enhancedContext = {
+    ...contextValue,
+    plans,
+    currentPlan,
+    currentSubscription,
+    previousSubscriptions,
+    billingPeriod,
+    setBillingPeriod,
+  }
+
   return (
-    <SidebarProvider className="relative font-WixMade">
-      <AppSidebar company={info} branches={branches} />
-      <SidebarInset className="h-svh overflow-hidden static">
-        <div className="flex flex-col h-full">
-          <div className="h-12 border-b">
-            <CompanyHeader>
-              <div className="flex">
-                <Button variant="ghost" size="icon" className="relative ml-3">
-                  <Bell className="h-5 w-5" />
-                  <span className="absolute -top-0.5 -right-0.5 text-[9px] bg-red-600 translate-x-[-48.8%] translate-y-[48.9%] text-white font-semibold flex items-center justify-center size-3.5 rounded-full">
-                    3
-                  </span>
-                </Button>
-              </div>
-            </CompanyHeader>
+    <CompanyInfoContext.Provider value={enhancedContext}>
+      <ReusableCompanySidebar>
+        <div className="px-6 py-4 flex flex-col grow">
+          {/* Page Title */}
+          <div className="px-2 py-4">
+            <h1 className="text-lg font-semibold text-army">Subscription management</h1>
           </div>
 
-          <div className="px-6 py-4 flex flex-col grow ">
-              {/* Page Title */}
-              <div className="px-2   py-4">
-                <h1 className="text-lg font-semibold text-army">Subscription management</h1>
-              </div>
-
-              {/* Navigation Tabs */}
-              <div className="border-b  border-gray-200 px-2">
-                <div className="flex gap-8">
-                  <Link
-                    href={baseUrl}
-                    className={`pb-3 font-medium text-sm transition-colors whitespace-nowrap ${
-                      isActive("overview")
-                        ? "border-b-2 border-core text-core"
-                        : "text-gray-600 hover:text-gray-900 border-b-2 border-transparent"
-                    }`}
-                  >
-                    Overview
-                  </Link>
-                  <Link
-                    href={`${baseUrl}/plans`}
-                    className={`pb-3 font-medium text-sm transition-colors whitespace-nowrap ${
-                      isActive("plans")
-                        ? "border-b-2 border-core text-core"
-                        : "text-gray-600 hover:text-gray-900 border-b-2 border-transparent"
-                    }`}
-                  >
-                    Plans
-                  </Link>
-                  <Link
-                    href={`${baseUrl}/invoices`}
-                    className={`pb-3 font-medium text-sm transition-colors whitespace-nowrap ${
-                      isActive("invoices")
-                        ? "border-b-2 border-core text-core"
-                        : "text-gray-600 hover:text-gray-900 border-b-2 border-transparent"
-                    }`}
-                  >
-                    Invoices
-                  </Link>
-                  <Link
-                    href={`${baseUrl}/payments`}
-                    className={`pb-3 font-medium text-sm transition-colors whitespace-nowrap ${
-                      isActive("payments")
-                        ? "border-b-2 border-core text-core"
-                        : "text-gray-600 hover:text-gray-900 border-b-2 border-transparent"
-                    }`}
-                  >
-                    Payment Details
-                  </Link>
-                  <Link
-                    href={`${baseUrl}/billing`}
-                    className={`pb-3 font-medium text-sm transition-colors whitespace-nowrap ${
-                      isActive("billing")
-                        ? "border-b-2 border-core text-core"
-                        : "text-gray-600 hover:text-gray-900 border-b-2 border-transparent"
-                    }`}
-                  >
-                    Billing Address
-                  </Link>
-                </div>
-              </div>
-
-              <div className="grow overflow-y-auto p-2 md:p-4">
-                {children}
-              </div>
-
+          {/* Navigation Tabs */}
+          <div className="border-b border-gray-200 px-2">
+            <div className="flex gap-8">
+              <Link
+                href={baseUrl}
+                className={`pb-3 font-medium text-sm transition-colors whitespace-nowrap ${
+                  isActive("overview")
+                    ? "border-b-2 border-core text-core"
+                    : "text-gray-600 hover:text-gray-900 border-b-2 border-transparent"
+                }`}
+              >
+                Overview
+              </Link>
+              <Link
+                href={`${baseUrl}/plans`}
+                className={`pb-3 font-medium text-sm transition-colors whitespace-nowrap ${
+                  isActive("plans")
+                    ? "border-b-2 border-core text-core"
+                    : "text-gray-600 hover:text-gray-900 border-b-2 border-transparent"
+                }`}
+              >
+                Plans
+              </Link>
+              <Link
+                href={`${baseUrl}/invoices`}
+                className={`pb-3 font-medium text-sm transition-colors whitespace-nowrap ${
+                  isActive("invoices")
+                    ? "border-b-2 border-core text-core"
+                    : "text-gray-600 hover:text-gray-900 border-b-2 border-transparent"
+                }`}
+              >
+                Invoices
+              </Link>
+              <Link
+                href={`${baseUrl}/payments`}
+                className={`pb-3 font-medium text-sm transition-colors whitespace-nowrap ${
+                  isActive("payments")
+                    ? "border-b-2 border-core text-core"
+                    : "text-gray-600 hover:text-gray-900 border-b-2 border-transparent"
+                }`}
+              >
+                Payment Details
+              </Link>
+              <Link
+                href={`${baseUrl}/billing`}
+                className={`pb-3 font-medium text-sm transition-colors whitespace-nowrap ${
+                  isActive("billing")
+                    ? "border-b-2 border-core text-core"
+                    : "text-gray-600 hover:text-gray-900 border-b-2 border-transparent"
+                }`}
+              >
+                Billing Address
+              </Link>
+            </div>
           </div>
 
+          <div className="grow overflow-y-auto p-2 md:p-4">
+            {children}
+          </div>
         </div>
-      </SidebarInset>
-    </SidebarProvider>
+      </ReusableCompanySidebar>
+    </CompanyInfoContext.Provider>
   )
 }

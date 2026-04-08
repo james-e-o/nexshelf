@@ -10,7 +10,7 @@ import { Field, FieldDescription, FieldGroup, FieldLabel, FieldSeparator } from 
 import { Input } from "@/components/ui/input"
 import Image from "next/image"
 import { isEmpty, isLength, contains } from "validator"
-import { supabase } from '../../../../config/supabaseClient'
+import  supabase  from '../../../config/supabaseClient'
 
 export default function SignupPage() {
   return (
@@ -548,12 +548,12 @@ export function SignupForm({
             />
           )}
           <div className="space-y-1">
-            <p className="text-sm font-semibold text-muted-foreground">
-              Invitation accepted from
-            </p>
-            <h1 className="text-2xl font-semibold text-army">
-              {companyData?.name || 'Your Company'}
-            </h1>
+            <div className="text-lg flex font-semibold text-muted-foreground">
+              Sign up and Accept Invitation from
+              <h1 className="text-lg font-semibold text-army">
+                {companyData?.name || 'Your Company'}
+              </h1>
+            </div>
             <p className="text-sm text-muted-foreground mt-2">
               Set your credentials to complete your onboarding on Nexshelf Pro
             </p>

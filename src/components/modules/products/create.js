@@ -30,7 +30,7 @@ import { useRouter,useParams } from 'next/navigation'
 import AddImage from "@/components/add-image";
 import { VariantTable } from '@/components/variants';
 import { ProductConfigurations } from "@/components/product-configurations";
-import { supabase } from "../../../../config/supabaseClient";
+import supabase from "../../../config/supabaseClient";
 
 import { BranchContext } from "@/app/users/[u]/company/[companySlug]/branches/[branch]/layout";
 
@@ -117,6 +117,10 @@ const CreateProductPage = () => {
     ]);
     const [selectedPricingContexts, setSelectedPricingContexts] = useState(['default-standard']);
     
+    // Pricing Context editing state - moved to parent for persistence across tab switches
+    const [editingContextId, setEditingContextId] = useState(null);
+    const [editingContextData, setEditingContextData] = useState({});
+    
     // Shipping Profile state
     const [shippingProfiles, setShippingProfiles] = useState([]);
     const [selectedShippingProfile, setSelectedShippingProfile] = useState(null);
@@ -125,7 +129,7 @@ const CreateProductPage = () => {
     const [selectedMeasurementType, setSelectedMeasurementType] = useState('count');
     const [totalProductUnits, setTotalProductUnits] = useState('1');
     const [totalProductUnitsType, setTotalProductUnitsType] = useState('count');
-    const [minimumProductUnits, setMinimumProductUnits] = useState('');
+    const [minimumProductUnits, setMinimumProductUnits] = useState('1');
     const [bulkQuantity, setBulkQuantity] = useState('');
     
     // Inventory & Policy state
@@ -328,6 +332,10 @@ const CreateProductPage = () => {
         setSelectedTags([]);
         setHasVariants(false);
         setReorderLevel('');
+        setMinimumProductUnits('1');
+        setTotalProductUnits('1');
+        setTotalProductUnitsType('count');
+        setBulkQuantity('');
         setReturnPolicy('');
         setSelectedReturnPolicyId(null);
         setPricingContexts([
@@ -565,6 +573,10 @@ const CreateProductPage = () => {
 
     // Tab navigation functions
     const goToPreviousTab = () => {
+        // Commit any pending edits before switching tabs
+        if (productConfigRef.current?.commitEditingState) {
+            productConfigRef.current.commitEditingState();
+        }
         if (activeTab === 'configure') setActiveTab('details');
         else if (activeTab === 'variants') setActiveTab('configure');
     };
@@ -594,7 +606,7 @@ const CreateProductPage = () => {
             try {
                 // 1️⃣ Create base product entry
                 const baseProductData = {
-                    branch_id: currentBranch?.id,
+                    branch: currentBranch?.id,
                     title,
                     subtitle,
                     slug: convertToSlug(handle),
@@ -652,7 +664,7 @@ const CreateProductPage = () => {
                 // 2️⃣ Create product entries (one for each variant, or single product if no variants)
                 const productEntries = variantCombinations.map((variant) => ({
                     base_product_id: baseProduct.id,
-                    branch_id: currentBranch?.id,
+                    branch: currentBranch?.id,
                     title: variant.combination?.length > 0 
                         ? `${title} - ${variant.combination.join(' / ')}`
                         : title,
@@ -737,6 +749,7 @@ const CreateProductPage = () => {
     }
 
   return (
+    <DndProvider backend={HTML5Backend}>
     <>
     <AlertDialog>
     <div className=' flex font-WixMade inset-0  bg-neutral-500 shadow-md shadow- absolute z-40 '>
@@ -824,7 +837,7 @@ const CreateProductPage = () => {
 
                     {/* DETAILS TAB */}
                     {activeTab === "details" && (
-                        <div className="space-y-10 max-w-5xl mx-auto py-9">
+                    <div className="space-y-10 max-w-5xl mx-auto py-9">
 
                         {/* GENERAL */}
                         <div className="space-y-5 mx-8">
@@ -1034,20 +1047,18 @@ const CreateProductPage = () => {
                                   {selectedImages && selectedImages.length > 0 ? (
                                     <div className="w-full flex items-center gap-3">
                                       <div className="flex-1">
-                                        <DndProvider backend={HTML5Backend}>
-                                          <div className="flex gap-2 overflow-x-auto py-1">
-                                            {selectedImages.map((img, idx) => (
-                                              <DraggableImage
-                                                key={img.id || idx}
-                                                img={img}
-                                                index={idx}
-                                                moveImage={moveImage}
-                                                isFirst={idx === 0}
-                                                onClick={() => { setSelectedImage(img); setImageDialogOpen(true); }}
-                                              />
-                                            ))}
-                                          </div>
-                                        </DndProvider>
+                                        <div className="flex gap-2 overflow-x-auto py-1">
+                                          {selectedImages.map((img, idx) => (
+                                            <DraggableImage
+                                              key={img.id || idx}
+                                              img={img}
+                                              index={idx}
+                                              moveImage={moveImage}
+                                              isFirst={idx === 0}
+                                              onClick={() => { setSelectedImage(img); setImageDialogOpen(true); }}
+                                            />
+                                          ))}
+                                        </div>
                                       </div>
 
                                       <div className="w-fit">
@@ -1311,11 +1322,10 @@ const CreateProductPage = () => {
                               {hasVariants&&options.length > 0 && (
                                 <div className="mt-4">
                                   <h3 className="text-xs mb-2 font-medium">{productType === 'service' ? 'Quality Tier Combinations' : 'Variant Combinations'} <span className="text-[10px] ml-1 text-core italic">{`(drag and drop to modify hierarchy)`}</span></h3>
-                                  <DndProvider backend={HTML5Backend}>
-                                    <CombinationDragPreview />
-                                    <AnimatePresence mode="popLayout">
-                                      <div className="space-y-2">
-                                        {variantCombinations.map((combo, index) => (
+                                  <CombinationDragPreview />
+                                  <AnimatePresence mode="popLayout">
+                                    <div className="space-y-2">
+                                      {variantCombinations.map((combo, index) => (
                                           <DraggableCombination
                                             key={combo.id}
                                             combo={combo}
@@ -1353,7 +1363,6 @@ const CreateProductPage = () => {
                                         ))}
                                       </div>
                                     </AnimatePresence>
-                                  </DndProvider>
                                 </div>
                               )}
                           </div>
@@ -1389,6 +1398,10 @@ const CreateProductPage = () => {
                         setPricingContexts={setPricingContexts}
                         selectedPricingContexts={selectedPricingContexts}
                         setSelectedPricingContexts={setSelectedPricingContexts}
+                        editingContextId={editingContextId}
+                        setEditingContextId={setEditingContextId}
+                        editingContextData={editingContextData}
+                        setEditingContextData={setEditingContextData}
                         errors={errors}
                         shippingProfiles={shippingProfiles}
                         setShippingProfiles={setShippingProfiles}
@@ -1404,6 +1417,7 @@ const CreateProductPage = () => {
                         setMinimumProductUnits={setMinimumProductUnits}
                         bulkQuantity={bulkQuantity}
                         setBulkQuantity={setBulkQuantity}
+                        variants={variantCombinations}
                         branch={currentBranch.id}
                         productType={productType}
                         reorderLevel={reorderLevel}
@@ -1426,6 +1440,7 @@ const CreateProductPage = () => {
                             pricingContexts={pricingContexts.filter(ctx => selectedPricingContexts?.includes(ctx.id))}
                             updateValue={updateVariantValue} 
                             productType={productType}
+                            bulkQuantity={bulkQuantity}
                           />
 
                         </div>
@@ -1505,6 +1520,7 @@ const CreateProductPage = () => {
       </DialogContent>
     </Dialog>
     </>
+    </DndProvider>
   )
 }
 

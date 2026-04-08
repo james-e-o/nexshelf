@@ -4,10 +4,11 @@ import { useContext, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { CompanyInfoContext, ReusableCompanySidebar } from '../layout';
+import { StaffProvider } from '@/components/contexts/staff-context';
 import { Button } from '@/components/ui/button';
-import { Plus, List, ChevronLeft } from 'lucide-react';
+import { Plus, List, ChevronLeft, ChartBar } from 'lucide-react';
 
-export default function StaffLayout({ children }) {
+function StaffLayoutContent({ children }) {
   const { info, user } = useContext(CompanyInfoContext);
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -37,8 +38,8 @@ export default function StaffLayout({ children }) {
                       : 'text-gray-600 border-gray-200 hover:bg-gray-50'
                   }`}
                 >
-                  <List className="size-4" />
-                  <span className={isCollapsed ? 'hidden' : ''}>Staff</span>
+                  <ChartBar className="size-4" />
+                  <span className={isCollapsed ? 'hidden' : ''}>Overview</span>
                 </Button>
               </Link>
 
@@ -113,5 +114,15 @@ export default function StaffLayout({ children }) {
         {children}
       </div>
     </ReusableCompanySidebar>
+  );
+}
+
+export default function StaffLayout({ children }) {
+  const { info } = useContext(CompanyInfoContext);
+
+  return (
+    <StaffProvider companyId={info?.id}>
+      <StaffLayoutContent>{children}</StaffLayoutContent>
+    </StaffProvider>
   );
 }
