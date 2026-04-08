@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
 import Link from "next/link";
-import { supabase } from "../../config/supabaseClient";
+import supabase from "@/config/supabaseClient";
 import LandingHeader from "@/components/landing-header";
 import { Spinner } from "@/components/ui/spinner";
 
