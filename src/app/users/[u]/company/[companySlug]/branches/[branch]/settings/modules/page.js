@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { CompanyInfoContext } from '../../../../layout'
-import { supabase } from '../../../../../../../../../config/supabaseClient'
+import supabase from '@/config/supabaseClient'
 import { toast } from 'sonner'
 
 export default function BranchModules() {

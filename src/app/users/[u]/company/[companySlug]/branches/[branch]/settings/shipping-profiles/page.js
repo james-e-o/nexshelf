@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { CompanyInfoContext } from '../../../../layout'
-import { supabase } from '../../../../../../../../../config/supabaseClient'
+import supabase from '@/config/supabaseClient'
 import { toast } from 'sonner'
 import { Plus, Trash2, Loader2, Edit2, X } from 'lucide-react'
 

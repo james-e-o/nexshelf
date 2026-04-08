@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
 import { CompanyInfoContext } from '../../../../layout'
-import { supabase } from '../../../../../../../../../config/supabaseClient'
+import supabase from '@/config/supabaseClient'
 import { toast } from 'sonner'
 
 export default function BranchFiscalCurrency() {

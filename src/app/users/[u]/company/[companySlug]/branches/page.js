@@ -10,7 +10,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { CompanyInfoContext } from '../layout'
 import { Input } from '@/components/ui/input'
-import { supabase } from '../../../../../../config/supabaseClient'
+import supabase from '@/config/supabaseClient'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
