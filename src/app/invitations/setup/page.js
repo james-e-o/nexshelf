@@ -536,13 +536,13 @@ export function SignupForm({
           )}
           <div className="space-y-1">
             <div className="text-lg flex font-semibold text-muted-foreground">
-              Sign up and Accept Invitation from
-              <h1 className="text-lg font-semibold text-army">
-                {companyData?.name || 'Your Company'}
-              </h1>
+              Sign up and Accept Invitation <br /> from
+              <span className="text-lg font-semibold text-army">
+                {companyData?.name}
+              </span>
             </div>
             <p className="text-sm text-muted-foreground mt-2">
-              Set your credentials to complete your onboarding on Nexshelf Pro
+              Setup your credentials to complete your sign up on Nexshelf Pro
             </p>
           </div>
         </div>
@@ -648,9 +648,9 @@ export function SignupForm({
               <Button 
                 type="submit"
                 disabled={isSubmitting || usernameExists === true || !allValid || formData.confirmPassword !== formData.password}
-                className="bg-core hover:bg-core/90 text-white font-semibold w-full disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-core hover:bg-core/90 text-white font-normal w-full disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? 'Completing Setup...' : 'Complete Setup'}
+                {isSubmitting ? 'Signing up...' : 'Sign up to Accept Invite'}
               </Button>
             </Field>
 
