@@ -2,7 +2,7 @@
 
 import { Suspense } from 'react'
 import { useEffect, useState, useRef } from 'react'
-import { useSearchParams,useParams } from 'next/navigation'
+import { useSearchParams,useParams, useRouter } from 'next/navigation'
 import { cn } from "@/lib/utils"
 import { TriangleAlert } from 'lucide-react'
 import { Button } from "@/components/ui/button"
@@ -57,6 +57,7 @@ function SignupPageFallback() {
 
 function SignupPageContent() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const [companyData, setCompanyData] = useState(null)
   const [userEmail, setUserEmail] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -462,72 +463,58 @@ export function SignupForm({
         return
       }
 
-      // 1️⃣ Set password + metadata in one call
-      const { error: authError } = await supabase.auth.updateUser({
-        password: formData.password,
-        data: {
-          username: formData.username,
-          handle: handle
-        }
-      })
 
-      if (authError) {
-        console.error('Error setting password and metadata:', authError)
-        setError(authError.message || 'Failed to set password')
-        setIsSubmitting(false)
-        return
+
+
+      const handleCompleteUser = async () => {
+          setIsSubmitting(true)
+          setError(null)
+
+          const { data, error: rpcError } = await supabase.functions.invoke(
+            'complete-user-profile',
+            {
+              body: {
+                password: formData.password,
+                username: formData.username,
+                handle: handle,
+                email: userEmail,
+                invited_by: companyData?.invited_by,
+                company: companyData?.id,
+                company_invite:true,
+                invite_id: companyData?.invite_id
+              },
+            }
+          )
+
+          if (rpcError) {
+            console.error('Error:', rpcError)
+            setError(rpcError.message || 'Failed to complete your profile')
+            setIsSubmitting(false)
+            return
+          }
+
+          // Success
+          await supabase.auth.refreshSession() // So new metadata appears
+          
+          // ✅ Verify handle was saved and redirect
+          const { data: { session } } = await supabase.auth.getSession()
+          const handle = session?.user?.user_metadata?.handle
+
+          if (!handle) {
+            console.error('Handle not found after save')
+            setError('Profile handle was not saved. Please refresh and try again.')
+            setIsSubmitting(false)
+            return
+          }
+
+          // ✅ Redirect to dashboard using saved handle
+          router.push(`/users/${handle}/company-invites/${companyData?.invite_id}`)
+          
+
       }
 
-      // 2️⃣ Create profile record in public.users table
-      const { error: insertUsersError } = await supabase
-        .from('users')
-        .insert({
-          id: user.id,
-          email: userEmail,
-          username: formData.username,
-          handle: handle,
-          invited_by: companyData?.invited_by,
-          company: companyData?.id,
-          company_invite:true,
-          invite_id: companyData?.invite_id
-        })
+      await handleCompleteUser()
 
-      if (insertUsersError) {
-        console.error('Error inserting into users table:', insertUsersError)
-        setError('Failed to save profile information')
-        setIsSubmitting(false)
-        return
-      }
-
-      // 3️⃣ WAIT FOR backend trigger to create staff record and update company_invites
-      // The backend processes this automatically now, so we verify it completed
-      console.log('Waiting for backend processes (staff record creation & invite acceptance)...')
-      const staff = await verifyStaffRecord(user.id)
-
-      // 4️⃣ Fetch company info from companies_lite (basic access without restrictions)
-      const { data: company, error: companyError } = await supabase
-        .from('companies_lite')
-        .select('*')
-        .eq('company_id', staff.company)
-        .single()
-
-      if (companyError || !company) {
-        console.error('Error fetching company info:', companyError)
-        setError('Failed to fetch company information')
-        setIsSubmitting(false)
-        return
-      }
-
-      console.log('Profile setup completed successfully:', {
-        email: userEmail,
-        username: formData.username,
-        handle: handle,
-        companyId: staff.company
-      })
-      
-      setError('')
-      // 5️⃣ Redirect to company dashboard
-      window.location.href = `/users/${handle}/company/${company.slug}?newly_invited_staff=true`
     } catch (err) {
       console.error('Error submitting form:', err)
       setError(err.message || 'An error occurred while setting up your profile. Please refresh and try again.')

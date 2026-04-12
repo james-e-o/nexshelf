@@ -11,6 +11,7 @@ import { checkFeatureGroupAccess, checkPermission } from "@/lib/feature-permissi
 export default function CompanySidebarFooter({ params, profile }) {
   const { u, companySlug } = params;
   const access = useAccess();
+  // console.log(access.permissions)
 
   if (access.isLoading) return null;
 
@@ -26,7 +27,9 @@ export default function CompanySidebarFooter({ params, profile }) {
         {checkFeatureGroupAccess('subscriptions', access.permissions, access.isOwner) && (
           <NoCollapsibleButton className={``} url={`/users/${u}/company/${companySlug}/subscriptions`} title={'Subscriptions'} icon={CreditCard} active={false} name={'Subscriptions'}/>
         )}
-        <NoCollapsibleButton className={``} url={`/users/${u}/company/${companySlug}/settings`} title={'Settings'} icon={Settings} active={false} name={'Settings'} badge={'company'}/>
+        {checkPermission('can_view_staff', access.permissions, true, access.isOwner) && (
+           <NoCollapsibleButton className={``} url={`/users/${u}/company/${companySlug}/settings`} title={'Settings'} icon={Settings} active={false} name={'Settings'} badge={'company'}/>
+        )} 
       </div>
       <CompanySidebarFooterUser user={profile} u={u} />
     </SidebarFooter>

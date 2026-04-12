@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+import { Skeleton } from '@/components/ui/skeleton'
 import supabase from '@/config/supabaseClient'
 import { RefreshCw, Edit2, Save, AlertCircle } from 'lucide-react'
 import { StaffContext } from '@/components/contexts/staff-context'
@@ -234,8 +235,47 @@ export default function PermissionsTab({ staffData, setStaffData, companyId }) {
 
   if (isLoading) {
     return (
-      <div className="p-6">
-        <p className="text-sm text-gray-600">Loading permissions...</p>
+      <div className="p-6 h-full flex flex-col overflow-y-auto">
+        {/* Header Skeleton */}
+        <div className="flex items-center justify-between mb-8 shrink-0">
+          <Skeleton className="h-7 w-48" />
+          <div className="flex gap-2">
+            <Skeleton className="h-10 w-24" />
+            <Skeleton className="h-10 w-20" />
+            <Skeleton className="h-10 w-24" />
+          </div>
+        </div>
+
+        {/* Permissions Groups Skeleton */}
+        <div className="flex-1 overflow-y-auto space-y-8">
+          {[1, 2, 3].map((group) => (
+            <Card key={group} className="overflow-hidden">
+              {/* Group Header Skeleton */}
+              <div className="bg-muted px-6 py-4 border-b">
+                <Skeleton className="h-6 w-40" />
+              </div>
+
+              {/* Permission Rows Skeleton */}
+              <div className="divide-y">
+                {[1, 2, 3, 4].map((row) => (
+                  <div key={row} className="grid grid-cols-1 md:grid-cols-12 gap-4 px-6 py-5 items-center">
+                    <div className="md:col-span-5">
+                      <Skeleton className="h-5 w-3/4 mb-2" />
+                      <Skeleton className="h-4 w-full" />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Skeleton className="h-4 w-32" />
+                    </div>
+                    <div className="md:col-span-5 flex justify-end gap-3">
+                      <Skeleton className="h-6 w-20" />
+                      <Skeleton className="h-6 w-16" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          ))}
+        </div>
       </div>
     )
   }

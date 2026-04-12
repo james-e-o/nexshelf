@@ -167,6 +167,8 @@ export default function CompanyLayout({ children }) {
             accessLevelScope,
             branchId,
             suspended,
+            staff_id: user.id,
+            company_id: companiesLiteData.company_id,
           })
 
           // Currencies
@@ -258,6 +260,8 @@ export default function CompanyLayout({ children }) {
         accessLevelScope: info?.accessLevelScope,
         branchId: info?.branchId,
         suspended: info?.suspended,
+        staff_id: info?.staff_id,
+        company_id: info?.company_id,
       }}
     >
       {children}
