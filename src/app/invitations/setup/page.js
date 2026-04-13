@@ -549,10 +549,10 @@ export function SignupForm({
   }
 
   return (
-    <form className={cn("flex flex-col gap-6", className)} onSubmit={handleSubmit} {...props}>
+    <form className={cn("flex flex-col pb-3 gap-6", className)} onSubmit={handleSubmit} {...props}>
       <FieldGroup>
         {/* Company Acceptance Header */}
-        <div className="flex flex-col items-center gap-4 text-center mb-4">
+        <div className="flex flex-col items-center gap-4 text-center mb-2">
           {companyData?.logo_url && (
             <img
               src={companyData.logo_url}
@@ -563,7 +563,7 @@ export function SignupForm({
           <div className="space-y-1 w-full">
             <div className="text-lg font-semibold text-muted-foreground">
               Sign up and Accept Invitation <br /> from
-              <span className="text-lg mr-2 font-semibold text-army">
+              <span className="text-lg ml-2 font-semibold text-army">
                 {companyData?.name}
               </span>
             </div>
@@ -574,7 +574,7 @@ export function SignupForm({
         </div>
 
         {/* User Email Display */}
-        <div className="bg-muted px-3 py-3 rounded text-sm mb-2">
+        <div className="bg-muted px-3 py-3 rounded text-sm mb-1">
           <p className="text-muted-foreground text-xs mb-1">Email</p>
           <p className="font-medium">{userEmail}</p>
         </div>
