@@ -4,7 +4,7 @@ import { Suspense } from 'react'
 import { useEffect, useState, useRef } from 'react'
 import { useSearchParams,useParams, useRouter } from 'next/navigation'
 import { cn } from "@/lib/utils"
-import { TriangleAlert } from 'lucide-react'
+import { TriangleAlert, Eye, EyeOff } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldSeparator } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
@@ -64,6 +64,8 @@ function SignupPageContent() {
   const [error, setError] = useState(null)
   const [caseType, setCaseType] = useState(null) // 'no-invite', 'confirm-failed', 'success'
   const [hasValidated, setHasValidated] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   // console.log(window.location.origin)
 
@@ -596,15 +598,24 @@ export function SignupForm({
             {/* Password */}
             <Field>
               <FieldLabel htmlFor="password">Password</FieldLabel>
-              <Input 
-                id="password" 
-                name="password"
-                type="password"
-                placeholder="•••••••••"
-                value={formData.password}
-                onChange={handleChange}
-                required 
-              />
+              <div className="relative">
+                <Input 
+                  id="password" 
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="•••••••••"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required 
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
               <div className="text-xs space-y-1 mt-2">
                 <div className={rules.length ? 'text-army' : 'text-gray-400'}>
                   ✓ At least 8 characters
@@ -624,15 +635,24 @@ export function SignupForm({
             {/* Confirm Password */}
             <Field>
               <FieldLabel htmlFor="confirm-password">Confirm Password</FieldLabel>
-              <Input 
-                id="confirm-password" 
-                name="confirmPassword"
-                type="password"
-                placeholder=""
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                required 
-              />
+              <div className="relative">
+                <Input 
+                  id="confirm-password" 
+                  name="confirmPassword"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  placeholder=""
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  required 
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                >
+                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </Field>
 
             {/* Error Message */}
