@@ -479,9 +479,19 @@ export function SignupForm({
 
 
 
+
       const handleCompleteUser = async () => {
           setIsSubmitting(true)
           setError(null)
+
+            const {
+          data: { initsession },
+          error: sessionError,
+        } = await supabase.auth.getSession();
+
+        if (sessionError || !initsession?.access_token) {
+          throw new Error("No active session. Please log in again.");
+        }
 
           const { data, error: rpcError } = await supabase.functions.invoke(
             'complete-user-profile',
@@ -495,6 +505,9 @@ export function SignupForm({
                 company: companyData?.id,
                 company_invite:true,
                 invite_id: companyData?.invite_id
+              },
+              headers: {
+                Authorization: `Bearer ${initsession.access_token}`,
               },
             }
           )
