@@ -537,7 +537,7 @@ export function SignupForm({
           <div className="space-y-1 w-full">
             <div className="text-lg font-semibold text-muted-foreground">
               Sign up and Accept Invitation <br /> from
-              <span className="text-lg font-semibold text-army">
+              <span className="text-lg mr-2 font-semibold text-army">
                 {companyData?.name}
               </span>
             </div>
