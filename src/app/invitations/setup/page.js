@@ -468,7 +468,7 @@ export function SignupForm({
     try {
       const handle = formData.username.substring(1)
       
-      // Get current user
+      // Get current user and session
       const { data: { user }, error: userError } = await supabase.auth.getUser()
       if (userError || !user) {
         setError('Failed to get user information')
@@ -476,70 +476,55 @@ export function SignupForm({
         return
       }
 
-
-
-
-
-      const handleCompleteUser = async () => {
-          setIsSubmitting(true)
-          setError(null)
-
-            const {
-          data: { initsession },
-          error: sessionError,
-        } = await supabase.auth.getSession();
-
-        if (sessionError || !initsession?.access_token) {
-          throw new Error("No active session. Please log in again.");
-        }
-
-          const { data, error: rpcError } = await supabase.functions.invoke(
-            'complete-user-profile',
-            {
-              body: {
-                password: formData.password,
-                username: formData.username,
-                handle: handle,
-                email: userEmail,
-                invited_by: companyData?.invited_by,
-                company: companyData?.id,
-                company_invite:true,
-                invite_id: companyData?.invite_id
-              },
-              headers: {
-                Authorization: `Bearer ${initsession.access_token}`,
-              },
-            }
-          )
-
-          if (rpcError) {
-            console.error('Error:', rpcError)
-            setError(rpcError.message || 'Failed to complete your profile')
-            setIsSubmitting(false)
-            return
-          }
-
-          // Success
-          await supabase.auth.refreshSession() // So new metadata appears
-          
-          // ✅ Verify handle was saved and redirect
-          const { data: { session } } = await supabase.auth.getSession()
-          const verifiedHandle = session?.user?.user_metadata?.handle
-
-          if (!verifiedHandle) {
-            console.error('Handle not found after save')
-            setError('Profile handle was not saved. Please refresh and try again.')
-            setIsSubmitting(false)
-            return
-          }
-
-          // ✅ Redirect to dashboard using saved handle
-          router.push(`/users/${verifiedHandle}/company-invites/${companyData?.invite_id}`)
-          
-
+      // Get session with access token
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError || !session?.access_token) {
+        throw new Error("No active session. Please log in again.")
       }
 
-      await handleCompleteUser()
+      // Invoke edge function to complete user profile
+      const { data, error: rpcError } = await supabase.functions.invoke(
+        'complete-user-profile',
+        {
+          body: {
+            password: formData.password,
+            username: formData.username,
+            handle: handle,
+            email: userEmail,
+            invited_by: companyData?.invited_by,
+            company: companyData?.id,
+            company_invite: true,
+            invite_id: companyData?.invite_id
+          },
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      )
+
+      if (rpcError) {
+        console.error('Error:', rpcError)
+        setError(rpcError.message || 'Failed to complete your profile')
+        setIsSubmitting(false)
+        return
+      }
+
+      // Success - refresh session to get updated metadata
+      await supabase.auth.refreshSession()
+      
+      // ✅ Verify handle was saved and redirect
+      const { data: { session: updatedSession } } = await supabase.auth.getSession()
+      const verifiedHandle = updatedSession?.user?.user_metadata?.handle
+
+      if (!verifiedHandle) {
+        console.error('Handle not found after save')
+        setError('Profile handle was not saved. Please refresh and try again.')
+        setIsSubmitting(false)
+        return
+      }
+
+      // ✅ Redirect to dashboard using saved handle
+      router.push(`/users/${verifiedHandle}/company-invites/${companyData?.invite_id}`)
 
     } catch (err) {
       console.error('Error submitting form:', err)
