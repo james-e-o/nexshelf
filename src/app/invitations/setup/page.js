@@ -253,7 +253,14 @@ function SignupPageContent() {
             )}
             
             {!loading && !error && caseType === 'success' && (
-              <SignupForm companyData={companyData} userEmail={userEmail} />
+              <SignupForm 
+                companyData={companyData} 
+                userEmail={userEmail} 
+                showPassword={showPassword}
+                setShowPassword={setShowPassword}
+                showConfirmPassword={showConfirmPassword}
+                setShowConfirmPassword={setShowConfirmPassword}
+              />
             )}
             
             {!loading && caseType === 'continue-onboarding' && (
@@ -303,6 +310,10 @@ export function SignupForm({
   className,
   companyData,
   userEmail,
+  showPassword,
+  setShowPassword,
+  showConfirmPassword,
+  setShowConfirmPassword,
   ...props
 }) {
   const [formData, setFormData] = useState({
