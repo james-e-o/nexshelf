@@ -498,9 +498,9 @@ export function SignupForm({
           
           // ✅ Verify handle was saved and redirect
           const { data: { session } } = await supabase.auth.getSession()
-          const handle = session?.user?.user_metadata?.handle
+          const verifiedHandle = session?.user?.user_metadata?.handle
 
-          if (!handle) {
+          if (!verifiedHandle) {
             console.error('Handle not found after save')
             setError('Profile handle was not saved. Please refresh and try again.')
             setIsSubmitting(false)
@@ -508,7 +508,7 @@ export function SignupForm({
           }
 
           // ✅ Redirect to dashboard using saved handle
-          router.push(`/users/${handle}/company-invites/${companyData?.invite_id}`)
+          router.push(`/users/${verifiedHandle}/company-invites/${companyData?.invite_id}`)
           
 
       }
