@@ -509,12 +509,18 @@ export function SignupForm({
         return
       }
 
-      // Success - refresh session to get updated metadata
-      await supabase.auth.refreshSession()
-      
-      // ✅ Verify handle was saved and redirect
-      const { data: { session: updatedSession } } = await supabase.auth.getSession()
-      const verifiedHandle = updatedSession?.user?.user_metadata?.handle
+
+       // This fetches the latest user_metadata directly from the database
+      const { data: { user: updatedUser }, error: updatedError } = await supabase.auth.getUser()
+
+      if (updatedError || !updatedUser) {
+        console.error('Failed to get updated user')
+        setError('Failed to load updated profile. Please refresh and try again.')
+        setIsSubmitting(false)
+        return
+      }
+
+      const verifiedHandle = updatedUser?.user_metadata?.handle
 
       if (!verifiedHandle) {
         console.error('Handle not found after save')
