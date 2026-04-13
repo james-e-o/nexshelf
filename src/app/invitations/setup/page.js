@@ -534,8 +534,8 @@ export function SignupForm({
               className="w-16 h-16 object-contain lg:hidden"
             />
           )}
-          <div className="space-y-1">
-            <div className="text-lg flex font-semibold text-muted-foreground">
+          <div className="space-y-1 w-full">
+            <div className="text-lg font-semibold text-muted-foreground">
               Sign up and Accept Invitation <br /> from
               <span className="text-lg font-semibold text-army">
                 {companyData?.name}
