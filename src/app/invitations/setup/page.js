@@ -191,108 +191,81 @@ function SignupPageContent() {
   }, [hasValidated])
 
   return (
-    <div className="grid min-h-svh font-WixMade lg:grid-cols-2">
-      {/* Left Side - Company Logo/Image (Always visible, fallback to default if no companyData) */}
-      <div className="bg-linear-to-br from-core/55 to-army/50 relative hidden lg:flex lg:flex-col lg:items-center lg:justify-center overflow-hidden">
-        {companyData?.logo_url ? (
-          <div className="relative z-10 flex flex-col items-center gap-6 px-6">
-            <img
-              src={companyData.logo_url}
-              alt={companyData.name}
-              className="w-24 h-24 object-contain drop-shadow-lg"
-            />
-            <div className="text-center space-y-2">
-              <h2 className="text-2xl font-bold text-white">{companyData.name}</h2>
-              <p className="text-white/80">Welcome to Nexshelf Pro</p>
-            </div>
-          </div>
-        ) : (
-          <img
-            src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=1000&h=1000&fit=crop"
-            alt="Team working together"
-            className="absolute inset-0 h-full w-full object-cover"
+    <>
+      <div className="flex justify-center gap-2 md:justify-start">
+        <a href="/" className="flex items-center gap-2 font-medium">
+          <Image 
+            className="dark:invert w-8 h-8" 
+            src="/logo.png" 
+            alt="Nexshelf" 
+            width={32} 
+            height={32}
           />
-        )}
-        <div className="absolute inset-0 bg-linear-to-t from-core/40 to-army/10"></div>
+        </a>
       </div>
-
-      {/* Right Side - Form or Error */}
-      <div className="flex flex-col gap-4 p-6 md:p-10 overflow-y-auto max-h-svh">
-        <div className="flex justify-center gap-2 md:justify-start">
-          <a href="/" className="flex items-center gap-2 font-medium">
-            <Image 
-              className="dark:invert w-8 h-8" 
-              src="/logo.png" 
-              alt="Nexshelf" 
-              width={32} 
-              height={32}
+      <div className="flex flex-1 items-center justify-center">
+        <div className="w-full max-w-xs">
+          {loading && (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin h-8 w-8 border-2 border-core border-t-transparent rounded-full"></div>
+            </div>
+          )}
+          
+          {!loading && error && (
+            <div className="flex flex-col items-center justify-center gap-4 py-12">
+              <div className="text-army mb-2">
+                <TriangleAlert className="size-20" />
+              </div>
+              <div className="bg-core/10 border-2 border-core/30 rounded-lg p-6 text-center">
+                <p className="text-core font-semibold mb-2">Access Required</p>
+                <p className="text-core/80 text-sm">{error}</p>
+              </div>
+              <a href="/" className="text-core hover:underline text-sm font-medium">
+                Back to Home
+              </a>
+            </div>
+          )}
+          
+          {!loading && !error && caseType === 'success' && (
+            <SignupForm 
+              companyData={companyData} 
+              userEmail={userEmail} 
+              showPassword={showPassword}
+              setShowPassword={setShowPassword}
+              showConfirmPassword={showConfirmPassword}
+              setShowConfirmPassword={setShowConfirmPassword}
             />
-          </a>
-        </div>
-        <div className="flex flex-1 items-center justify-center">
-          <div className="w-full max-w-xs">
-            {loading && (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin h-8 w-8 border-2 border-core border-t-transparent rounded-full"></div>
-              </div>
-            )}
-            
-            {!loading && error && (
-              <div className="flex flex-col items-center justify-center gap-4 py-12">
-                <div className="text-army mb-2">
-                  <TriangleAlert className="size-20" />
-                </div>
-                <div className="bg-core/10 border-2 border-core/30 rounded-lg p-6 text-center">
-                  <p className="text-core font-semibold mb-2">Access Required</p>
-                  <p className="text-core/80 text-sm">{error}</p>
-                </div>
-                <a href="/" className="text-core hover:underline text-sm font-medium">
-                  Back to Home
-                </a>
-              </div>
-            )}
-            
-            {!loading && !error && caseType === 'success' && (
-              <SignupForm 
-                companyData={companyData} 
-                userEmail={userEmail} 
-                showPassword={showPassword}
-                setShowPassword={setShowPassword}
-                showConfirmPassword={showConfirmPassword}
-                setShowConfirmPassword={setShowConfirmPassword}
-              />
-            )}
-            
-            {!loading && caseType === 'continue-onboarding' && (
-              <ContinueOnboardingForm userEmail={userEmail} />
-            )}
+          )}
+          
+          {!loading && caseType === 'continue-onboarding' && (
+            <ContinueOnboardingForm userEmail={userEmail} />
+          )}
 
-            {!loading && caseType === 'reset-password' && (
-              <ResetPasswordForm userEmail={userEmail} />
-            )}
-            
-            {!loading && caseType === 'reset-password-input' && (
-              <EmailResetForm />
-            )}
-            
-            {!loading && caseType === 'already-signed-up' && (
-              <div className="flex flex-col items-center justify-center gap-4 py-12">
-                <div className="text-army mb-2">
-                  <TriangleAlert className="size-20" />
-                </div>
-                <div className="bg-core/10 border-2 border-core/30 rounded-lg p-6 text-center">
-                  <p className="text-core font-semibold mb-2">Already Signed Up</p>
-                  <p className="text-core/80 text-sm">{error}</p>
-                </div>
-                <a href="/accounts/login" className="text-core hover:underline text-sm font-medium">
-                  Go to Login
-                </a>
+          {!loading && caseType === 'reset-password' && (
+            <ResetPasswordForm userEmail={userEmail} />
+          )}
+          
+          {!loading && caseType === 'reset-password-input' && (
+            <EmailResetForm />
+          )}
+          
+          {!loading && caseType === 'already-signed-up' && (
+            <div className="flex flex-col items-center justify-center gap-4 py-12">
+              <div className="text-army mb-2">
+                <TriangleAlert className="size-20" />
               </div>
-            )}
-          </div>
+              <div className="bg-core/10 border-2 border-core/30 rounded-lg p-6 text-center">
+                <p className="text-core font-semibold mb-2">Already Signed Up</p>
+                <p className="text-core/80 text-sm">{error}</p>
+              </div>
+              <a href="/accounts/login" className="text-core hover:underline text-sm font-medium">
+                Go to Login
+              </a>
+            </div>
+          )}
         </div>
       </div>
-    </div>
+    </>
   )
 }
 
@@ -542,7 +515,16 @@ export function SignupForm({
               type="button"
               onClick={async () => {
                 await supabase.auth.signOut()
-                router.push('/invitations/login')
+                // Build URL with company parameters
+                const params = new URLSearchParams()
+                if (companyData?.id) params.append('company_id', companyData.id)
+                if (companyData?.name) params.append('company_name', companyData.name)
+                if (companyData?.logo_url) params.append('logo_url', companyData.logo_url)
+                if (companyData?.invited_by) params.append('invited_by', companyData.invited_by)
+                if (companyData?.invite_id) params.append('invite_id', companyData.invite_id)
+                
+                const loginUrl = `/invitations/login${params.toString() ? '?' + params.toString() : ''}`
+                router.push(loginUrl)
               }}
               className="bg-core hover:bg-core/90 text-white font-semibold w-full mt-4"
             >

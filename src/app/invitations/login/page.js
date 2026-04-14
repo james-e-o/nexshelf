@@ -1,6 +1,6 @@
 
 'use client'
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { Eye, EyeOff, Check } from "lucide-react";
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -10,14 +10,22 @@ import Link from "next/link"
 import { Spinner } from "@/components/ui/spinner"
 import { isEmpty, isEmail } from "validator"
 import supabase from "../../../config/supabaseClient";
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { google, x } from "../../accounts/signup/page";
 import { toast } from "sonner";
 import Image from "next/image";
 
-
 export default function InvitationLoginPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <InvitationLoginContent />
+    </Suspense>
+  )
+}
+
+function InvitationLoginContent() {
+  const searchParams = useSearchParams()
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState('')
@@ -25,6 +33,8 @@ export default function InvitationLoginPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [companyData, setCompanyData] = useState(null)
+  
   const message = {
     emailError: 'valid email address required',
     passwordError: 'password cannot be empty',
@@ -32,6 +42,25 @@ export default function InvitationLoginPage() {
   }
 
   const router = useRouter()
+  
+  // Extract company info from URL params
+  useEffect(() => {
+    const companyId = searchParams.get('company_id')
+    const companyName = searchParams.get('company_name')
+    const logoUrl = searchParams.get('logo_url')
+    const invitedBy = searchParams.get('invited_by')
+    const inviteId = searchParams.get('invite_id')
+
+    if (companyId && companyName) {
+      setCompanyData({
+        id: companyId,
+        name: companyName,
+        logo_url: logoUrl,
+        invited_by: invitedBy,
+        invite_id: inviteId
+      })
+    }
+  }, [searchParams])
   
   async function Submit(e) {
     e.preventDefault();
@@ -110,27 +139,37 @@ export default function InvitationLoginPage() {
 
   return (
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-      <div className="bg-background flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
-        <div className="w-full -mt-20 max-w-sm">
+      <div className="flex justify-center gap-2 md:justify-start mb-6">
+        <a href="/" className="flex items-center gap-2 font-medium">
+          <Image 
+            className="dark:invert w-8 h-8" 
+            src="/logo.png" 
+            alt="Nexshelf" 
+            width={32} 
+            height={32}
+          />
+        </a>
+      </div>
+      
+      <div className="flex flex-1 items-center justify-center">
+        <div className="w-full max-w-xs">
           <div className={cn("flex flex-col gap-6")}>
             <form onSubmit={Submit}>
               <FieldGroup>
-                <div className="flex flex-col items-center gap-2 text-center">
-                  <a
-                    href="/"
-                    className="flex flex-col items-center gap-2 font-medium"
-                  >
-                    <div className="flex size-8 items-center justify-center rounded-md">
-                      <div className="inline-flex pt-0 md:pt-0 size-8 justify-center">
-                        <Image className="dark:invert w-7/8 scale-75" src="/logo.png" alt="logo" width={200} height={200} priority />
-                      </div>
-                    </div>
-                  </a>
-                  <h1 className="text-xl text-army font-bold">Log In to Accept Your Invitation</h1>
+                <div className="flex flex-col items-center gap-2 text-center mb-2">
+                  {companyData?.logo_url && (
+                    <img
+                      src={companyData.logo_url}
+                      alt={companyData.name}
+                      className="w-16 h-16 object-contain lg:hidden"
+                    />
+                  )}
+                  <h1 className="text-xl text-army font-bold">Log In to Accept Invitation</h1>
                   <FieldDescription>
-                    Login with your credentials to accept the invitation from the company
+                    Login with your credentials to accept the company invitation
                   </FieldDescription>
                 </div>
+
                 <Field>
                   <FieldLabel htmlFor="email">Email</FieldLabel>
                   <Input 
@@ -203,6 +242,25 @@ export default function InvitationLoginPage() {
                 </Field>
               </FieldGroup>
             </form>
+            
+            {/* Company Info Display */}
+            {companyData && (
+              <div className="bg-core/10 border-2 border-core/20 rounded-lg p-4 text-center mt-2">
+                {companyData.logo_url && (
+                  <img
+                    src={companyData.logo_url}
+                    alt={companyData.name}
+                    className="w-12 h-12 object-contain mx-auto mb-2"
+                  />
+                )}
+                <p className="text-xs text-muted-foreground mb-1">Accepting invitation from</p>
+                <p className="font-semibold text-core">{companyData.name}</p>
+                {companyData.invited_by && (
+                  <p className="text-xs text-muted-foreground mt-2">Invited by: {companyData.invited_by}</p>
+                )}
+              </div>
+            )}
+
             <FieldDescription className="px-6 text-center">
               By clicking continue, you agree to our <a href="#">Terms of Service</a>{" "}
               and <a href="#">Privacy Policy</a>.
