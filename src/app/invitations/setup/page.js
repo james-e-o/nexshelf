@@ -509,27 +509,17 @@ export function SignupForm({
         return
       }
 
-
-       // This fetches the latest user_metadata directly from the database
-      const { data: { user: updatedUser }, error: updatedError } = await supabase.auth.getUser()
-
-      if (updatedError || !updatedUser) {
-        console.error('Failed to get updated user')
-        setError('Failed to load updated profile. Please refresh and try again.')
-        setIsSubmitting(false)
-        return
-      }
-
-      const verifiedHandle = updatedUser?.user_metadata?.handle
+      // Success - extract handle from response
+      const verifiedHandle = data?.handle
 
       if (!verifiedHandle) {
-        console.error('Handle not found after save')
+        console.error('Handle not returned from server')
         setError('Profile handle was not saved. Please refresh and try again.')
         setIsSubmitting(false)
         return
       }
 
-      // ✅ Redirect to dashboard using saved handle
+      // ✅ Redirect to dashboard using handle from server response
       router.push(`/users/${verifiedHandle}/company-invites/${companyData?.invite_id}`)
 
     } catch (err) {

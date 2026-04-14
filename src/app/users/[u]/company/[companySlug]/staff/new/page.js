@@ -6,16 +6,20 @@ import { Label } from "@/components/ui/label";
 import { CompanyInfoContext } from "../../layout";
 import { toast } from "sonner";
 import Image from "next/image";
-import  supabase from "../../../../../../../config/supabaseClient";
-import {  AlertDialog,  AlertDialogAction,  AlertDialogCancel,  AlertDialogContent,  AlertDialogDescription,  AlertDialogTitle,} from "@/components/ui/alert-dialog";
+import supabase from "../../../../../../../config/supabaseClient";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
-
-
-export default function StaffOnboarding({ companyId, companyName, companyLogo }) {
+export default function StaffOnboarding() {
   const [loading, setLoading] = useState(false);
   const { info, user } = useContext(CompanyInfoContext);
 
-  // Invite Staff Form State
   const [inviteEmail, setInviteEmail] = useState("");
   const [showExistsDialog, setShowExistsDialog] = useState(false);
   const [showAlreadyMemberDialog, setShowAlreadyMemberDialog] = useState(false);
@@ -25,141 +29,109 @@ export default function StaffOnboarding({ companyId, companyName, companyLogo })
 
   const COOLDOWN_MINUTES = 3;
 
-  // Cooldown timer effect
+  // Cooldown Timer
   useEffect(() => {
     if (cooldownSeconds <= 0) return;
-
     const timer = setInterval(() => {
-      setCooldownSeconds((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          return 0;
-        }
-        return prev - 1;
-      });
+      setCooldownSeconds((prev) => (prev <= 1 ? 0 : prev - 1));
     }, 1000);
-
     return () => clearInterval(timer);
   }, [cooldownSeconds]);
 
+  const callInviteEdgeFunction = async (email, isResend = false) => {
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+    if (sessionError || !session?.access_token) {
+      throw new Error("Session expired. Please log in again.");
+    }
+
+    const payload = {
+      email,
+      company_id: info.id,
+      invited_by: user?.id,
+      is_resend: isResend,
+    };
+
+    const { data, error } = await supabase.functions.invoke("send-invite", {
+      body: payload,
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+    });
+
+    if (error) throw error;
+    return data;
+  };
+
   async function handleInviteSubmit(e) {
     e.preventDefault();
+    if (!inviteEmail) return;
+
     setLoading(true);
     const checkingToast = toast.loading("Checking...");
 
     try {
-      // Step 1: Check if invite already exists for this email + company
-      const { data: existingInvites, error: checkError } = await supabase
-        .from('company_invites')
-        .select('*')
-        .eq('email', inviteEmail)
-        .eq('company_id', info.id)
+      const { data: existing, error: checkError } = await supabase
+        .from("company_invites")
+        .select("*")
+        .eq("email", inviteEmail)
+        .eq("company_id", info.id)
         .maybeSingle();
 
-      if (checkError && checkError.code !== 'PGRST116') {
-        console.error('Error checking invites:', checkError);
-        toast.dismiss(checkingToast);
-        toast.error("Failed to check invite status");
-        setLoading(false);
-        return;
+      if (checkError && checkError.code !== "PGRST116") {
+        throw checkError;
       }
 
-      const inviteExists = existingInvites !== null;
+      toast.dismiss(checkingToast);
 
-      if (inviteExists) {
-        toast.dismiss(checkingToast);
-        const invite = existingInvites;
+      if (existing) {
+        setExistingInvite(existing);
 
-        // Case 3: Invite already accepted - user belongs to company
-        if (invite.status === 'accepted') {
-          setExistingInvite(invite);
+        if (existing.status === "accepted") {
           setShowAlreadyMemberDialog(true);
-          setLoading(false);
-          return;
-        }
+        } else {
+          // Calculate cooldown
+          if (existing.last_sent) {
+            const lastSentTime = new Date(existing.last_sent).getTime();
+            const remainingMs = lastSentTime + COOLDOWN_MINUTES * 60 * 1000 - Date.now();
+            const remainingSeconds = Math.ceil(remainingMs / 1000);
 
-        // Case 2: Invite is pending or registered - resend
-        setExistingInvite(invite);
-        
-        // Calculate cooldown from last_sent
-        if (invite.last_sent) {
-          const lastSent = new Date(invite.last_sent).getTime();
-          const now = new Date().getTime();
-          const diffMs = now - lastSent;
-          const diffMinutes = diffMs / 1000 / 60;
-
-          if (diffMinutes < COOLDOWN_MINUTES) {
-            const remainingSeconds = Math.ceil((COOLDOWN_MINUTES - diffMinutes) * 60);
-            setCooldownSeconds(remainingSeconds);
-          } else {
-            setCooldownSeconds(0);
+            if (remainingSeconds > 0) {
+              setCooldownSeconds(remainingSeconds);
+            }
           }
+          setShowExistsDialog(true);
         }
-
-        setShowExistsDialog(true);
         setLoading(false);
         return;
       }
 
-      // Case 1: No invite exists - create new invite
-      toast.dismiss(checkingToast);
-      await insertNewInvite();
+      // New Invite
+      await sendNewInvite();
     } catch (err) {
-      console.error(err);
       toast.dismiss(checkingToast);
-      toast.error("Something went wrong.");
+      toast.error(err.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
   }
 
-  async function insertNewInvite() {
+  async function sendNewInvite() {
     const t = toast.loading("Sending invite...");
-
     try {
-      // Calculate expiry date (24 hours from now)
-      const expiryDate = new Date();
-      expiryDate.setHours(expiryDate.getHours() + 24);
-
-      // Create new invite with pending status
-      const { data: insertData, error } = await supabase
-        .from('company_invites')
-        .insert([
-          {
-            email: inviteEmail,
-            company_id: info.id,
-            company_name: info.name,
-            expiry: expiryDate.getTime(),
-            last_sent: new Date().toISOString(),
-            status: 'pending',
-            invited_by: user.id
-          },
-        ])
-        .select();
-
-      if (error) {
-        console.error('Error inserting company invite:', error);
-        toast.error("Failed to send invitation");
-        toast.dismiss(t);
-        return;
-      }
-
-      // Send email invite
-      // TODO: Call email service to send invite to user
+      await callInviteEdgeFunction(inviteEmail, false);
       toast.dismiss(t);
-      toast.success("Invite sent via email!");
+      toast.success("Invite sent successfully!");
       setInviteEmail("");
     } catch (err) {
-      console.error(err);
       toast.dismiss(t);
-      toast.error("Something went wrong.");
+      toast.error(err.message || "Failed to send invite");
     }
   }
 
   async function handleResend() {
-    // Check cooldown
     if (cooldownSeconds > 0) {
-      toast.error(`Please wait ${cooldownSeconds} second(s) before resending`);
+      toast.error(`Please wait ${cooldownSeconds} seconds`);
       return;
     }
 
@@ -167,45 +139,26 @@ export default function StaffOnboarding({ companyId, companyName, companyLogo })
     const t = toast.loading("Resending invite...");
 
     try {
-      // Calculate new expiry date (24 hours from now)
-      const expiryDate = new Date();
-      expiryDate.setHours(expiryDate.getHours() + 24);
-      
-      // Update the existing invite record with new last_sent
-      const { data, error } = await supabase
-        .from('company_invites')
-        .update({
-          expiry: expiryDate.getTime(),
-          last_sent: new Date().toISOString()
-        })
-        .eq('id', existingInvite.id)
-        .select();
+      await callInviteEdgeFunction(inviteEmail, true);
 
-      if (error) {
-        console.error('Error updating company invite:', error);
-        toast.error("Failed to resend invitation");
-        toast.dismiss(t);
-        setResendLoading(false);
-        return;
-      } else {
-        toast.dismiss(t);
-        toast.success("Invite resent!");
-        setShowExistsDialog(false);
-        setExistingInvite(null);
-        setInviteEmail("");
-        setCooldownSeconds(COOLDOWN_MINUTES * 60); // Start cooldown
-      }
-    } catch (err) {
-      console.error(err);
       toast.dismiss(t);
-      toast.error("Something went wrong.");
+      toast.success("Invite resent successfully!");
+
+      setShowExistsDialog(false);
+      setExistingInvite(null);
+      setInviteEmail("");
+      setCooldownSeconds(COOLDOWN_MINUTES * 60);
+    } catch (err) {
+      toast.dismiss(t);
+      toast.error(err.message || "Failed to resend invite");
+    } finally {
       setResendLoading(false);
     }
   }
 
   return (
-    <div className="bg-white font-WixMade mx-auto shadow-sm rounded-lg p-6 min-w-xl w-fit mt-5">
-      
+    <div className=" justify-center items-center flex grow">
+    <div className=" font-WixMade bg-white shadow-md border rounded-lg -mt-12 p-6 min-w-2xl w-fit">
       {/* Logo Header */}
       <div className="flex scale-[85%] justify-center items-center w-full -mt-2 -mb-2">
         <div className="flex pt-0 md:pt-0 size-8 justify-center">
@@ -223,34 +176,24 @@ export default function StaffOnboarding({ companyId, companyName, companyLogo })
         </p>
       </div>
 
-      {/* Title */}
-      <h2 className="text-sm text-center font-semibold my-4">
-        Invite Staff Member
-      </h2>
+      <h2 className="text-sm text-center font-semibold my-4">Invite Staff Member</h2>
 
-      {/* Company Info Display */}
+      {/* Company Info */}
       <div className="bg-slate-50 rounded-lg p-4 mb-5 border border-slate-200">
         <div className="space-y-2">
           <div>
             <p className="text-xs text-gray-500 font-medium">Company Name</p>
-            <p className="text-sm font-semibold text-gray-800">
-              {info?.name || "Company"}
-            </p>
+            <p className="text-sm font-semibold text-gray-800">{info?.name || "Company"}</p>
           </div>
           <div>
             <p className="text-xs text-gray-500 font-medium">Company Email</p>
-            <p className="text-sm text-blue-600">
-              {info?.email || "Not set"}
-            </p>
+            <p className="text-sm text-blue-600">{info?.email || "Not set"}</p>
           </div>
         </div>
       </div>
 
-      {/* Invite Staff Form */}
-      <form
-        className="flex flex-col gap-3 text-xs"
-        onSubmit={handleInviteSubmit}
-      >
+      {/* Invite Form */}
+      <form className="flex flex-col gap-3 text-xs" onSubmit={handleInviteSubmit}>
         <div>
           <Label className="block mb-1 text-xs text-gray-600 font-medium">
             Staff Email Address
@@ -264,67 +207,70 @@ export default function StaffOnboarding({ companyId, companyName, companyLogo })
             className="text-xs"
           />
         </div>
-
         <Button
           type="submit"
           disabled={loading}
           className="mt-3 bg-core hover:bg-army text-white text-xs py-2 rounded-md font-medium"
         >
-          {loading ? "Sending..." : "Send Invite"}
+          {loading ? "Processing..." : "Send Invite"}
         </Button>
       </form>
 
-      {/* Alert Dialog for Existing Email */}
+      {/* Existing Invite Dialog */}
       <AlertDialog open={showExistsDialog} onOpenChange={setShowExistsDialog}>
         <AlertDialogContent>
           <AlertDialogTitle>Invite Already Sent</AlertDialogTitle>
           <AlertDialogDescription>
-            An invite has been sent to <span className="font-semibold">{inviteEmail}</span> already. Would you like to resend the invitation?
+            An invite has already been sent to <span className="font-semibold">{inviteEmail}</span>.
+            Would you like to resend?
           </AlertDialogDescription>
           <div className="flex gap-3 justify-end mt-4">
-            <AlertDialogCancel onClick={() => {
-              setShowExistsDialog(false);
-              setExistingInvite(null);
-              setInviteEmail("");
-              setCooldownSeconds(0);
-            }}>
+            <AlertDialogCancel
+              onClick={() => {
+                setShowExistsDialog(false);
+                setExistingInvite(null);
+                setInviteEmail("");
+                setCooldownSeconds(0);
+              }}
+            >
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleResend}
               disabled={resendLoading || cooldownSeconds > 0}
-              className="bg-core hover:bg-army disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-core hover:bg-army"
             >
-              {resendLoading ? (
-                "Resending..."
-              ) : cooldownSeconds > 0 ? (
-                `Resend in ${cooldownSeconds}s`
-              ) : (
-                "Resend"
-              )}
+              {resendLoading
+                ? "Resending..."
+                : cooldownSeconds > 0
+                ? `Resend in ${cooldownSeconds}s`
+                : "Resend Invite"}
             </AlertDialogAction>
           </div>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Alert Dialog for Already Member */}
+      {/* Already Member Dialog */}
       <AlertDialog open={showAlreadyMemberDialog} onOpenChange={setShowAlreadyMemberDialog}>
         <AlertDialogContent>
           <AlertDialogTitle>User Already a Member</AlertDialogTitle>
           <AlertDialogDescription>
-            <span className="font-semibold">{inviteEmail}</span> is already a member of your company and has accepted the invite.
+            <span className="font-semibold">{inviteEmail}</span> is already a member of this company.
           </AlertDialogDescription>
           <div className="flex gap-3 justify-end mt-4">
-            <AlertDialogCancel onClick={() => {
-              setShowAlreadyMemberDialog(false);
-              setExistingInvite(null);
-              setInviteEmail("");
-            }}>
+            <AlertDialogCancel
+              onClick={() => {
+                setShowAlreadyMemberDialog(false);
+                setExistingInvite(null);
+                setInviteEmail("");
+              }}
+            >
               Close
             </AlertDialogCancel>
           </div>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
     </div>
   );
 }
