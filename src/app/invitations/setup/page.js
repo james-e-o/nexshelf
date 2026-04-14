@@ -316,6 +316,7 @@ export function SignupForm({
   setShowConfirmPassword,
   ...props
 }) {
+  const router = useRouter()
   const [formData, setFormData] = useState({
     username: '@',
     handle: '',
