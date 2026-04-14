@@ -327,6 +327,7 @@ export function SignupForm({
   const [usernameExists, setUsernameExists] = useState(null)
   const [checkingUsername, setCheckingUsername] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [signupSuccess, setSignupSuccess] = useState(false)
   const debounceTimer = useRef(null)
 
   const message = {
@@ -510,18 +511,8 @@ export function SignupForm({
         return
       }
 
-      // Success - extract handle from response
-      const verifiedHandle = data?.handle
-
-      if (!verifiedHandle) {
-        console.error('Handle not returned from server')
-        setError('Profile handle was not saved. Please refresh and try again.')
-        setIsSubmitting(false)
-        return
-      }
-
-      // ✅ Redirect to dashboard using handle from server response
-      router.push(`/users/${verifiedHandle}/company-invites/${companyData?.invite_id}`)
+      // Success - show success message
+      setSignupSuccess(true)
 
     } catch (err) {
       console.error('Error submitting form:', err)
@@ -533,6 +524,36 @@ export function SignupForm({
   return (
     <form className={cn("flex flex-col pb-3 gap-6", className)} onSubmit={handleSubmit} {...props}>
       <FieldGroup>
+        {/* Success Message */}
+        {signupSuccess && (
+          <div className="flex flex-col items-center justify-center gap-4 py-12">
+            <div className="text-army mb-2">
+              <div className="w-16 h-16 rounded-full bg-army/10 flex items-center justify-center">
+                <svg className="w-8 h-8 text-army" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+            </div>
+            <div className="text-center space-y-3">
+              <p className="text-lg font-semibold text-core">Account Created Successfully!</p>
+              <p className="text-sm text-core/80">Your account and invitation have been accepted. Please log in to continue.</p>
+            </div>
+            <Button
+              type="button"
+              onClick={async () => {
+                await supabase.auth.signOut()
+                router.push('/invitations/login')
+              }}
+              className="bg-core hover:bg-core/90 text-white font-semibold w-full mt-4"
+            >
+              Go to Login
+            </Button>
+          </div>
+        )}
+
+        {/* Form Content - Hidden when signup is successful */}
+        {!signupSuccess && (
+          <>
         {/* Company Acceptance Header */}
         <div className="flex flex-col items-center gap-4 text-center mb-2">
           {companyData?.logo_url && (
@@ -676,7 +697,7 @@ export function SignupForm({
                 disabled={isSubmitting || usernameExists === true || !allValid || formData.confirmPassword !== formData.password}
                 className="bg-core hover:bg-core/90 text-white font-normal w-full disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? 'Signing up...' : 'Sign up to Accept Invite'}
+                {isSubmitting ? 'Signing up...' : 'Complete Sign Up'}
               </Button>
             </Field>
 
@@ -686,6 +707,8 @@ export function SignupForm({
             <FieldDescription className="px-6 text-center">
               Already have an account? <a href="/accounts/login" className="text-core hover:underline font-semibold">Sign in</a>
             </FieldDescription>
+          </>
+        )}
       </FieldGroup>
     </form>
   )
