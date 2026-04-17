@@ -230,7 +230,7 @@ export const ProductConfigurations = forwardRef(({
 
   // Fetch rules when branch changes or when sheet opens
   useEffect(() => {
-    console.log('useEffect triggered:', { minimumMarginRulesOpen, branchId: branch?.id });
+    // console.log('useEffect triggered:', { minimumMarginRulesOpen, branchId: branch?.id });
     if (minimumMarginRulesOpen && branch?.id) {
       fetchMinimumMarginRules();
     }
@@ -1188,7 +1188,7 @@ export const ProductConfigurations = forwardRef(({
                         />
                       </div>
                     </div>
-                    <p className="text-gray-500 text-[10px] mt-2">Reduction applied when ordering in bulk</p>
+                    <p className="text-gray-500 text-[10px] mt-2">Bulk price reduction (both % and value sync automatically)</p>
                   </div>
                 </div>
               ))

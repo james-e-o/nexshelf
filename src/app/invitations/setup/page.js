@@ -526,7 +526,7 @@ export function SignupForm({
                 const loginUrl = `/invitations/login${params.toString() ? '?' + params.toString() : ''}`
                 router.push(loginUrl)
               }}
-              className="bg-core hover:bg-core/90 text-white font-semibold w-full mt-4"
+              className="bg-army hover:bg-army/90 text-white font-semibold w-full mt-4"
             >
               Go to Login
             </Button>

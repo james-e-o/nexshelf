@@ -1749,7 +1749,7 @@ function CategorySheet({ branch, open, onOpenChange, onConfirm, initialSelected 
         const [categoryDescription, setCategoryDescription] = useState('')
     
       const fetch = async () => {
-        console.log('Fetching categories for branch:', branch)
+        // console.log('Fetching categories for branch:', branch)
         if (!open) return
         setLoading(true)
         try {

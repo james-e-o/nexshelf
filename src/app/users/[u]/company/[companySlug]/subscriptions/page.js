@@ -72,8 +72,8 @@ export default function SubscriptionOverviewPage() {
 
   // Get plan title from subscription data
   const getCurrentPlanTitle = () => {
-    if (currentSubscription?.core_plans?.title) {
-      return currentSubscription.core_plans.title
+    if (currentSubscription?.plan?.title) {
+      return currentSubscription.plan.title
     }
     return currentPlan?.title || "Unknown Plan"
   }
@@ -237,7 +237,7 @@ export default function SubscriptionOverviewPage() {
                   <div key={sub.id} className="py-4 border-b last:border-b-0">
                     <div className="flex items-center justify-between mb-2">
                       <p className="font-medium text-slate-900">
-                        {sub.core_plans?.title || "Unknown Plan"}
+                        {sub.plan?.title || "Unknown Plan"}
                       </p>
                       <span className={`px-2 py-1 rounded text-xs font-semibold ${getStatusBadgeColor(sub.status)}`}>
                         {sub.status.charAt(0).toUpperCase() + sub.status.slice(1)}

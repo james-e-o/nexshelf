@@ -114,9 +114,11 @@ export default function UserSidebarLayout({ children }) {
                   <div className="md:flex gap-2 hidden mr-1 items-center"></div>
                   <Button variant="ghost" size="icon" className="relative ml-3">
                     <Bell className="h-5 w-5" />
-                    <span className="absolute -top-0.5 -right-0.5 text-[9px] bg-red-600 translate-x-[-48.8%] translate-y-[48.9%] text-white font-semibold flex items-center justify-center size-3.5 rounded-full">
-                      3
-                    </span>
+                    {data?.pendingInvitesCount > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 text-[9px] bg-red-600 translate-x-[-48.8%] translate-y-[48.9%] text-white font-semibold flex items-center justify-center size-3.5 rounded-full">
+                        {data.pendingInvitesCount > 99 ? '99+' : data.pendingInvitesCount}
+                      </span>
+                    )}
                   </Button>
                 </div>
               </Header>
