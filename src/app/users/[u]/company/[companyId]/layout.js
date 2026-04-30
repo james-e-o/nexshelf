@@ -30,7 +30,7 @@ export default function CompanyLayout({ children }) {
   const [subscriptionVerified, setSubscriptionVerified] = useState(false)
   const [hasSubscription, setHasSubscription] = useState(null)
 
-  const { u, companySlug } = params
+  const { u, companyId } = params
 
   function capitalizeFirstLetter(string) {
     if (typeof string !== 'string' || string.length === 0) {
@@ -40,6 +40,14 @@ export default function CompanyLayout({ children }) {
   }
 
   useEffect(() => {
+    // Safety timeout: prevent infinite spinner on back navigation
+    const timeout = setTimeout(() => {
+      console.warn("Company layout loading timeout - forcing state reset")
+      setIsLoading(false)
+      setIsRedirecting(false)
+      setSubscriptionVerified(true)
+    }, 7000)
+
     async function checkAccess() {
       let redirectHappened = false
 
@@ -57,7 +65,7 @@ export default function CompanyLayout({ children }) {
         const { data: companiesLiteData, error: companiesLiteError } = await supabase
           .from("companies_lite")
           .select("company_id, name, slug, owner, currencies")
-          .eq("slug", companySlug)
+          .eq("company_id", companyId)
           .single()
 
         if (companiesLiteError || !companiesLiteData) {
@@ -148,11 +156,12 @@ export default function CompanyLayout({ children }) {
         setHasSubscription(!!currentSubscription)
         setSubscriptionVerified(true)
 
+        // Check pathname inside effect, not in dependencies
         if (!currentSubscription && !pathname?.includes("/subscriptions")) {
           console.log("Invalid subscription state → redirecting")
           redirectHappened = true
           setIsRedirecting(true)
-          router.push(`/users/${u}/company/${companySlug}/subscriptions`)
+          router.push(`/users/${u}/company/${companyId}/subscriptions`)
         }
 
         // ──────────────────────────────────────────────────────────────
@@ -208,12 +217,17 @@ export default function CompanyLayout({ children }) {
         }
         // Ensure subscription is marked as verified
         setSubscriptionVerified(true)
+        // Always clear timeout
+        clearTimeout(timeout)
         // If redirectHappened = true → spinner stays until navigation completes
       }
     }
 
     checkAccess()
-  }, [companySlug, u, router, pathname])
+
+    // Cleanup: clear timeout on unmount
+    return () => clearTimeout(timeout)
+  }, [companyId, u])
 
   // ──────────────────────────────────────────────────────────────
   // RENDER

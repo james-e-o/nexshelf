@@ -156,7 +156,7 @@ function UserDashboardContent() {
           ) : data?.companies?.length > 0 ? (
             <div className='space-y-4'>
               {data.companies.map((company, index) => (
-                <Link key={company.id || company.slug || index} href={`/users/${params.u}/company/${company.slug}`}>
+                <Link key={company.id || company.slug || index} href={`/users/${params.u}/company/${company.id}`}>
                   <div className='p-4 rounded-lg border border-gray-200 hover:border-core hover:shadow-md transition-all cursor-pointer'>
                     <div className='flex items-center justify-between'>
                       <div>

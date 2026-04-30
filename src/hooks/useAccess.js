@@ -1,7 +1,7 @@
 'use client';
 
 import { useContext, useEffect, useState } from 'react';
-import { CompanyInfoContext } from '@/app/users/[u]/company/[companySlug]/layout';
+import { CompanyInfoContext } from '@/app/users/[u]/company/[companyId]/layout';
 import supabase from '@/config/supabaseClient';
 
 

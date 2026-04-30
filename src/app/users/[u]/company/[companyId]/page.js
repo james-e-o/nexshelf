@@ -16,13 +16,13 @@ export default function CompanyPage() {
   const router = useRouter()
   const params = useParams()
   const searchParams = useSearchParams()
-  const { u, companySlug } = params
+  const { u, companyId } = params
   const { refreshKey, setRefreshKey } = useContext(RefreshContext)
   const [showWelcome, setShowWelcome] = useState(false)
 
   useEffect(() => {
     setRefreshKey(prev => prev + 1)
-  }, [u, companySlug, setRefreshKey])
+  }, [u, companyId, setRefreshKey])
 
   // Welcome message for newly invited staff
   useEffect(() => {

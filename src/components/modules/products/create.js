@@ -32,7 +32,7 @@ import { VariantTable } from '@/components/variants';
 import { ProductConfigurations } from "@/components/product-configurations";
 import supabase from "@/config/supabaseClient";
 
-import { BranchContext } from "@/app/users/[u]/company/[companySlug]/branches/[branch]/layout";
+import { BranchContext } from "@/app/users/[u]/company/[companyId]/branches/[branchId]/layout";
 
 
 

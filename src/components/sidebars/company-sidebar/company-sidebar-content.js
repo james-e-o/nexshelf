@@ -15,12 +15,12 @@ export default function CompanySidebarContent({modules, branches, company, acces
     <SidebarContent className={'bg-white  text-zinc-100'} >
         <SidebarGroup>
             <SidebarMenu>
-                <NoCollapsibleButton className={`capitalize`} url={`/users/${params.u}/company/${params.companySlug}`} title={'Dashboard'} icon={Building2} active={false} name={`${params.companySlug.toUpperCase()} Dashboard`}/>
+                <NoCollapsibleButton className={`capitalize`} url={`/users/${params.u}/company/${params.companyId}`} title={'Dashboard'} icon={Building2} active={false} name={`${params.companyId.toUpperCase()} Dashboard`}/>
                 {modules&&modules.length>0&&(
                     <CollapsibleButton caps={'capitalize'} defaultOpen={true} sidebarOpen={true} className={``} title={'Business Modules'} icon={Group} 
                     items={[
                       
-                        ...modules.filter(module => module.levels?.companylevel).map((module) => ({ title: module.title, url: `/users/${params.u}/company/${params.companySlug}/modules/${module.slug}`}))]}
+                        ...modules.filter(module => module.levels?.companylevel).map((module) => ({ title: module.title, url: `/users/${params.u}/company/${params.companyId}/modules/${module.slug}`}))]}
                         sidebarCollapse={false}
                     />
                 )}
@@ -29,9 +29,9 @@ export default function CompanySidebarContent({modules, branches, company, acces
                     items={[
 
                         
-                        //  ...branches.filter(branch => branch.company === company?.company_id).map((branch) => ({ title: branch.name, url: `/users/${params.u}/company/${params.companySlug}/branches/${branch.branch_id}`}))
-                        ...branches.map((branch) => ({ title: branch.name, url: `/users/${params.u}/company/${params.companySlug}/branches/${branch.slug}`})),
-                        { title: 'All Branches', url: `/users/${params.u}/company/${params.companySlug}/branches`},
+                        //  ...branches.filter(branch => branch.company === company?.company_id).map((branch) => ({ title: branch.name, url: `/users/${params.u}/company/${params.companyId}/branches/${branch.branch_id}`}))
+                        ...branches.map((branch) => ({ title: branch.name, url: `/users/${params.u}/company/${params.companyId}/branches/${branch.id}`})),
+                        { title: 'All Branches', url: `/users/${params.u}/company/${params.companyId}/branches`},
                     ]}
                     sidebarCollapse={false}
                 />
