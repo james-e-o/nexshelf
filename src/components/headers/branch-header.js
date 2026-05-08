@@ -7,7 +7,7 @@ import {Breadcrumb,  BreadcrumbList,  BreadcrumbItem,  BreadcrumbSeparator,  Bre
 
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { BranchContext } from "@/app/users/[u]/company/[companySlug]/branches/[branch]/layout";
+import { BranchContext } from "@/app/users/[u]/company/[companyId]/branches/[branchId]/layout";
 
 export default function BranchHeader({ children }) {
   const pathname = usePathname();

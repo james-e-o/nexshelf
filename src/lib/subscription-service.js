@@ -72,7 +72,7 @@ export async function getCompanySubscriptions(companyId) {
       .select(
         `
         *,
-        plan:plan_id (
+        plan:core_plans!fk_plan (
           id,
           key,
           title,

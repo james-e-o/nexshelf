@@ -3,7 +3,7 @@
 import { useEffect, useState, useContext } from "react"
 import { useRouter, useParams, usePathname } from "next/navigation"
 import Link from "next/link"
-import  supabase  from "../../../../../../config/supabaseClient"
+import supabase from "@/config/supabaseClient"
 import { toast } from "sonner"
 import { Spinner } from "@/components/ui/spinner"
 import { Button } from "@/components/ui/button"
@@ -37,7 +37,7 @@ export default function SubscriptionsLayout({ children }) {
         // Fetch current active or trialing subscription
         const { data: subscriptionData, error: subscriptionError } = await supabase
           .from("company_subscriptions")
-          .select("*, core_plans(*)")
+          .select("*, plan:core_plans(*)")
           .eq("company", info.company_id)
           .in("status", ["active", "trialing"])
           .single()
@@ -49,7 +49,7 @@ export default function SubscriptionsLayout({ children }) {
         // Fetch previous subscriptions (expired, paused, etc.)
         const { data: previousData, error: previousError } = await supabase
           .from("company_subscriptions")
-          .select("*, core_plans(*)")
+          .select("*, plan:core_plans(*)")
           .eq("company", info.company_id)
           .in("status", ["expired", "paused", "past_due", "canceled"])
           .order("end_date", { ascending: false })

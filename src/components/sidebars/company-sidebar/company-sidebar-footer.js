@@ -9,7 +9,7 @@ import { useAccess } from "@/hooks/useAccess";
 import { checkFeatureGroupAccess, checkPermission } from "@/lib/feature-permissions";
 
 export default function CompanySidebarFooter({ params, profile }) {
-  const { u, companySlug } = params;
+  const { u, companyId } = params;
   const access = useAccess();
   // console.log(access.permissions)
 
@@ -19,16 +19,16 @@ export default function CompanySidebarFooter({ params, profile }) {
     <SidebarFooter className={'bg-white pb-8 flex-col flex gap-6'} >
       <div className="flex-col flex gap-1">
         {checkPermission('can_view_staff', access.permissions, true, access.isOwner) && (
-          <NoCollapsibleButton className={``} url={`/users/${u}/company/${companySlug}/staff`} title={'Staff'} icon={Users} active={false} name={'Staff'} badge={'company'}/>
+          <NoCollapsibleButton className={``} url={`/users/${u}/company/${companyId}/staff`} title={'Staff'} icon={Users} active={false} name={'Staff'} badge={'company'}/>
         )}
         {checkFeatureGroupAccess('modules', access.permissions, access.isOwner) && (
-          <NoCollapsibleButton className={``} url={`/users/${u}/company/${companySlug}/modules-manager`} title={'Modules'} icon={LayoutDashboard} active={false} name={'Modules'}/>
+          <NoCollapsibleButton className={``} url={`/users/${u}/company/${companyId}/modules-manager`} title={'Modules'} icon={LayoutDashboard} active={false} name={'Modules'}/>
         )}
         {checkFeatureGroupAccess('subscriptions', access.permissions, access.isOwner) && (
-          <NoCollapsibleButton className={``} url={`/users/${u}/company/${companySlug}/subscriptions`} title={'Subscriptions'} icon={CreditCard} active={false} name={'Subscriptions'}/>
+          <NoCollapsibleButton className={``} url={`/users/${u}/company/${companyId}/subscriptions`} title={'Subscriptions'} icon={CreditCard} active={false} name={'Subscriptions'}/>
         )}
         {checkPermission('can_view_staff', access.permissions, true, access.isOwner) && (
-           <NoCollapsibleButton className={``} url={`/users/${u}/company/${companySlug}/settings`} title={'Settings'} icon={Settings} active={false} name={'Settings'} badge={'company'}/>
+           <NoCollapsibleButton className={``} url={`/users/${u}/company/${companyId}/settings`} title={'Settings'} icon={Settings} active={false} name={'Settings'} badge={'company'}/>
         )} 
       </div>
       <CompanySidebarFooterUser user={profile} u={u} />

@@ -13,11 +13,11 @@ import { Bell } from "lucide-react"
 import { CompanyInfoContext } from "../../layout"
 import { RefreshContext } from "@/app/users/[u]/layout"
 
+
 export const BranchContext = createContext();
 
 
-
-export default function CompanyLayout({ children }) {
+export default function BranchLayout({ children }) {
   const router = useRouter()
   const params = useParams()
   const { refreshKey } = useContext(RefreshContext)
@@ -27,7 +27,7 @@ export default function CompanyLayout({ children }) {
   const [branchModules, setBranchModules] = useState([])  // ← ADD BRANCH MODULES STATE
   const [isLoading, setIsLoading] = useState(true)
 
-  const { u, companySlug, branch } = params
+  const { u, companyId, branchId } = params
 
   function capitalizeFirstLetter(string) {
     if (typeof string !== 'string' || string.length === 0) {
@@ -37,6 +37,12 @@ export default function CompanyLayout({ children }) {
   }
 
   useEffect(() => {
+    // Safety timeout: prevent infinite spinner on back navigation
+    const timeout = setTimeout(() => {
+      console.warn("Branch layout loading timeout - forcing state reset")
+      setIsLoading(false)
+    }, 5000)
+
     async function fetchCurrentBranch() {
       try {
         // Step 1: Auth user
@@ -50,26 +56,26 @@ export default function CompanyLayout({ children }) {
 
         // Step 2: Fetch the specific branch
         const { data: branchData, error: branchError } = await supabase
-          .from("branches")
+          .from("branches_lite")
           .select("*")
-          .eq("slug", branch)
+          .eq("id", branchId)
           .single()
 
         if (branchError || !branchData) {
           toast("Branch not found.")
-          router.push(`/users/${params.u}/company/${params.companySlug}/branches`)
+          router.push(`/users/${params.u}/company/${params.companyId}/branches`)
           return
         }
 
         // Step 3: Verify branch belongs to user's company
-        if (branchData.company !== parentContext.info.id) {
+        if (branchData.company !== parentContext?.info?.id) {
           toast("Access denied. Branch does not belong to this company.")
-          router.push(`/users/${params.u}/company/${params.companySlug}/branches`)
+          router.push(`/users/${params.u}/company/${params.companyId}/branches`)
           return
         }
 
-        // Step 3: Filter modules available at branch level
-        const filteredModules = parentContext.modules.filter(mod => 
+        // Step 4: Filter modules available at branch level
+        const filteredModules = (parentContext.modules || []).filter(mod => 
           mod.levels?.branchlevel === true
         )
         setBranchModules(filteredModules)
@@ -79,16 +85,24 @@ export default function CompanyLayout({ children }) {
       } catch (e) {
         console.error("Branch access error:", e)
         toast("Unexpected error occurred.")
-        router.push(`/users/${params.u}/company/${params.companySlug}/branches`)
+        router.push(`/users/${params.u}/company/${params.companyId}/branches`)
       } finally {
         setIsLoading(false)
+        clearTimeout(timeout)
       }
     }
 
-    if (parentContext.info && parentContext.modules) {
+    if (parentContext?.info?.id && branchId) {
       fetchCurrentBranch()
+    } else {
+      // If parent context not ready, stop loading to prevent infinite spinner
+      clearTimeout(timeout)
+      setIsLoading(false)
     }
-  }, [params.branch, parentContext.info, parentContext.modules, router])
+
+    // Cleanup: clear timeout on unmount or when dependencies change
+    return () => clearTimeout(timeout)
+  }, [branchId, parentContext?.info?.id])
 
   if (isLoading) {
     return (

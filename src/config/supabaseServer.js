@@ -1,4 +1,4 @@
-gigit// config/supabaseServer.js   ← or move to lib/supabase/server.js (recommended)
+// config/supabaseServer.js   ← or move to lib/supabase/server.js (recommended)
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 

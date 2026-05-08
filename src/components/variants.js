@@ -154,6 +154,13 @@ export function VariantTable({ combinations = [], costPrice, pricingContexts, up
           initialized[idx][`${context.id}_margin_percentage`] = marginPercentage
           initialized[idx][`${context.id}_margin_value`] = marginValue
           initialized[idx][`${context.id}_selling_price`] = sellingPrice
+          
+          // Initialize bulk pricing fields - sync from combo first, then fall back to context defaults
+          const bulkReductionPercentage = combo[`${context.id}_bulk_reduction_percentage`] || context.bulk_reduction_percentage || ''
+          const bulkReductionValue = combo[`${context.id}_bulk_reduction_value`] || context.bulk_reduction_value || ''
+          
+          initialized[idx][`${context.id}_bulk_reduction_percentage`] = bulkReductionPercentage
+          initialized[idx][`${context.id}_bulk_reduction_value`] = bulkReductionValue
         })
       }
     })
@@ -381,8 +388,8 @@ export function VariantTable({ combinations = [], costPrice, pricingContexts, up
               [`${context.id}_margin_percentage`]: marginPercentage,
               [`${context.id}_margin_value`]: marginValue,
               [`${context.id}_selling_price`]: sellingPrice,
-              [`${context.id}_bulk_reduction_percentage`]: combo[`${context.id}_bulk_reduction_percentage`] || '',
-              [`${context.id}_bulk_reduction_value`]: combo[`${context.id}_bulk_reduction_value`] || '',
+              [`${context.id}_bulk_reduction_percentage`]: variantData[idx]?.[`${context.id}_bulk_reduction_percentage`] || combo[`${context.id}_bulk_reduction_percentage`] || '',
+              [`${context.id}_bulk_reduction_value`]: variantData[idx]?.[`${context.id}_bulk_reduction_value`] || combo[`${context.id}_bulk_reduction_value`] || '',
               [`${context.id}_bulk_price`]: combo[`${context.id}_bulk_price`] || '',
             }
           }, {})
@@ -494,5 +501,73 @@ export function VariantTable({ combinations = [], costPrice, pricingContexts, up
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

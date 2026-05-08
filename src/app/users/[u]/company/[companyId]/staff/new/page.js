@@ -6,15 +6,8 @@ import { Label } from "@/components/ui/label";
 import { CompanyInfoContext } from "../../layout";
 import { toast } from "sonner";
 import Image from "next/image";
-import supabase from "../../../../../../../config/supabaseClient";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import supabase from "@/config/supabaseClient";
+import {  AlertDialog,  AlertDialogAction,  AlertDialogCancel,  AlertDialogContent,  AlertDialogDescription,  AlertDialogTitle,} from "@/components/ui/alert-dialog";
 
 export default function StaffOnboarding() {
   const [loading, setLoading] = useState(false);
