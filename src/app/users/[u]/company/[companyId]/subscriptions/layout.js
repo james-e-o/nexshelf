@@ -37,7 +37,7 @@ export default function SubscriptionsLayout({ children }) {
         // Fetch current active or trialing subscription
         const { data: subscriptionData, error: subscriptionError } = await supabase
           .from("company_subscriptions")
-          .select("*, plan:core_plans!fk_plan(*)")
+          .select("*, plan:core_plans(*)")
           .eq("company", info.company_id)
           .in("status", ["active", "trialing"])
           .single()
@@ -49,7 +49,7 @@ export default function SubscriptionsLayout({ children }) {
         // Fetch previous subscriptions (expired, paused, etc.)
         const { data: previousData, error: previousError } = await supabase
           .from("company_subscriptions")
-          .select("*, plan:core_plans!fk_plan(*)")
+          .select("*, plan:core_plans(*)")
           .eq("company", info.company_id)
           .in("status", ["expired", "paused", "past_due", "canceled"])
           .order("end_date", { ascending: false })

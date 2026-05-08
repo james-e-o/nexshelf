@@ -5,11 +5,12 @@ import { Settings2, Plus, List, Palette } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ProductsMenuToggle } from '@/components/products-menu-toggle';
 import { ParamsProvider } from '@/components/params-provider';
-import { isModuleEnabledClient } from '@/lib/module-access-client';
-import supabase from '@/config/supabaseClient';
+import { isModuleEnabledServer } from '@/lib/module-access-server';
+import { createSupabaseServerClient } from '@/config/supabaseServer';
 export default async function ProductsLayout({ params, children }) {
 
 	const { u, companyId, branchId } = await params;
+	const supabase = await createSupabaseServerClient();
 	const { data: { user } } = await supabase.auth.getUser()
 
   if (!companyId) redirect('/dashboard');
@@ -26,8 +27,8 @@ export default async function ProductsLayout({ params, children }) {
     testBranch,
   });
 
-  // Check if products module is enabled for this company
-  const isProductsEnabled = await isModuleEnabledClient(companyId, 'products_enabled');
+
+  const isProductsEnabled = await isModuleEnabledServer(companyId, 'products_enabled');
 
   // Redirect if not allowed
   if (!isProductsEnabled) {
