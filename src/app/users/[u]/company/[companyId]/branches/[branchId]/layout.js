@@ -74,11 +74,8 @@ export default function BranchLayout({ children }) {
           return
         }
 
-        // Step 4: Filter modules available at branch level
-        const filteredModules = (parentContext.modules || []).filter(mod => 
-          mod.levels?.branchlevel === true
-        )
-        setBranchModules(filteredModules)
+        // Step 4: Store all modules for sidebar display
+        setBranchModules(parentContext.modules || [])
 
         setCurrentBranch(branchData)
 

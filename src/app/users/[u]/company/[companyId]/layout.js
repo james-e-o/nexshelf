@@ -229,6 +229,29 @@ export default function CompanyLayout({ children }) {
     return () => clearTimeout(timeout)
   }, [companyId, u])
 
+  // Fetch modules asynchronously in the background
+  useEffect(() => {
+    const fetchModules = async () => {
+      try {
+  
+        const { data: modulesData } = await supabase
+          .from("modules")
+          .select("*")
+          .eq("status", "active")
+
+        setModules(modulesData || [])
+        // Update info with modules
+        setInfo(prev => ({ ...prev, modules: modulesData || [] }))
+      } catch (err) {
+        console.error("Error fetching modules:", err)
+      }
+    }
+
+    if (info) {
+      fetchModules()
+    }
+  }, [info])
+
   // ──────────────────────────────────────────────────────────────
   // RENDER
   // ──────────────────────────────────────────────────────────────
@@ -291,6 +314,7 @@ export const ReusableCompanySidebar = ({ children }) => {
     <SidebarProvider className="relative">
       <AppSidebar 
         company={info} 
+        modules={modules}
         branches={branches}
         accessLevel={accessLevel}
         accessLevelScope={accessLevelScope}
