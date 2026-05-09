@@ -7,7 +7,8 @@ import { Settings, Building2, Users, Shield, Globe, CalendarDays, DollarSign, Gi
 export default function CompanySettingsPage() {
   const router = useRouter();
   const params = useParams()
-  const {u, companySlug} = params
+  const {u, companySlug, companyId} = params
+  const companyParam = companyId ?? companySlug
 
   const settingsSections = [
     {
@@ -57,7 +58,7 @@ export default function CompanySettingsPage() {
           {settingsSections.map((section, index) => (
             <Button
               key={index}
-              onClick={() => router.push(`/users/${u}/company/${companySlug}/settings/${section.route}`)}
+              onClick={() => router.push(`/users/${u}/company/${companyParam}/settings/${section.route}`)}
               className="flex items-start gap-4 p-5 rounded-lg h-fit border bg-white hover:bg-armylight hover:shadow-xs transition-all text-left"
             >
               <div className="mt-1">{section.icon}</div>

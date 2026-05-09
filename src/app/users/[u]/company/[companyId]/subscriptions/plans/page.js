@@ -23,6 +23,8 @@ export default function PlansPage() {
   const context = useContext(CompanyInfoContext)
   const { info, plans, billingPeriod, setBillingPeriod, isLoading } = context || {}
   const [checkoutOpen, setCheckoutOpen] = useState(false)
+  const { u, companySlug, companyId } = params
+  const companyParam = companyId ?? companySlug
   const [selectedPlanData, setSelectedPlanData] = useState(null)
   const [checkoutStep, setCheckoutStep] = useState(1)
   const [trialLoading, setTrialLoading] = useState(false)
@@ -31,8 +33,6 @@ export default function PlansPage() {
     name: "",
     address: "",
   })
-
-  const { u, companySlug } = params
 
   const handleSelectPlan = (plan) => {
     setSelectedPlanData(plan)
@@ -84,7 +84,7 @@ export default function PlansPage() {
       if (result.success) {
         // toast.success("Free trial started! Redirecting...")
         setTimeout(() => {
-          router.push(`/users/${u}/company/${companySlug}`)
+          router.push(`/users/${u}/company/${companyParam}`)
         }, 1500)
       } else {
         setTrialLoading(false)

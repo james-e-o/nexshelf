@@ -14,6 +14,8 @@ export default function BranchesPage() {
   const { branches, info, currencies, modules, accessLevelScope } = useContext(CompanyInfoContext)
   const router = useRouter()
   const params = useParams()
+  const { u, companySlug, companyId } = params
+  const companyParam = companyId ?? companySlug
 
   const [companyCurrencies, setCompanyCurrencies] = useState(currencies || [])
 
@@ -92,7 +94,7 @@ export default function BranchesPage() {
             <h2 className="text-xs font-semibold">Branch Management</h2>
             <div className="flex items-center gap-2">
               {accessLevelScope === "company" && (
-                <Button className="h-7 inline-flex items-center bg-army hover:bg-army/85 gap-2" onClick={() => router.push(`/users/${params.u}/company/${params.companySlug}/branches/new`)}>
+                <Button className="h-7 inline-flex items-center bg-army hover:bg-army/85 gap-2" onClick={() => router.push(`/users/${params.u}/company/${companyParam}/branches/new`)}>
                   <Plus size={14} />
                   <span className="text-[10px] ">Create New Branch</span>
                 </Button>
@@ -106,7 +108,7 @@ export default function BranchesPage() {
                 <div className="flex items-center justify-between py-3 relative top-1  pl-3 pr-7">
                   <div>
                     <div className="flex items-center gap-2">
-                      <Link href={`/users/${params.u}/company/${params.companySlug}/branches/${b.slug}`}>
+                      <Link href={`/users/${params.u}/company/${companyParam}/branches/${b.slug}`}>
                         <Button variant={'link'} className="text-xs h-7 font-medium hover:underline" >{b.name}
                       {b.isheadoffice && <span className="text-[10px] text-zinc-500">(Head Office)</span>}</Button>
                       </Link>

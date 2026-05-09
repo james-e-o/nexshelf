@@ -38,7 +38,8 @@ export default function SubscriptionOverviewPage() {
   const params = useParams()
   const context = useContext(CompanyInfoContext)
   const { info, currentPlan, currentSubscription, previousSubscriptions, isLoading, plans } = context || {}
-  const { u, companySlug } = params
+  const { u, companySlug, companyId } = params
+  const companyParam = companyId ?? companySlug
   const [trialLoading, setTrialLoading] = useState(false)
 
   const handleStartFreeTrial = async () => {
@@ -58,7 +59,7 @@ export default function SubscriptionOverviewPage() {
       if (result.success) {
         toast.success("Free trial started! Redirecting...")
         setTimeout(() => {
-          router.push(`/users/${u}/company/${companySlug}`)
+          router.push(`/users/${u}/company/${companyParam}`)
         }, 1500)
       } else {
         setTrialLoading(false)
@@ -156,21 +157,21 @@ export default function SubscriptionOverviewPage() {
                 <h3 className="text-sm font-semibold text-gray-500 uppercase mb-4">Actions</h3>
                 <div className="space-y-3">
                   <Button
-                    onClick={() => router.push(`/users/${u}/company/${companySlug}/subscriptions/plans`)}
+                    onClick={() => router.push(`/users/${u}/company/${companyParam}/subscriptions/plans`)}
                     className="w-full bg-core text-white hover:bg-core/90"
                   >
                     Upgrade Plan
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => router.push(`/users/${u}/company/${companySlug}/subscriptions/payments`)}
+                    onClick={() => router.push(`/users/${u}/company/${companyParam}/subscriptions/payments`)}
                     className="w-full"
                   >
                     Manage Payment Method
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => router.push(`/users/${u}/company/${companySlug}/subscriptions/billing`)}
+                    onClick={() => router.push(`/users/${u}/company/${companyParam}/subscriptions/billing`)}
                     className="w-full"
                   >
                     Update Billing Address
@@ -195,14 +196,14 @@ export default function SubscriptionOverviewPage() {
                   <h3 className="text-sm font-semibold text-gray-500 uppercase mb-4">Actions</h3>
                   <div className="space-y-3">
                     <Button
-                      onClick={() => router.push(`/users/${u}/company/${companySlug}/subscriptions/plans`)}
+                      onClick={() => router.push(`/users/${u}/company/${companyParam}/subscriptions/plans`)}
                       className="w-full bg-core text-white hover:bg-core/90"
                     >
                       Upgrade Plan
                     </Button>
                     <Button
                       variant="outline"
-                      onClick={() => router.push(`/users/${u}/company/${companySlug}/subscriptions/billing`)}
+                      onClick={() => router.push(`/users/${u}/company/${companyParam}/subscriptions/billing`)}
                       className="w-full"
                     >
                       Update Billing Address

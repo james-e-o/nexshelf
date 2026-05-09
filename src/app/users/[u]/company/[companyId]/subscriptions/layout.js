@@ -21,7 +21,8 @@ export default function SubscriptionsLayout({ children }) {
   const [billingPeriod, setBillingPeriod] = useState("monthly")
   const [isLoading, setIsLoading] = useState(true)
 
-  const { u, companySlug } = params
+  const { u, companySlug, companyId } = params
+  const companyParam = companyId ?? companySlug
   const info = companyCtx?.info
   const accessLevelScope = info?.accessLevelScope
 
@@ -181,7 +182,7 @@ export default function SubscriptionsLayout({ children }) {
               Contact your company administrator or finance team to upgrade, downgrade, or manage subscription plans.
             </p>
             <Button
-              onClick={() => router.push(`/users/${u}/company/${companySlug}`)}
+              onClick={() => router.push(`/users/${u}/company/${companyParam}`)}
               className="w-full"
             >
               Back to Dashboard
@@ -204,9 +205,10 @@ export default function SubscriptionsLayout({ children }) {
 export const SubscriptionPageContent = ({ children, plans, currentPlan, currentSubscription, previousSubscriptions, billingPeriod, setBillingPeriod }) => {
   const params = useParams()
   const pathname = usePathname()
-  const { u, companySlug } = params
+  const { u, companySlug, companyId } = params
+  const companyParam = companyId ?? companySlug
 
-  const baseUrl = `/users/${u}/company/${companySlug}/subscriptions`
+  const baseUrl = `/users/${u}/company/${companyParam}/subscriptions`
 
   const isActive = (path) => {
     if (path === "overview") {

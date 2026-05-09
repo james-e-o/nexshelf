@@ -12,19 +12,25 @@ export async function isModuleEnabledServer(companyId, moduleName) {
   try {
     const supabase = await createSupabaseServerClient();
 
-    const { data: { session } } = await supabase.auth.getSession()
-    
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) {
+      console.warn('[SERVER] Supabase session fetch warning:', sessionError);
+    }
+    if (!session) {
+      console.log('[SERVER] No auth session detected on server; using server-side credentials instead.');
+    }
+
     // Step 1: Get active subscription
     const { data: subscription, error: subError } = await supabase
-    .from('company_subscriptions')
-    .select('plan_key')
-    .eq('company', companyId)
-    .in('status', ['active', 'trialing'])
-    .maybeSingle();
-    
-    console.log(session)
+      .from('company_subscriptions')
+      .select('plan_key')
+      .eq('company', companyId)
+      .in('status', ['active', 'trialing'])
+      .maybeSingle();
+
     console.log('🔎 [SERVER] Company Subscriptions Query:', {
       companyId,
+      session: session ? { user: session.user?.id, expires_at: session.expires_at } : null,
       subscription,
       subError,
     });
