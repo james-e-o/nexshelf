@@ -33,6 +33,8 @@ export async function proxy(request) {
 
 export const config = {
   matcher: [
-    '/users/:u/company/:companyId/branches/:branchId/:path*'
+    '/users/:u/:path*',
+    '/users/:u',
+    '/users/[u]/company/:companyId/branches/:branchId/:path*'
   ],
 }

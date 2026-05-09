@@ -1,24 +1,12 @@
 import { createSupabaseServerClient } from "@/config/supabaseServer";
 
-/**
- * Server-side version - Check if a module is enabled for a company
- * @param {string} companyId - The company ID
- * @param {string} moduleName - The module key (e.g., 'products_enabled', 'invoices_enabled')
- * @returns {Promise<boolean>} - True if module is enabled, false otherwise
- */
+
 export async function isModuleEnabledServer(companyId, moduleName) {
   if (!companyId || !moduleName) return false;
 
   try {
     const supabase = await createSupabaseServerClient();
 
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError) {
-      console.warn('[SERVER] Supabase session fetch warning:', sessionError);
-    }
-    if (!session) {
-      console.log('[SERVER] No auth session detected on server; using server-side credentials instead.');
-    }
 
     // Step 1: Get active subscription
     const { data: subscription, error: subError } = await supabase
@@ -28,39 +16,34 @@ export async function isModuleEnabledServer(companyId, moduleName) {
       .in('status', ['active', 'trialing'])
       .maybeSingle();
 
-    console.log('🔎 [SERVER] Company Subscriptions Query:', {
-      companyId,
-      session: session ? { user: session.user?.id, expires_at: session.expires_at } : null,
-      subscription,
-      subError,
-    });
+    // Normalize module names to match plan_module_enabled.module values
+    const normalizedModuleName = moduleName
+      .toString()
+      .trim()
+      .toLowerCase()
+      .replace(/_enabled$/, '');
 
-    if (subError) {
-      console.error(`[SERVER] Subscription fetch failed:`, subError);
-      return false;
-    }
-
-    if (!subscription?.plan_key) {
-      console.log('[SERVER] No subscription found');
-      return false;
-    }
-
-    // Step 2: Check specific module
-    const { data: restriction, error: resError } = await supabase
-      .from('plan_module_restrictions')
-      .select('value_boolean')
+    // Step 2: Check specific module access for this plan
+    const { data: enabledEntry, error: enabledError } = await supabase
+      .from('plan_module_enabled')
+      .select('enabled')
       .eq('plan', subscription.plan_key)
-      .eq('usage_key', moduleName)
+      .eq('module', normalizedModuleName)
       .maybeSingle();
 
-    console.log('🔎 [SERVER] Restriction:', { restriction, resError });
+    console.log('🔎 [SERVER] Plan module enabled lookup:', {
+      plan: subscription.plan_key,
+      module: normalizedModuleName,
+      enabledEntry,
+      enabledError,
+    });
 
-    if (resError) {
-      console.error(`[SERVER] Module restrictions error:`, resError);
+    if (enabledError) {
+      console.error(`[SERVER] Module enabled lookup error:`, enabledError);
       return false;
     }
 
-    const result = restriction?.value_boolean === true;
+    const result = enabledEntry?.enabled === true;
     console.log('✅ [SERVER] Result:', result);
     return result;
 

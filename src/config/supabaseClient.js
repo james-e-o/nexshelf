@@ -1,9 +1,9 @@
-import { createClient } from '@supabase/supabase-js'
+'use client'
+import { createBrowserClient } from '@supabase/ssr'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_KEY
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 
-
-const supabase = createClient(supabaseUrl, supabaseKey)
+const supabase = createBrowserClient(supabaseUrl, supabaseKey)
 
 export default supabase

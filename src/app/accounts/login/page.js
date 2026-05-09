@@ -43,33 +43,31 @@ export default function LoginPage() {
 
           setIsLoading(true)
             try {
-              const { data, error } = await supabase.auth.signInWithPassword({
-                email,
-                password
-              });
+              const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email, password }),
+              })
+              const body = await res.json()
 
-              if (error) {
-                setError(true);
-                alert(error.message);
-                console.log("Login error:", error);
-                return;
+              if (!res.ok) {
+                setError(true)
+                setErrorMessage(body?.error || 'Unable to sign in')
+                return
               }
 
-              if (data.session && data.user) {
-                // ✅ Get handle from user_metadata
-                const handle = data.user.user_metadata?.handle;
-
-                if (!handle) {
-                  alert("Profile handle not found. Please contact support.");
-                  return;
-                }
-
-                // ✅ Redirect directly
-                router.push(`/users/${handle}`);
+              if (body.handle) {
+                router.push(`/users/${body.handle}`)
+              } else {
+                setError(true)
+                setErrorMessage('Login succeeded but user handle is missing')
               }
 
             } catch (err) {
               setError(true);
+              setErrorMessage('Network error, retry');
               toast("Network error, Retry");
               console.log("Network or unexpected error:", err);
 
@@ -91,15 +89,17 @@ export default function LoginPage() {
           // Clean up the URL so it doesn't repeat on reload
           router.replace('/accounts/login');
         }
-      }, []);
+      }, [router]);
 
-      supabase.auth.onAuthStateChange((event, session) => {
-        if (event === "SIGNED_IN") {
-          console.log(true,event)
-          localStorage.setItem("login_timestamp", Date.now().toString());
-          localStorage.setItem("refresh_count", "0");
-        }
-      });
+      useEffect(() => {
+        supabase.auth.onAuthStateChange((event, session) => {
+          if (event === "SIGNED_IN") {
+            console.log(true, event)
+            localStorage.setItem("login_timestamp", Date.now().toString());
+            localStorage.setItem("refresh_count", "0");
+          }
+        })
+      }, [])
 
 
 

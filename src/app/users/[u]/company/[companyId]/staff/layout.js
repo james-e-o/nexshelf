@@ -28,7 +28,7 @@ function StaffLayoutContent({ children }) {
             
             {/* Navigation Buttons */}
             <div className="flex items-center gap-2">
-              <Link href={`/users/${user.handle}/company/${info.slug}/staff`}>
+              <Link href={`/users/${user.handle}/company/${info.id}/staff`}>
                 <Button 
                   variant="ghost"
                   size="sm"
@@ -43,7 +43,7 @@ function StaffLayoutContent({ children }) {
                 </Button>
               </Link>
 
-              <Link href={`/users/${user.handle}/company/${info.slug}/staff/directory`}>
+              <Link href={`/users/${user.handle}/company/${info.id}/staff/directory`}>
                 <Button 
                   variant="ghost"
                   size="sm"
@@ -58,7 +58,7 @@ function StaffLayoutContent({ children }) {
                 </Button>
               </Link>
 
-              <Link href={`/users/${user.handle}/company/${info.slug}/staff/onboarding`}>
+              <Link href={`/users/${user.handle}/company/${info.id}/staff/onboarding`}>
                 <Button 
                   variant="ghost"
                   size="sm"
@@ -73,7 +73,7 @@ function StaffLayoutContent({ children }) {
                 </Button>
               </Link>
 
-              <Link href={`/users/${user.handle}/company/${info.slug}/staff/settings`}>
+              <Link href={`/users/${user.handle}/company/${info.id}/staff/settings`}>
                 <Button 
                   variant="ghost"
                   size="sm"
@@ -99,7 +99,7 @@ function StaffLayoutContent({ children }) {
           </div>
 
           {/* Right: Invite Button */}
-          <Link href={`/users/${user.handle}/company/${info.slug}/staff/new`}>
+          <Link href={`/users/${user.handle}/company/${info.id}/staff/new`}>
             <Button variant="ghost" size="sm" className="bg-army hover:bg-army/90 text-white border-0 rounded-md px-5 gap-1.5">
               <Plus className="size-4" />
               <span>Invite</span>

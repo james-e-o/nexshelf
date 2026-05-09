@@ -7,7 +7,7 @@ import { Users, Lock, Mail, Shield, FileText } from 'lucide-react';
 
 export default function StaffSettingsPage() {
   const params = useParams();
-  const { u, companySlug } = params;
+  const { u, companyId } = params;
   const sections = [
     {
       title: 'Roles',
@@ -42,7 +42,7 @@ export default function StaffSettingsPage() {
         {sections.map((section) => {
           const IconComponent = section.icon;
           return (
-            <Link key={section.href} href={`/users/${u}/company/${companySlug}/staff/settings/${section.href}`}>
+            <Link key={section.href} href={`/users/${u}/company/${companyId}/staff/settings/${section.href}`}>
               <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer h-full">
                 <IconComponent className="size-6 mb-3 text-army" />
                 <h3 className="font-semibold text-base mb-2 text-neutral-700">{section.title}</h3>

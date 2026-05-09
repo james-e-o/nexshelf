@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { Search, ChevronUp, ChevronDown } from 'lucide-react'
 
-export function StaffTable({ staffList = [], onRowClick, userId, companySlug }) {
+export function StaffTable({ staffList = [], onRowClick, userId, companyId }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [filters, setFilters] = useState({
     branch: 'all',
@@ -171,7 +171,7 @@ export function StaffTable({ staffList = [], onRowClick, userId, companySlug }) 
       header: () => <div className="text-gray-700 font-semibold">Actions</div>,
       cell: ({ row }) => (
         <Link
-          href={`/users/${userId}/company/${companySlug}/staff/directory/${row.original.id}`}
+          href={`/users/${userId}/company/${companyId}/staff/directory/${row.original.id}`}
           className="text-core hover:text-army font-medium text-sm transition-colors"
         >
           View →

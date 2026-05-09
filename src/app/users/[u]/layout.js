@@ -22,20 +22,24 @@ const PageLayout = ({ children }) => {
     const ONE_DAY = 24 * 60 * 60 * 1000;
 
     // Rule 1: 24 hours passed → logout
-    if (now - loginTime > ONE_DAY) {
+    if (loginTime && now - loginTime > ONE_DAY) {
       supabase.auth.signOut();
-      localStorage.setItem("login_timestamp:", '');
+      localStorage.setItem("login_timestamp", '');
       router.push("/accounts/login");
       return;
     }
-  }, []);
+  }, [router]);
 
 
   useEffect(() => {
     async function ValidateUser() {
       try {
+        // Give cookies a moment to sync after server-side login
+        await new Promise(resolve => setTimeout(resolve, 100))
+        
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) {
+          console.log('No user found, redirecting to login')
           setIsLoading(false)
           router.push('/accounts/login')
           return
@@ -69,7 +73,7 @@ const PageLayout = ({ children }) => {
 
         } catch (err) {
             console.error('Unexpected error:', err)
-            alert('Something went wrong while loading your account. Please log in again.')
+            setIsLoading(false)
             router.push('/accounts/login')
             return
         } finally {

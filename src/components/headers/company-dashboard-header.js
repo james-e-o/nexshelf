@@ -18,7 +18,7 @@ export default function CompanyHeader({ children }) {
   // Example: ["admin", "john", "company", "fedeco", "settings"]
 
   const userId = segments[1];
-  const companySlug = segments[3];
+  const companyId = segments[3];
   const companySegments = segments.slice(4); // e.g. ["settings"]
 
   const isAtCompanyRoot = segments.length === 4;
@@ -43,24 +43,24 @@ export default function CompanyHeader({ children }) {
             {/* Company breadcrumb */}
             {isAtCompanyRoot ? (
               <BreadcrumbItem>
-                <BreadcrumbPage className="capitalize">{companySlug}</BreadcrumbPage>
+                <BreadcrumbPage className="capitalize">{companyId}</BreadcrumbPage>
               </BreadcrumbItem>
             ) : (
               <>
                 <BreadcrumbItem>
                   <BreadcrumbLink asChild>
                     <Link
-                      href={`/users/${userId}/company/${companySlug}`}
+                      href={`/users/${userId}/company/${companyId}`}
                       className="capitalize"
                     >
-                      {companySlug}
+                      {companyId}
                     </Link>
                   </BreadcrumbLink>
                 </BreadcrumbItem>
 
                 {/* Sub-page breadcrumbs */}
                 {companySegments.map((segment, i) => {
-                  const href = `/users/${userId}/company/${companySlug}/${companySegments
+                  const href = `/users/${userId}/company/${companyId}/${companySegments
                     .slice(0, i + 1)
                     .join("/")}`;
                   const isLast = i === companySegments.length - 1;

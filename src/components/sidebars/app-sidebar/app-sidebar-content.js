@@ -29,7 +29,7 @@ export default function AppSidebarContent({ profile,companies}) {
                 <NoCollapsibleButton className={``} url={`/users/${params.u}`} title={'Dashboard'} icon={LayoutDashboard} active={false} name={'Dashboard'}/>
                 {companies&&companies.length>0&&(
                     <CollapsibleButton caps={'uppercase'} sidebarOpen={true} className={``} title={'Companies'} icon={Factory} 
-                        items={companies.map((company)=>({title:company.name,url:`/users/${params.u}/company/${company.slug}`,badge:company.badge}))}
+                        items={companies.map((company)=>({title:company.name,url:`/users/${params.u}/company/${company.id}`,badge:company.badge}))}
                         sidebarCollapse={false}
                     />
                 )}

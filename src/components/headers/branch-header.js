@@ -33,14 +33,14 @@ export default function BranchHeader({ children }) {
   const segments = pathname.split("/").filter(Boolean);
 
   const userId = segments[1];
-  const companySlug = segments[3];
+  const companyId = segments[3];
 
   const isInBranch = segments.includes("branches");
   const isInModule = segments.includes("modules");
     /* ------------------------------
       URL builders and simple route predicates
     ------------------------------- */
-    const baseCompany = `/users/${userId}/company/${companySlug}`;
+    const baseCompany = `/users/${userId}/company/${companyId}`;
     const branchBase = `${baseCompany}/branches/${params.branch}`;
     const isAtCompanyRoot = segments.length === 4;
 
@@ -55,9 +55,9 @@ export default function BranchHeader({ children }) {
 
   // Company
   if (isAtCompanyRoot) {
-    breadcrumbItems.push({ label: companySlug, href: baseCompany, isCurrent: true });
+    breadcrumbItems.push({ label: companyId, href: baseCompany, isCurrent: true });
   } else {
-    breadcrumbItems.push({ label: companySlug, href: baseCompany });
+    breadcrumbItems.push({ label: companyId, href: baseCompany });
 
     if (isInBranch && currentBranch) {
       // Branch root
@@ -127,7 +127,7 @@ export default function BranchHeader({ children }) {
             {isAtCompanyRoot ? (
               <BreadcrumbItem>
                 <BreadcrumbPage className="capitalize">
-                  {companySlug}
+                  {companyId}
                 </BreadcrumbPage>
               </BreadcrumbItem>
             ) : (
@@ -138,7 +138,7 @@ export default function BranchHeader({ children }) {
                       href={baseCompany}
                       className="capitalize"
                     >
-                      {companySlug}
+                      {companyId}
                     </Link>
                   </BreadcrumbLink>
                 </BreadcrumbItem>

@@ -41,22 +41,34 @@ export async function isModuleEnabledClient(companyId, moduleName) {
       return false;
     }
 
-    // Step 2: Check specific module
-    const { data: restriction, error: resError } = await supabase
-      .from('plan_module_restrictions')
-      .select('value_boolean')
+    // Normalize module names to match plan_module_enabled.module values
+    const normalizedModuleName = moduleName
+      .toString()
+      .trim()
+      .toLowerCase()
+      .replace(/_enabled$/, '');
+
+    // Step 2: Check specific module access for this plan
+    const { data: enabledEntry, error: enabledError } = await supabase
+      .from('plan_module_enabled')
+      .select('enabled')
       .eq('plan', subscription.plan_key)
-      .eq('usage_key', moduleName)
+      .eq('module', normalizedModuleName)
       .maybeSingle();
 
-    console.log('🔎 [CLIENT] Restriction:', { restriction, resError });
+    console.log('🔎 [CLIENT] Plan module enabled lookup:', {
+      plan: subscription.plan_key,
+      module: normalizedModuleName,
+      enabledEntry,
+      enabledError,
+    });
 
-    if (resError) {
-      console.error(`[CLIENT] Module restrictions error:`, resError);
+    if (enabledError) {
+      console.error(`[CLIENT] Module enabled lookup error:`, enabledError);
       return false;
     }
 
-    const result = restriction?.value_boolean === true;
+    const result = enabledEntry?.enabled === true;
     console.log('✅ [CLIENT] Result:', result);
     return result;
 
