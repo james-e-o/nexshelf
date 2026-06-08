@@ -54,7 +54,7 @@ export default function CategoryTable() {
       const searchParams = useSearchParams();
       const params = useParams();
       const toastShownRef = useRef(false);
-      const { branch } = params;
+      const { branchId } = params;
 
       // Form states
       // compact top inline form visibility
@@ -97,8 +97,8 @@ export default function CategoryTable() {
                  {data: categoriesRes, error: categoriesError},
                  {data: collectionsRes, error: collectionsError},
               ] = await Promise.all([
-                supabase.from('categories').select('*').eq('branch', branch),
-                supabase.from('collections').select('*').eq('branch', branch),
+                supabase.from('categories').select('*').eq('branch', branchId),
+                supabase.from('collections').select('*').eq('branch', branchId),
               ])
 
               // 🔹 Categories

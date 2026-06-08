@@ -46,9 +46,10 @@ export default async function ProductsLayout({ params, children }) {
     <ParamsProvider params={params}>
       <div className="w-full flex-col font-WixMade flex px-1 h-full overflow-hidden">
         <header className="bg-white border-gray-200 transition-all py-1 items-center duration-300 flex">
-          <div className="text-base ml-2 mr-5">
-            <h2 className="font-bold text-gray-800">Products</h2>
-          </div>
+         <div>
+                    <h1 className="text-xl mx-3 font-bold text-core">Products</h1>
+                   
+                </div>
 
           <nav id="products-nav" data-menu-view="expanded" className="flex gap-1.5 overflow-y-auto">
             {navigationItems.map((item) => (
@@ -56,9 +57,9 @@ export default async function ProductsLayout({ params, children }) {
                 key={item.label}
                 href={`/users/${u}/company/${companyId}/branches/${branchId}/modules/products/${item.href}`}
               >
-                <Button variant="ghost" className="h-7">
+                <Button variant="secondary" className="h-7">
                   <span className="text-xl">
-                    <item.icon className="text-army font-extrabold" />
+                    <item.icon className="text-indigo-700 font-extrabold" />
                   </span>
                   <span className="menu-label text-sm font-medium">{item.label}</span>
                 </Button>

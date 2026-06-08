@@ -19,22 +19,21 @@ import { useParams } from "next/navigation"
 export default function Productpage() {
 
     const params = useParams()
-    const { u, companySlug,branch } = params
+    const { u, companyId,branchId } = params
 
   return (
-    <div className="px-1 font-WixMade">
-        <div className="flex flex-col gap-2">
-
-          {/* Top Section: Products + Categories on left (desktop), stacked on mobile */}
-          <div className="flex  my-2 flex-col md:flex-row md:items-center md:justify-between">
-
-            {/* Right side nav buttons */}
-            <nav className="flex gap-3 mb-1 md:mt-0 mr-0.5">
-              <Button className="text-xs h-7" variant="outline">  Import</Button>
-              <Button className="text-xs h-7" variant="outline">  Export</Button>
-            </nav>
-          </div>
-
+    <div className="space-y-6 px-1 font-WixMade">
+        <div className="flex flex-col gap-1">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div> <p className="text-xs text-gray-600">Manage and browse your product catalog</p></div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Button className="text-xs h-7" variant="outline">Import</Button>
+                    <Button className="text-xs h-7" variant="outline">Export</Button>
+                    <Link href="create" className="bg-core text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium text-xs">
+                      + New Product
+                    </Link>
+                </div>
+            </div>
         </div>
 
         <DataTable />
@@ -285,43 +284,47 @@ export function DataTable() {
   })
 
   return (
-    <div className="overflow-hidden rounded-md text-xs text-neutral-800 border bg-card">
-        <div className="flex items-center p-7">
-        <Input
-          placeholder="Filter titles..."
-          value={(table.getColumn("title")?.getFilterValue()) ?? ""}
-          onChange={(event) =>
-            table.getColumn("title")?.setFilterValue(event.target.value)
-          }
-          className="max-w-sm py-1 h-8"
-        />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="ml-auto text-xs h-7">
-              Columns <ChevronDown />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {table
-              .getAllColumns()
-              .filter((column) => column.getCanHide())
-              .map((column) => {
-                return (
-                  <DropdownMenuCheckboxItem
-                    key={column.id}
-                    className="capitalize"
-                    checked={column.getIsVisible()}
-                    onCheckedChange={(value) =>
-                      column.toggleVisibility(!!value)
-                    }
-                  >
-                    {column.id}
-                  </DropdownMenuCheckboxItem>
-                )
-              })}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white text-xs text-neutral-800">
+        <div className="flex flex-col gap-4 p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Input
+              placeholder="Search products..."
+              value={(table.getColumn("title")?.getFilterValue()) ?? ""}
+              onChange={(event) =>
+                table.getColumn("title")?.setFilterValue(event.target.value)
+              }
+              className="w-full max-w-sm px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-core text-xs"
+            />
+            <div className="ml-auto flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="text-xs h-7">
+                    Columns <ChevronDown />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {table
+                    .getAllColumns()
+                    .filter((column) => column.getCanHide())
+                    .map((column) => {
+                      return (
+                        <DropdownMenuCheckboxItem
+                          key={column.id}
+                          className="capitalize"
+                          checked={column.getIsVisible()}
+                          onCheckedChange={(value) =>
+                            column.toggleVisibility(!!value)
+                          }
+                        >
+                          {column.id}
+                        </DropdownMenuCheckboxItem>
+                      )
+                    })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        </div>
       <Table className={'text-xs'}>
         {/* HEADER */}
         <TableHeader >

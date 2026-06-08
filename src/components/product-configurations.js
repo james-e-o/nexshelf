@@ -27,7 +27,9 @@ export const ProductConfigurations = forwardRef(({
   setCategorySheetOpen,
   CategorySheet,
   selectedTags,
+  selectedTagNames,
   setSelectedTags,
+  setSelectedTagNames,
   tagSheetOpen,
   setTagSheetOpen,
   TagSheet,
@@ -734,7 +736,7 @@ export const ProductConfigurations = forwardRef(({
           <div className="flex-1">
             <label className="text-gray-600 text-xs">Collection (Optional)</label>
             <div className="flex gap-2 mt-1 items-center">
-              <input className="flex-1 border rounded-sm p-2 text-xs" value={selectedCollectionName || ''} readOnly placeholder="Select collection" />
+              <input className="flex-1 border border-neutral-500 rounded-sm p-2 text-xs" value={selectedCollectionName || ''} readOnly placeholder="Select collection" />
               <Button variant="outline" className="h-8 px-2 text-xs" onClick={()=>setCollectionSheetOpen(true)}>Choose</Button>
               <CollectionSheet branch={branch} open={collectionSheetOpen} onOpenChange={setCollectionSheetOpen} onConfirm={(id,name)=>{ setSelectedCollectionId(id); setSelectedCollectionName(name || ''); setCollectionSheetOpen(false) }} initialSelected={selectedCollectionId} />
             </div>
@@ -748,7 +750,7 @@ export const ProductConfigurations = forwardRef(({
             <div className="flex-1">
               <label className="text-gray-600 text-xs">Categories </label>
               <div className="flex gap-2 mt-1 items-center">
-                <input className={`flex-1 border rounded-sm p-2 text-xs ${errors.category ? 'border-red-500 border-2 bg-red-50' : ''}`} value={selectedCategoryName || ''} readOnly placeholder="Select category" />
+                <input className={`flex-1 border border-neutral-500 rounded-sm p-2 text-xs ${errors.category ? 'border-red-500 border-2 bg-red-50' : ''}`} value={selectedCategoryName || ''} readOnly placeholder="Select category" />
                 <Button variant="outline" className="h-8 px-2 text-xs" onClick={()=>setCategorySheetOpen(true)}>Select</Button>
                 <CategorySheet branch={branch} open={categorySheetOpen} onOpenChange={setCategorySheetOpen} onConfirm={(id,name)=>{ setSelectedCategoryId(id); setSelectedCategoryName(name || ''); setCategorySheetOpen(false) }} initialSelected={selectedCategoryId} />
               </div>
@@ -757,9 +759,9 @@ export const ProductConfigurations = forwardRef(({
             <div className="flex-1">
               <label className="text-gray-600 text-xs">Tags (Optional)</label>
               <div className="flex gap-2 mt-1 items-center">
-                <input className="flex-1 border rounded-sm p-2 text-xs" value={(selectedTags && selectedTags.length) ? selectedTags.join(', ') : ''} readOnly placeholder="Select tags" />
+                <input className="flex-1 border border-neutral-500 rounded-sm p-2 text-xs" value={(selectedTagNames && selectedTagNames.length) ? selectedTagNames.join(', ') : ''} readOnly placeholder="Select tags" />
                 <Button variant="outline" className="h-8 px-2 text-xs" onClick={()=>setTagSheetOpen(true)}>Choose</Button>
-                <TagSheet open={tagSheetOpen} onOpenChange={setTagSheetOpen} onConfirm={(ids)=>{ setSelectedTags(ids || []); setTagSheetOpen(false) }} initialSelected={selectedTags} />
+                <TagSheet open={tagSheetOpen} onOpenChange={setTagSheetOpen} onConfirm={(ids,names)=>{ setSelectedTags(ids || []); setSelectedTagNames(names || []); setTagSheetOpen(false) }} initialSelected={selectedTags} />
               </div>
             </div>
           </div>
@@ -769,7 +771,7 @@ export const ProductConfigurations = forwardRef(({
         {productType === 'physical' && (
         <div className="space-y-3 p-4">
           <h3 className="text-xs font-semibold mb-2">Unit of Measurement</h3>
-        <div className="rounded-sm bg-white border p-4">
+        <div className="rounded-sm bg-white border border-neutral-500 p-4">
           
           <div className="space-y-4">
             {/* Measurement Type Selector */}
@@ -813,7 +815,7 @@ export const ProductConfigurations = forwardRef(({
                           placeholder="0"
                           value={totalProductUnits}
                           onChange={(e) => setTotalProductUnits(e.target.value)}
-                          className="h-8"
+                          className="h-8 border border-neutral-500"
                         />
                       </div>
                       <Select value={totalProductUnitsType} onValueChange={setTotalProductUnitsType}>
@@ -851,11 +853,11 @@ export const ProductConfigurations = forwardRef(({
                           placeholder="0"
                           value={minimumProductUnits}
                           onChange={(e) => setMinimumProductUnits(e.target.value)}
-                          className="h-8"
+                          className="h-8 border border-neutral-500"
                         />
                       </div>
                       <Select value={totalProductUnitsType} disabled>
-                        <SelectTrigger className="h-8 text-xs w-fit">
+                        <SelectTrigger className="h-8 border border-neutral-500 text-xs w-fit">
                           <SelectValue placeholder="unit" />
                         </SelectTrigger>
                         <SelectContent>
@@ -885,7 +887,7 @@ export const ProductConfigurations = forwardRef(({
                           placeholder="0"
                           value={reorderLevel || ''}
                           onChange={(e) => setReorderLevel(e.target.value)}
-                          className="h-8"
+                          className="h-8 border border-neutral-500"
                         />
                       </div>
                       <Select value={totalProductUnitsType} disabled>
@@ -911,7 +913,7 @@ export const ProductConfigurations = forwardRef(({
 
         {/* PRICING SECTION - Cost Price Only */}
         <div className="space-y-3 p-4" data-field="costPrice">
-        <div className={`rounded-sm bg-white border p-4 ${errors.costPrice ? 'border-red-500 border-2 bg-red-50' : ''}`}>
+        <div className={`rounded-sm bg-white border border-neutral-500 p-4 ${errors.costPrice ? 'border-red-500 border-2 bg-red-50' : ''}`}>
           <h3 className="text-xs font-semibold mb-4">Pricing</h3>
           <div>
             <Label className={`text-xs font-medium mb-1 block ${errors.costPrice ? 'text-red-600' : ''}`}>
@@ -924,7 +926,7 @@ export const ProductConfigurations = forwardRef(({
               placeholder="0.00"
               value={costPrice}
               onChange={(e) => setCostPrice(e.target.value)}
-              className={`h-8 ${errors.costPrice ? 'border-red-500 border-2' : ''}`}
+              className={`h-8 border border-neutral-500 ${errors.costPrice ? 'border-red-500 border-2' : ''}`}
             />
             <p className={`text-[11px] mt-1 ${errors.costPrice ? 'text-red-600 font-medium' : 'text-gray-500'}`}>
               {productType === 'service' 
@@ -962,7 +964,7 @@ export const ProductConfigurations = forwardRef(({
               allPricingContexts
                 .filter(ctx => selectedPricingContexts.includes(ctx.id))
                 .map((context) => (
-                <div key={context.id} className={`border rounded-sm bg-white p-4 space-y-3`}>
+                <div key={context.id} className={`border border-neutral-500 rounded-sm bg-white p-4 space-y-3`}>
                   {/* Context Header */}
                   <div className="flex items-center justify-between pb-3 border-b">
                     <div 
@@ -1023,7 +1025,7 @@ export const ProductConfigurations = forwardRef(({
                               margin_value: calculateValueFromPercentage(percentage, costPrice)
                             }));
                           }} 
-                          className={`mt-1 bg-[#fcfcfc] h-8 ${productType === 'physical' && errors.margin && !((editingContextId === context.id ? editingContextData.margin_percentage : context.margin_percentage) || '') ? 'border-red-500 border-2' : ''}`}
+                          className={`mt-1 bg-[#fcfcfc] border border-neutral-500 h-8 ${productType === 'physical' && errors.margin && !((editingContextId === context.id ? editingContextData.margin_percentage : context.margin_percentage) || '') ? 'border-red-500 border-2' : ''}`}
                         />
                       </div>
                       <div className={`grow ${productType === 'physical' && errors.margin ? 'border border-red-500 rounded-sm p-2' : ''}`}>
@@ -1052,7 +1054,7 @@ export const ProductConfigurations = forwardRef(({
                                 margin_percentage: calculatePercentageFromValue(value, costPrice)
                               }));
                             }} 
-                            className={'mt-0 bg-[#fcfcfc] h-8'}
+                            className={'mt-0 bg-[#fcfcfc] border border-neutral-500 h-8'}
                           />
                         </div>
                       </div>
@@ -1092,7 +1094,7 @@ export const ProductConfigurations = forwardRef(({
                               }));
                             }}
                             placeholder="Enter selling price"
-                            className={`mt-0 h-8 ${errors.sellingPrice ? 'border-red-500 border-2' : ''}`}
+                            className={`mt-0 h-8 border border-neutral-500 ${errors.sellingPrice ? 'border-red-500 border-2' : ''}`}
                           />
                         ) : (
                           // For physical products: auto-calculated, read-only
@@ -1100,7 +1102,7 @@ export const ProductConfigurations = forwardRef(({
                             type='text' 
                             value={calculateSellingPrice(editingContextId === context.id ? (editingContextData.margin_value || 0) : (context.margin_value || 0))}
                             readOnly
-                            className={`mt-0 h-8 cursor-not-allowed ${!calculateSellingPrice(editingContextId === context.id ? (editingContextData.margin_value || 0) : (context.margin_value || 0)) && errors.sellingPrice ? 'border-red-500 border-2 bg-red-50' : 'bg-[#f0f0f0]'}`}
+                            className={`mt-0 h-8 border border-neutral-500 cursor-not-allowed ${!calculateSellingPrice(editingContextId === context.id ? (editingContextData.margin_value || 0) : (context.margin_value || 0)) && errors.sellingPrice ? 'border-red-500 border-2 bg-red-50' : 'bg-[#f0f0f0]'}`}
                             placeholder="Auto-calculated"
                           />
                         )}
@@ -1123,7 +1125,7 @@ export const ProductConfigurations = forwardRef(({
                         setBulkQuantity(e.target.value);
                       }}
                       placeholder="Enter bulk quantity threshold"
-                      className={`h-8 ${errors.bulkQuantity ? 'border-red-500 border-2' : ''}`}
+                      className={`h-8 border border-neutral-500 ${errors.bulkQuantity ? 'border-red-500 border-2' : ''}`}
                     />
                   </div>
 
@@ -1156,7 +1158,7 @@ export const ProductConfigurations = forwardRef(({
                               bulk_reduction_value: calculateValueFromPercentage(percentage, costPrice)
                             }));
                           }} 
-                          className={'mt-1 bg-[#fcfcfc] h-8'}
+                          className={'mt-1 border border-neutral-500 bg-[#fcfcfc] h-8'}
                         />
                       </div>
                       <div className="grow">
@@ -1184,7 +1186,7 @@ export const ProductConfigurations = forwardRef(({
                               bulk_reduction_percentage: calculatePercentageFromValue(value, costPrice)
                             }));
                           }} 
-                          className={'mt-1 bg-[#fcfcfc] h-8'}
+                          className={'mt-1 border border-neutral-500 bg-[#fcfcfc] h-8'}
                         />
                       </div>
                     </div>
@@ -1193,7 +1195,7 @@ export const ProductConfigurations = forwardRef(({
                 </div>
               ))
             ) : (
-              <div className="text-center py-8 border rounded-sm bg-gray-50">
+              <div className="text-center py-8 border border-neutral-500 rounded-sm bg-gray-50">
                 <p className="text-xs text-gray-500">No pricing contexts</p>
               </div>
             )}
@@ -1201,7 +1203,7 @@ export const ProductConfigurations = forwardRef(({
 
           {/* Add Pricing Context Button */}
           <Button
-            className="w-full border border-dashed rounded-sm h-8 text-xs text-gray-600 hover:bg-gray-50"
+            className="w-full border border-neutral-500 border-dashed rounded-sm h-8 text-xs text-gray-600 hover:bg-gray-50"
             variant="outline"
             onClick={() => {
               setPricingContextSheetOpen(true);
@@ -1248,10 +1250,10 @@ export const ProductConfigurations = forwardRef(({
                     <>
                       {/* Default Context */}
                       <div 
-                        className={`flex items-center gap-2 p-3 border rounded-sm cursor-pointer transition ${
+                        className={`flex items-center gap-2 p-3 border border-neutral-500 rounded-sm cursor-pointer transition ${
                           isContextSelected(defaultPricingContext.id)
                             ? 'bg-blue-50 border-blue-500' 
-                            : 'bg-white border-gray-200 hover:border-gray-300'
+                            : 'bg-white border-neutral-500 hover:border-neutral-600'
                         }`}
                       >
                         <input
@@ -1269,10 +1271,10 @@ export const ProductConfigurations = forwardRef(({
                         pricingContextsFromDb.map((context) => (
                           <div
                             key={context.id}
-                            className={`flex items-center gap-2 p-3 border rounded-sm cursor-pointer transition ${
+                            className={`flex items-center gap-2 p-3 border border-neutral-500 rounded-sm cursor-pointer transition ${
                               isContextSelected(context.id)
                                 ? 'bg-blue-50 border-blue-500' 
-                                : 'bg-white border-gray-200 hover:border-gray-300'
+                                : 'bg-white border-neutral-500 hover:border-neutral-600'
                             }`}
                           >
                             <input
@@ -1357,7 +1359,7 @@ export const ProductConfigurations = forwardRef(({
         {/* RETURN POLICY SECTION - Only for Physical Products */}
         {productType === 'physical' && (
         <div className="space-y-3 p-4">
-        <div className="rounded-sm bg-white border p-4 space-y-4">
+        <div className="rounded-sm bg-white border border-neutral-500 p-4 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1">
               <label className="text-gray-700 text-xs font-semibold">Return Policy</label>
@@ -1408,7 +1410,7 @@ export const ProductConfigurations = forwardRef(({
               value={returnPolicy || ''}
               onChange={(e) => setReturnPolicy(e.target.value)}
               rows="3"
-              className="w-full border rounded-sm px-2 py-2 text-xs font-normal resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-neutral-500 rounded-sm px-2 py-2 text-xs font-normal resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <p className="text-[11px] text-gray-500 mt-1">This will override the selected policy if provided</p>
           </div>
@@ -1418,7 +1420,7 @@ export const ProductConfigurations = forwardRef(({
 
         {/* Shipping Profile */}
         {productType === 'physical' && (
-        <div className="rounded-sm bg-white p-4 border border-gray-200">
+        <div className="rounded-sm bg-white p-4 border border-neutral-500">
           <div className="flex items-center justify-between mb-3">
             <label className="text-gray-700 text-xs font-semibold">Shipping Profile</label>
             <Button
@@ -1488,10 +1490,10 @@ export const ProductConfigurations = forwardRef(({
                     shippingProfiles.map((profile) => (
                       <div
                         key={profile.id}
-                        className={`flex items-center gap-2 p-3 border rounded-sm cursor-pointer transition ${
+                        className={`flex items-center gap-2 p-3 border border-neutral-500 rounded-sm cursor-pointer transition ${
                           selectedShippingProfile?.id === profile.id
                             ? 'bg-blue-50 border-blue-500' 
-                            : 'bg-white border-gray-200 hover:border-gray-300'
+                            : 'bg-white border-neutral-500 hover:border-neutral-600'
                         }`}
                         onClick={() => {
                           setSelectedShippingProfile(profile);
@@ -1573,7 +1575,7 @@ export const ProductConfigurations = forwardRef(({
                         value={newShippingProfileDescription}
                         onChange={(e) => setNewShippingProfileDescription(e.target.value)}
                         rows="5"
-                        className="w-full border rounded-sm px-2 py-2 text-xs font-normal resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full border border-neutral-500 rounded-sm px-2 py-2 text-xs font-normal resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
 
@@ -1639,10 +1641,10 @@ export const ProductConfigurations = forwardRef(({
                       minimumMarginRules.map((rule, idx) => (
                         <div
                           key={rule.id}
-                          className={`flex items-center justify-between p-3 border rounded-sm transition-all cursor-pointer ${
+                          className={`flex items-center justify-between p-3 border border-neutral-500 rounded-sm transition-all cursor-pointer ${
                             selectedMarginRule?.id === rule.id
                               ? 'bg-blue-100 border-blue-400'
-                              : 'bg-slate-50 border-slate-200 hover:border-blue-300 hover:bg-slate-100'
+                              : 'bg-slate-50 border-neutral-500 hover:border-blue-300 hover:bg-slate-100'
                           }`}
                           onClick={() => {
                             setSelectedMarginRule(rule);
@@ -1783,10 +1785,10 @@ export const ProductConfigurations = forwardRef(({
                       returnPoliciesFromDb.map((policy) => (
                         <div
                           key={policy.id}
-                          className={`flex items-center justify-between p-3 border rounded-sm transition-all cursor-pointer ${
+                          className={`flex items-center justify-between p-3 border border-neutral-500 rounded-sm transition-all cursor-pointer ${
                             selectedReturnPolicyId === policy.id
                               ? 'bg-blue-100 border-blue-400'
-                              : 'bg-slate-50 border-slate-200 hover:border-blue-300 hover:bg-slate-100'
+                              : 'bg-slate-50 border-neutral-500 hover:border-blue-300 hover:bg-slate-100'
                           }`}
                           onClick={() => {
                             setSelectedReturnPolicyId(policy.id);
@@ -1860,7 +1862,7 @@ export const ProductConfigurations = forwardRef(({
                         value={newPolicyDescription}
                         onChange={(e) => setNewPolicyDescription(e.target.value)}
                         rows="5"
-                        className="w-full border rounded-sm px-2 py-2 text-xs font-normal resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full border border-neutral-500 rounded-sm px-2 py-2 text-xs font-normal resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
 

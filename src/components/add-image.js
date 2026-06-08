@@ -1141,10 +1141,8 @@ const Files = ({ file, grid, checked, onCheck, onFileClick, onCtrlClick }) => {
             data-drag={isDragging}
             data-grid={grid}
             className={`
-              data-[drag=true]:border-army
-
-          
-              object-contain 
+              data-[drag=true]:border-army w-auto
+              object-cover scale-150
               max-h-full 
               max-w-full
 
@@ -1426,7 +1424,7 @@ const FileDetailsPanel = ({ selectedFile, setEditState, setEditInfo ,updateName}
               alt={selectedFile.name}
               height={150}
               width={150}
-              className="object-contain max-h-full max-w-full"
+              className="object-cover max-h-full scale-125"
             />
           </div>
 

@@ -8,6 +8,64 @@
   src: url("../components/fonts/WixMadeforText-VariableFont_wght.ttf");
 }
 @font-face {
+  font-family: "Poppins";
+  font-style: normal;
+  font-weight: 400;
+  src: url("/fonts/Poppins/Poppins-Regular.ttf");
+}
+@font-face {
+  font-family: "Poppins";
+  font-style: normal;
+  font-weight: 500;
+  src: url("/fonts/Poppins/Poppins-Medium.ttf");
+}
+@font-face {
+  font-family: "Poppins";
+  font-style: italic;
+  font-weight: 500;
+  src: url("/fonts/Poppins/Poppins-MediumItalic.ttf");
+}
+@font-face {
+  font-family: "Poppins";
+  font-style: normal;
+  font-weight: 600;
+  src: url("/fonts/Poppins/Poppins-SemiBold.ttf");
+}
+@font-face {
+  font-family: "Poppins";
+  font-style: italic;
+  font-weight: 600;
+  src: url("/fonts/Poppins/Poppins-SemiBoldItalic.ttf");
+}
+@font-face {
+  font-family: "Poppins";
+  font-style: normal;
+  font-weight: 700;
+  src: url("/fonts/Poppins/Poppins-Bold.ttf");
+}
+@font-face {
+  font-family: "Poppins";
+  font-style: italic;
+  font-weight: 700;
+  src: url("/fonts/Poppins/Poppins-BoldItalic.ttf");
+}
+.font-Poppins,
+.font-WixMade,
+.font-Geist,
+.font-GeistMono,
+.font-Madetommy,
+.font-Inter,
+.font-ClashDisplay,
+.font-Clash,
+.font-Lato,
+.font-MontserratAl,
+.font-Voces {
+  font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif !important;
+}
+body {
+  font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+}
+@font-face {
   font-family: "Inter";
   src: url("../components/fonts/Inter-Regular.ttf");
 }
@@ -172,21 +230,23 @@
 }
 
 @theme {
-  --font-Geist: Geist, sans-serif;
-  --font-Madetommy: Madetommy, sans-serif;
-  --font-Inter: Inter, sans-serif;
-  --font-GeistMono: GeistMono, sans-serif;
-  --font-GeistMono: GeistMono, sans-serif;
-  --font-Clash: ClashDisplay, sans-serif;
-  --font-Lato: Lato, sans-serif;
-  --font-WixMade: WixMade, sans-serif;
-
+  --font-sans: var(--font-poppins);
+  --font-mono: var(--font-poppins);
+  --font-Geist: var(--font-poppins);
+  --font-Madetommy: var(--font-poppins);
+  --font-Inter: var(--font-poppins);
+  --font-GeistMono: var(--font-poppins);
+  --font-Clash: var(--font-poppins);
+  --font-Lato: var(--font-poppins);
+  --font-WixMade: var(--font-poppins);
+  --font-MontserratAl: var(--font-poppins);
+  --font-Voces: var(--font-poppins);
 }
 
 
 
 body {
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
   color: var(--foreground);
   background-color: var(--background);
   scrollbar-width: 3px;

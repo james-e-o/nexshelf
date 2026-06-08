@@ -16,7 +16,7 @@ export default function CompanySidebarFooter({ params, profile }) {
   if (access.isLoading) return null;
 
   return (
-    <SidebarFooter className={'bg-white pb-8 flex-col flex gap-6'} >
+    <SidebarFooter className={'bg-armylight  pb-8 flex-col flex gap-6'} >
       <div className="flex-col flex gap-1">
         {checkPermission('can_view_staff', access.permissions, true, access.isOwner) && (
           <NoCollapsibleButton className={``} url={`/users/${u}/company/${companyId}/staff`} title={'Staff'} icon={Users} active={false} name={'Staff'} badge={'company'}/>

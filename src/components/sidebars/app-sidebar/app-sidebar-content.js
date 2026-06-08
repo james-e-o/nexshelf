@@ -11,7 +11,7 @@ import { CollapsibleButton,NoCollapsibleButton } from "./app-sidebar";
 export default function AppSidebarContent({ profile,companies}) {
    const params = useParams()   
     return (
-    <SidebarContent className={'bg-[white] text-zinc-100'} >
+    <SidebarContent className={'bg-armylight  text-zinc-100'} >
         <SidebarGroup>
             <Link href={`/users/${params.u}/new-company`} className="no-underline">
             <SidebarMenuButton tooltip={'new company'} size="lg" className=" hover:from-core/90 hover:to-army/90 mt-3 h-10 cursor-pointer bg-linear-to-r from-core to-60% to-army">

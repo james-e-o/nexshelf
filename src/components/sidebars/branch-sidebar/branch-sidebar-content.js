@@ -15,7 +15,7 @@ export default function BranchSidebarContent({modules, company}) {
    const { currentBranch } = useContext(BranchContext);
 
     return (
-    <SidebarContent className={'bg-[white]  text-zinc-100'} >
+    <SidebarContent className={'bg-armylight   text-zinc-100'} >
         <SidebarGroup>
             <SidebarMenu>
                 <NoCollapsibleButton className={`capitalize`} url={`/users/${params.u}/company/${params.companyId}`} title={'Dashboard'} icon={Building2} active={false} name={`${company?.name || params.companyId.toUpperCase()} Dashboard`}/>

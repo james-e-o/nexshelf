@@ -39,7 +39,7 @@ export const CollapsibleButton = ({title,icon,items,sidebarCollapse,sidebarOpen,
     <Collapsible key={title} asChild defaultOpen={defaultOpen} className="group/collapsible my-0.5" >
         <SidebarMenuItem onRequestOpen={sidebarOpen} onRequestCollapse={sidebarCollapse} >
             <CollapsibleTrigger asChild>
-        <SidebarMenuButton  tooltip={title} className={`text-black cursor-pointer font-WixMade ${itemClass || ''}`}>
+        <SidebarMenuButton  tooltip={title} className={`text-black cursor-pointer font-Poppins ${itemClass || ''}`}>
                   {item.icon && <item.icon className='font-bold' />}
                   <span className="font-medium text-xs ml-1">{title}</span>
                   <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
@@ -49,7 +49,7 @@ export const CollapsibleButton = ({title,icon,items,sidebarCollapse,sidebarOpen,
             <SidebarMenuSub>
                 {items?.map((subItem) => {
                 const subBtnClass = subItem.className || 'text-black text-xs'
-                const titleClass = subItem.titleClass || 'font-medium data-[caps=capitalize]:capitalize data-[caps=lowercase]:lowercase data-[caps=uppercase]:uppercase font-WixMade text-xs ml-1'
+                const titleClass = subItem.titleClass || 'font-medium data-[caps=capitalize]:capitalize data-[caps=lowercase]:lowercase data-[caps=uppercase]:uppercase font-Poppins text-xs ml-1'
                 return (
                 <SidebarMenuSubItem key={subItem.title}>
                   <SidebarMenuSubButton className={subBtnClass} style={subItem.style} asChild>
@@ -88,7 +88,7 @@ export const NoCollapsibleButton = ({
         <Link href={url} className="relative flex items-center w-full">
           {item.icon && <item.icon className="font-bold" />}
 
-          <span className="font-medium font-WixMade text-xs ml-1">
+          <span className="font-medium font-Poppins text-xs ml-1">
             {name}
           </span>
 

@@ -38,7 +38,7 @@ export const CollapsibleButton = ({title,icon,items,sidebarCollapse,sidebarOpen,
     <Collapsible key={title} asChild defaultOpen={true} className="group/collapsible my-0.5" >
         <SidebarMenuItem onRequestOpen={sidebarOpen} onRequestCollapse={sidebarCollapse} >
             <CollapsibleTrigger asChild>
-            <SidebarMenuButton  tooltip={title} className={'text-black font-WixMade'}>
+            <SidebarMenuButton  tooltip={title} className={'text-black font-Poppins'}>
                  {item.icon && <item.icon className='font-bold' />}
                 <span className="font-medium text-xs ml-1">{title}</span>
                 <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
@@ -50,7 +50,7 @@ export const CollapsibleButton = ({title,icon,items,sidebarCollapse,sidebarOpen,
                 <SidebarMenuSubItem key={subItem.title}>
                     <SidebarMenuSubButton className={`text-black text-xs relative`} asChild>
                     <Link href={subItem.url} className="relative w-full flex items-center">
-                        <span data-caps={caps} className="font-medium data-[caps=capitalize]:capitalize data-[caps=lowercase]:lowercase data-[caps=uppercase]:uppercase tracking-tighter font-WixMade text-xs ml-1">{subItem.title}</span>
+                        <span data-caps={caps} className="font-medium data-[caps=capitalize]:capitalize data-[caps=lowercase]:lowercase data-[caps=uppercase]:uppercase tracking-tighter font-Poppins text-xs ml-1">{subItem.title}</span>
                         
                         {/* Badge for company type */}
                         {subItem.badge && (
@@ -82,7 +82,7 @@ export const NoCollapsibleButton = ({name,active,url,icon }) => {
         <SidebarMenuButton asChild isActive={active} className={'text-black border-2 border-transparent hover:border-zinc-100 bg-transparent'} >
             <Link href={url}>
                 {item.icon && <item.icon className='font-bold' />}
-                <span className="font-medium font-WixMade text-xs ml-1">{name}</span>
+                <span className="font-medium font-Poppins text-xs ml-1">{name}</span>
             </Link>
         </SidebarMenuButton>
     </SidebarMenuItem>

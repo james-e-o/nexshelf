@@ -7,7 +7,7 @@ import { NoCollapsibleButton } from "./app-sidebar";
 
 export default function AppSidebarFooter({ profile}) {
   return (
-    <SidebarFooter className={'bg-white pb-8 flex-col flex gap-6'} >
+    <SidebarFooter className={'bg-armylight  pb-8 flex-col flex gap-6'} >
       <NoCollapsibleButton className={``} url={'/users/'} title={'My Models'} icon={Settings} active={false} name={'Settings'}/>
       <NavUser user={profile} />
     </SidebarFooter>

@@ -66,7 +66,7 @@ const CreateProductPage = () => {
     const [activeTab, setActiveTab] = useState("details");
     const params = useParams(); 
     const router = useRouter();
-    const { u, companySlug,branch } = params;
+    const { u, companyId, branchId } = params;
     const { currentBranch } = useContext(BranchContext);
   
   // Product state
@@ -81,6 +81,7 @@ const CreateProductPage = () => {
     const [selectedCollectionId, setSelectedCollectionId] = useState('')
     const [selectedCollectionName, setSelectedCollectionName] = useState('')
     const [selectedTags, setSelectedTags] = useState([])
+    const [selectedTagNames, setSelectedTagNames] = useState([])
     const [selectedImage, setSelectedImage] = useState(null);
     const [imageDialogOpen, setImageDialogOpen] = useState(false);
     const [productType, setProductType] = useState('physical');
@@ -601,145 +602,85 @@ const CreateProductPage = () => {
         }
     };
 
+
     const handleSubmit = async () => {
-        if (validateForm()) {
-            try {
-                // 1️⃣ Create base product entry
-                const baseProductData = {
-                    branch: currentBranch?.id,
-                    title,
-                    subtitle,
-                    slug: convertToSlug(handle),
-                    description,
-                    product_type: productType,
-                    category_id: selectedCategoryId || null,
-                    collection_id: selectedCollectionId || null,
-                    tags: selectedTags,
-                    
-                    // Specifications
-                    dimensions: dimensions.length || dimensions.width || dimensions.height ? dimensions : null,
-                    dimension_unit: dimensionUnit,
-                    weight: weight || null,
-                    weight_unit: weightUnit,
-                    brand: brand || null,
-                    upc: upc || null,
-                    mpn: mpn || null,
-                    ean: ean || null,
-                    isbn: isbn || null,
-                    
-                    // Service specific
-                    service_duration: serviceDuration || null,
-                    requires_staff: requiresStaff,
-                    
-                    // Pricing & Inventory
-                    cost_price: costPrice || null,
-                    reorder_level: reorderLevel || null,
-                    return_policy_id: selectedReturnPolicyId || null,
-                    return_policy_override: returnPolicy || null,
-                    
-                    // Measurement
-                    measurement_type: selectedMeasurementType,
-                    total_product_units: totalProductUnits || null,
-                    total_product_units_type: totalProductUnitsType,
-                    minimum_product_units: minimumProductUnits || null,
-                    bulk_quantity: bulkQuantity || null,
-                    
-                    created_at: new Date().toISOString(),
-                };
+    if (!validateForm()) {
+        toast.error('Please fill in all required fields');
+        return;
+    }
 
-                const { data: baseProduct, error: baseProductError } = await supabase
-                    .from('base_products')
-                    .insert([baseProductData])
-                    .select()
-                    .single();
+    try {
+        const baseProductData = {
+            branch: currentBranch?.id,
+            title,
+            sub_title: subtitle,
+            handle: convertToSlug(handle),
+            description,
+            brand: brand || null,
+            category: selectedCategoryId || null,
+            collection: selectedCollectionId || null,
+            tags: selectedTags || null,
+            length: dimensions?.length || null,
+            width: dimensions?.width || null,
+            height: dimensions?.height || null,
+            weight: weight || null,
+            weight_unit: weightUnit,
+            dimension_unit: dimensionUnit,
+            type: productType,
+            minimum_order_quantity: minimumOrderQuantity || 1,
+        };
 
-                if (baseProductError) {
-                    console.error('Error creating base product:', baseProductError);
-                    toast.error('Failed to create base product');
-                    return;
-                }
+        const variantsPayload = variantCombinations.map((variant) => ({
+            sku: variant.sku || `${convertToSlug(handle)}-${Date.now()}`,
+            cost: variant.costPrice || costPrice,
+            cost_currency: 'USD',
+            is_variant: variant.combination?.length > 0,
+            is_active: true,
+            reserve: 0,
+            reorder_level: reorderLevel || 0,
+            // Add mpn, upc, ean, etc. if available in variant
+        }));
 
-                toast.success('✓ Base product created');
+        const selectedImagesPayload = selectedImages?.map((img, index) => ({
+            url: img.url || img.src,
+            alt: img.alt || title,
+            display_order: index,
+            is_primary: index === 0,
+        })) || null;
 
-                // 2️⃣ Create product entries (one for each variant, or single product if no variants)
-                const productEntries = variantCombinations.map((variant) => ({
-                    base_product_id: baseProduct.id,
-                    branch: currentBranch?.id,
-                    title: variant.combination?.length > 0 
-                        ? `${title} - ${variant.combination.join(' / ')}`
-                        : title,
-                    sku: variant.sku || `${convertToSlug(handle)}-${variant.id}`,
-                    variant_combination: variant.combination || [],
-                    variant_data: variant,
-                    
-                    // Pricing per variant
-                    pricing_contexts: selectedPricingContexts.map(contextId => {
-                        const context = pricingContexts.find(c => c.id === contextId);
-                        return {
-                            context_id: contextId,
-                            selling_price: variant.sellingPrice || context?.sellingPrice || null,
-                            bulk_price: variant.bulkPrice || context?.bulkPrice || null,
-                            min_selling_price: variant.minSellingPrice || context?.minSellingPrice || null,
-                            discount: variant.discount || context?.discount || 0,
-                        };
-                    }),
-                    
-                    // Inventory tracking (if managed per variant)
-                    managed: variant.managed || false,
-                    quantity: variant.quantity || 0,
-                    
-                    created_at: new Date().toISOString(),
-                }));
+        const { data, error } = await supabase.rpc('create_product_with_variants', {
+            p_branch: baseProductData.branch,
+            p_title: baseProductData.title,
+            p_handle: baseProductData.handle,
+            p_variants: variantsPayload,
+            p_sub_title: baseProductData.sub_title,
+            p_description: baseProductData.description,
+            p_brand: baseProductData.brand,
+            p_category: baseProductData.category,
+            p_collection: baseProductData.collection,
+            p_tags: baseProductData.tags,
+            p_length: baseProductData.length,
+            p_width: baseProductData.width,
+            p_height: baseProductData.height,
+            p_weight: baseProductData.weight,
+            p_weight_unit: baseProductData.weight_unit,
+            p_dimension_unit: baseProductData.dimension_unit,
+            p_type: baseProductData.type,
+            p_minimum_order_quantity: baseProductData.minimum_order_quantity,
+            p_selected_images: selectedImagesPayload,
+        });
 
-                const { data: products, error: productsError } = await supabase
-                    .from('products')
-                    .insert(productEntries)
-                    .select();
+        if (error) throw error;
+        if (!data.success) throw new Error(data.error || 'Failed to create product');
 
-                if (productsError) {
-                    console.error('Error creating products:', productsError);
-                    toast.error('Failed to create product variants');
-                    return;
-                }
+        toast.success('🎉 Product created successfully!');
+        router.push(`/users/${u}/company/${companySlug}/branches/${branch}/modules/products`);
 
-                toast.success(`✓ Created ${products.length} product variant(s)`);
-
-                // 3️⃣ Handle image uploads if any
-                if (selectedImages.length > 0) {
-                    const imageEntries = selectedImages.map((img, index) => ({
-                        base_product_id: baseProduct.id,
-                        image_url: img.url || img.src,
-                        alt_text: img.alt || title,
-                        display_order: index,
-                        is_primary: index === 0,
-                        created_at: new Date().toISOString(),
-                    }));
-
-                    const { error: imagesError } = await supabase
-                        .from('product_images')
-                        .insert(imageEntries);
-
-                    if (imagesError) {
-                        console.error('Error saving product images:', imagesError);
-                        toast.warning('Product created but image records failed');
-                    } else {
-                        toast.success(`✓ Added ${selectedImages.length} image(s)`);
-                    }
-                }
-
-                toast.success('🎉 Product created successfully!');
-                
-                // Redirect to products list
-                router.push(`/users/${u}/company/${companySlug}/branches/${branch}/modules/products`);
-                
-            } catch (err) {
-                console.error('Unexpected error during product creation:', err);
-                toast.error('Unexpected error creating product');
-            }
-        } else {
-            toast.error('Please fill in all required fields');
-        }
-    };
+    } catch (err) {
+        console.error(err);
+        toast.error(err.message || 'Failed to create product');
+    }
+};
 
     // (removed external 'new' navigation — creation happens inside sheets)
     function capitalize(input) {
@@ -753,21 +694,21 @@ const CreateProductPage = () => {
     <>
     <AlertDialog>
     <div className=' flex font-WixMade inset-0  bg-neutral-500 shadow-md shadow- absolute z-40 '>
-        <div className='bg-white flex flex-col border-zinc-400 border absolute inset-2 shadow-0   overflow-clip rounded-lg'>
+        <div className='bg-white flex flex-col border border-neutral-300 absolute inset-2 shadow-0   overflow-clip rounded-lg'>
 
 
 
            <div className="relative w-full h-full flex flex-col">
-                 <div className="flex items-center justify-between border-b px-6 py-3 bg-white z-10">
+                 <div className="flex items-center justify-between border-b border-neutral-300 px-6 py-3 bg-white z-10">
                     <div className="flex items-center gap-2">
                       {/* X Button */}
-                      <Link href={`/users/${u}/company/${companySlug}/branches/${branch}/modules/products`}><Button variant={'ghost'} className="text-white bg-red-500 h-7 hover:text-black text-xs">✕</Button></Link>
+                      <Link href={`/users/${u}/company/${companyId}/branches/${branchId}/modules/products`}><Button variant={'ghost'} className="text-white bg-red-500 h-7 hover:text-black text-xs">✕</Button></Link>
 
                       {/* Reset Button */}
                       <Button 
                         onClick={resetAllInputs}
                         variant={'outline'} 
-                        className="px-2 py-1 h-7 text-[10px] rounded-sm text-neutral-600 border"
+                        className="px-2 py-1 h-7 text-[10px] rounded-sm text-neutral-600 border border-neutral-300"
                       >
                         Reset
                       </Button>
@@ -844,15 +785,15 @@ const CreateProductPage = () => {
                             <h2 className="font-semibold text-sm">General</h2>
 
                             {/* Product Type */}
-                            <div className="border rounded-sm p-4 bg-white">
+                            <div className="border border-neutral-500 rounded-sm p-4 bg-white">
                                 <label className="text-xs font-medium block mb-3">Product Type</label>
                                 <RadioGroup value={productType} onValueChange={setProductType} className="flex gap-6">
                                     <div className="flex items-center space-x-2">
-                                        <RadioGroupItem value="physical" id="type-physical" />
+                                        <RadioGroupItem  className='border-neutral-500' value="physical" id="type-physical" />
                                         <Label htmlFor="type-physical" className="font-normal text-xs cursor-pointer">Physical</Label>
                                     </div>
                                     <div className="flex items-center space-x-2">
-                                        <RadioGroupItem value="service" id="type-service" />
+                                        <RadioGroupItem className='border-neutral-500'  value="service" id="type-service" />
                                         <Label htmlFor="type-service" className="font-normal text-xs cursor-pointer">Service</Label>
                                     </div>
                                 </RadioGroup>
@@ -869,7 +810,7 @@ const CreateProductPage = () => {
                                     {renderFieldLabel("Title", "title")}
                                     <Input 
                                       required={requiredFields.title}
-                                      className={`border rounded-sm px-2 py-2 text-xs ${errors.title ? 'border-red-500 border-2' : ''}`}
+                                      className={`border border-neutral-500 rounded-sm px-2 py-2 text-xs ${errors.title ? 'border-red-500 border-2' : ''}`}
                                       placeholder="Winter jacket" 
                                       value={title} 
                                       onChange={({target})=>{setTitle(capitalize(target.value),setHandle(convertToSlug(target.value))); setErrors(prev => ({ ...prev, title: false }));}}
@@ -881,7 +822,7 @@ const CreateProductPage = () => {
                                     {renderFieldLabel("Subtitle", "subtitle")}
                                     <Input 
                                       required={requiredFields.subtitle}
-                                      className="border rounded-sm px-2 py-2 text-xs"  
+                                      className="border border-neutral-500 rounded-sm px-2 py-2 text-xs"  
                                       placeholder="Warm and cozy" 
                                       value={subtitle}  
                                       onChange={({target})=>{setSubtitle(target.value); setErrors(prev => ({ ...prev, subtitle: false }));}}
@@ -897,7 +838,7 @@ const CreateProductPage = () => {
                                     </span>
                                     <Input 
                                       required={requiredFields.handle}
-                                      className={`border rounded-sm rounded-l-none px-2 py-2 text-xs w-full ${errors.handle ? 'border-red-500 border-2' : ''}`}
+                                      className={`border border-neutral-500 rounded-sm rounded-l-none px-2 py-2 text-xs w-full ${errors.handle ? 'border-red-500 border-2' : ''}`}
                                       value={handle}  
                                       onChange={({target})=>{setHandle(convertToSlug(target.value)); setErrors(prev => ({ ...prev, handle: false }));}}   
                                       placeholder="winter-jacket" 
@@ -914,7 +855,7 @@ const CreateProductPage = () => {
                                     rows={5} 
                                     value={description} 
                                     onChange={(e) => { setDescription(e.target.value); setErrors(prev => ({ ...prev, description: false })); }} 
-                                    className={`border rounded-sm px-2 py-2 text-xs ${errors.description ? 'border-red-500 border-2' : ''}`}
+                                    className={`border border-neutral-500 rounded-sm px-2 py-2 text-xs ${errors.description ? 'border-red-500 border-2' : ''}`}
                                     placeholder="A warm and cozy jacket"
                                   />
                                 </div>
@@ -928,7 +869,7 @@ const CreateProductPage = () => {
                                       placeholder="Select or Add Brand"
                                       value={brand}
                                       onChange={(e) => { setBrand(e.target.value); setErrors(prev => ({ ...prev, brand: false })); }}
-                                      className={`border rounded-sm px-2 py-2 text-xs ${errors.brand ? 'border-red-500 border-2' : ''}`}
+                                      className={`border border-neutral-500 rounded-sm px-2 py-2 text-xs ${errors.brand ? 'border-red-500 border-2' : ''}`}
                                     />
                                   </div>
                                 </div>
@@ -944,7 +885,7 @@ const CreateProductPage = () => {
                                     {renderFieldLabel(productType === 'service' ? "Service Name" : "Product Name", "title")}
                                     <Input 
                                       required={requiredFields.title}
-                                      className={`border rounded-sm px-2 py-2 text-xs ${errors.title ? 'border-red-500 border-2' : ''}`}
+                                      className={`border border-neutral-500 rounded-sm px-2 py-2 text-xs ${errors.title ? 'border-red-500 border-2' : ''}`}
                                       placeholder={productType === 'service' ? "e.g., Haircut - Fade, Manicure, Facial" : "Product name"}
                                       value={title} 
                                       onChange={({target})=>{setTitle(capitalize(target.value),setHandle(convertToSlug(target.value))); setErrors(prev => ({ ...prev, title: false }));}}
@@ -956,7 +897,7 @@ const CreateProductPage = () => {
                                     {renderFieldLabel("Subtitle", "subtitle")}
                                     <Input 
                                       required={requiredFields.subtitle}
-                                      className="border rounded-sm px-2 py-2 text-xs"  
+                                      className="border border-neutral-500 rounded-sm px-2 py-2 text-xs"  
                                       placeholder={productType === 'service' ? "e.g., Premium fade with razor finish, Gel polish application" : "Brief description"} 
                                       value={subtitle}  
                                       onChange={({target})=>{setSubtitle(target.value); setErrors(prev => ({ ...prev, subtitle: false }));}}
@@ -972,7 +913,7 @@ const CreateProductPage = () => {
                                     </span>
                                     <Input 
                                       required={requiredFields.handle}
-                                      className={`border rounded-sm rounded-l-none px-2 py-2 text-xs w-full ${errors.handle ? 'border-red-500 border-2' : ''}`}
+                                      className={`border border-neutral-500 rounded-sm rounded-l-none px-2 py-2 text-xs w-full ${errors.handle ? 'border-red-500 border-2' : ''}`}
                                       value={handle}  
                                       onChange={({target})=>{setHandle(convertToSlug(target.value)); setErrors(prev => ({ ...prev, handle: false }));}}   
                                       placeholder="haircut-skin-fade" 
@@ -989,7 +930,7 @@ const CreateProductPage = () => {
                                     rows={5} 
                                     value={description} 
                                     onChange={(e) => { setDescription(e.target.value); setErrors(prev => ({ ...prev, description: false })); }} 
-                                    className={`border rounded-sm px-2 py-2 text-xs ${errors.description ? 'border-red-500 border-2' : ''}`}
+                                    className={`border border-neutral-500 rounded-sm px-2 py-2 text-xs ${errors.description ? 'border-red-500 border-2' : ''}`}
                                     placeholder={productType === 'service' ? "Describe the service details - e.g., 'Professional haircut featuring clean fades and precise lines. Includes blow-dry and styling.' or 'Relaxing facial treatment with hydrating moisturizers and anti-aging treatments.'" : "Describe your product..."}
                                   />
                                 </div>
@@ -1003,7 +944,7 @@ const CreateProductPage = () => {
                                     placeholder={productType === 'service' ? "e.g., 30, 45, 60" : "Duration"}
                                     value={serviceDuration}
                                     onChange={(e) => { setServiceDuration(e.target.value); setErrors(prev => ({ ...prev, serviceDuration: false })); }}
-                                    className={`border rounded-sm px-2 py-2 text-xs ${errors.serviceDuration ? 'border-red-500 border-2' : ''}`}
+                                    className={`border border-neutral-500 rounded-sm px-2 py-2 text-xs ${errors.serviceDuration ? 'border-red-500 border-2' : ''}`}
                                   />
                                 </div>
 
@@ -1026,7 +967,7 @@ const CreateProductPage = () => {
                                       placeholder="Search or select staff member"
                                       value={selectedStaff}
                                       onChange={(e) => setSelectedStaff(e.target.value)}
-                                      className="border rounded-sm px-2 py-2 text-xs"
+                                      className="border border-neutral-500 rounded-sm px-2 py-2 text-xs"
                                     />
                                   </div>
                                 )}
@@ -1043,7 +984,7 @@ const CreateProductPage = () => {
                                     Images are mapped to variants in order: the first image corresponds to the first variant, the second to the second, and so on.
                                   </p>
                                 )}
-                                <div className={`mt-2 border border-dashed rounded-sm min-h-32 flex text-neutral-500 p-2 ${errors.images ? 'border-red-500 border-2 bg-red-50' : ''}`}>
+                                <div className={`mt-2 border border-neutral-500 border-dashed rounded-sm min-h-32 flex text-neutral-500 p-2 ${errors.images ? 'border-red-500 border-2 bg-red-50' : ''}`}>
                                   {selectedImages && selectedImages.length > 0 ? (
                                     <div className="w-full flex items-center gap-3">
                                       <div className="flex-1">
@@ -1089,7 +1030,7 @@ const CreateProductPage = () => {
                             <h2 className="text-xs font-semibold">Specifications</h2>
 
                             {/* Dimensions */}
-                            <div className="border rounded-sm px-4 py-3">
+                            <div className="border border-neutral-500 rounded-sm px-4 py-3">
                                 <div className="mb-4">
                                     <Label className="text-xs font-medium mb-2 block">Dimensions (Length X Width X Height)</Label>
                                     <div className="flex gap-2 items-end">
@@ -1100,7 +1041,7 @@ const CreateProductPage = () => {
                                                 step="0.01"
                                                 value={dimensions.length}
                                                 onChange={(e) => setDimensions({ ...dimensions, length: e.target.value })}
-                                                className="h-8"
+                                                className="h-8 border-neutral-500 border"
                                             />
                                         </div>
                                         <span className="text-xs text-neutral-500">x</span>
@@ -1111,7 +1052,7 @@ const CreateProductPage = () => {
                                                 step="0.01"
                                                 value={dimensions.width}
                                                 onChange={(e) => setDimensions({ ...dimensions, width: e.target.value })}
-                                                className="h-8"
+                                                className="h-8 border-neutral-500 border"
                                             />
                                         </div>
                                         <span className="text-xs text-neutral-500">x</span>
@@ -1122,14 +1063,14 @@ const CreateProductPage = () => {
                                                 step="0.01"
                                                 value={dimensions.height}
                                                 onChange={(e) => setDimensions({ ...dimensions, height: e.target.value })}
-                                                className="h-8"
+                                                className="h-8 border-neutral-500 border"
                                             />
                                         </div>
                                         <div className="w-20">
                                             <select
                                                 value={dimensionUnit}
                                                 onChange={(e) => setDimensionUnit(e.target.value)}
-                                                className="h-8 px-2 border rounded-sm text-xs bg-white"
+                                                className="h-8 px-2 border border-neutral-500 rounded-sm text-xs bg-white"
                                             >
                                                 <option value="cm">cm</option>
                                                 <option value="m">m</option>
@@ -1158,7 +1099,7 @@ const CreateProductPage = () => {
                                             <select
                                                 value={weightUnit}
                                                 onChange={(e) => setWeightUnit(e.target.value)}
-                                                className="h-8 px-2 border rounded-sm text-xs bg-white"
+                                                className="h-8 px-2 border border-neutral-500 rounded-sm text-xs bg-white"
                                             >
                                                 <option value="kg">kg</option>
                                                 <option value="g">g</option>
@@ -1171,7 +1112,7 @@ const CreateProductPage = () => {
                             </div>
 
                             {/* Product Codes */}
-                            <div className="border rounded-sm px-4 mt-9 py-3">
+                            <div className="border border-neutral-500 rounded-sm px-4 mt-9 py-3">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <Label className="text-xs font-medium mb-2 flex items-center gap-1">
@@ -1183,7 +1124,7 @@ const CreateProductPage = () => {
                                             placeholder="Universal Product Code"
                                             value={upc}
                                             onChange={(e) => setUpc(e.target.value)}
-                                            className="h-8"
+                                            className="h-8 border-neutral-500 border"
                                         />
                                     </div>
                                     <div>
@@ -1196,7 +1137,7 @@ const CreateProductPage = () => {
                                             placeholder="Manufacturer Part Number"
                                             value={mpn}
                                             onChange={(e) => setMpn(e.target.value)}
-                                            className="h-8"
+                                            className="h-8 border-neutral-500 border"
                                         />
                                     </div>
                                     <div>
@@ -1209,7 +1150,7 @@ const CreateProductPage = () => {
                                             placeholder="European Article Number"
                                             value={ean}
                                             onChange={(e) => setEan(e.target.value)}
-                                            className="h-8"
+                                            className="h-8 border-neutral-500 border"
                                         />
                                     </div>
                                     <div>
@@ -1222,7 +1163,7 @@ const CreateProductPage = () => {
                                             placeholder="International Standard Book Number"
                                             value={isbn}
                                             onChange={(e) => setIsbn(e.target.value)}
-                                            className="h-8"
+                                            className="h-8 border-neutral-500 border"
                                         />
                                     </div>
                                 </div>
@@ -1234,7 +1175,7 @@ const CreateProductPage = () => {
                           <div className="space-y-5 mx-8">
                               <h2 className="text-xs font-semibold">{productType === 'service' ? 'Service Options' : 'Variants'}</h2>
 
-                              <div className="border rounded-sm px-4 py-3 space-y-1">
+                              <div className="border border-neutral-500 rounded-sm px-4 py-3 space-y-1">
                                 <div className="flex items-center gap-2">
                                     <Switch
                                         className={''}
@@ -1267,8 +1208,8 @@ const CreateProductPage = () => {
 
                                       {/* Dynamic Options */}
                                       {options.map((option, index) => (
-                                        <div key={option.id} ref={index === options.length - 1 ? lastOptionRef : null} className="border rounded-sm">
-                                          <div className="flex items-center justify-between px-4 py-3 border-b">
+                                        <div key={option.id} ref={index === options.length - 1 ? lastOptionRef : null} className="border border-neutral-300 rounded-sm">
+                                          <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-500">
                                             <Input
                                               type="text"
                                               autoFocus={justAdded}
@@ -1310,7 +1251,7 @@ const CreateProductPage = () => {
                                       ))}
 
                                       <div className="flex justify-end">
-                                        <Button className="border rounded-sm px-4 text-white h-7 bg-army text-xs hover:bg-army/85 w-fit" onClick={addOption}>
+                                        <Button className="border border-neutral-500 rounded-sm px-4 text-white h-7 bg-army text-xs hover:bg-army/85 w-fit" onClick={addOption}>
                                             Add Option
                                         </Button>
                                       </div>
@@ -1388,7 +1329,9 @@ const CreateProductPage = () => {
                         setCategorySheetOpen={setCategorySheetOpen}
                         CategorySheet={CategorySheet}
                         selectedTags={selectedTags}
+                        selectedTagNames={selectedTagNames}
                         setSelectedTags={setSelectedTags}
+                        setSelectedTagNames={setSelectedTagNames}
                         tagSheetOpen={tagSheetOpen}
                         setTagSheetOpen={setTagSheetOpen}
                         TagSheet={TagSheet}
@@ -1449,7 +1392,7 @@ const CreateProductPage = () => {
                 </div>
 
                 {/* FOOTER BUTTONS */}
-                <div className="flex justify-end  mr-14 gap-2 border-t px-7 py-3 bg-white">
+                <div className="flex justify-end  mr-14 gap-2 border-t border-neutral-500 px-7 py-3 bg-white">
                     {/* <Link href={`/users/${u}/company/${companySlug}/branches/${branch}/modules/products`}><Button variant={'outline'} className="px-3 h-7 py-2 bg-red-500 text-white hover:text-black rounded-sm border text-xs">Cancel</Button></Link> */}
                     
                     <div className="flex gap-2">
@@ -1458,7 +1401,7 @@ const CreateProductPage = () => {
                             onClick={goToPreviousTab}
                             disabled={activeTab === 'details'}
                             variant={'outline'} 
-                            className="px-3 h-7 py-2 rounded-sm border text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-3 h-7 py-2 rounded-sm border border-neutral-500 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             Back
                         </Button>
@@ -1634,9 +1577,9 @@ function DraggableCombination({ combo, index, moveCombination, draggedIndex, onD
       animate={{ opacity: isCurrentlyDragged ? 0.7 : 1 }}
       onPointerUp={()=>{isCurrentlyDragged=''}}
       transition={{ duration: 0.2 }}
-      className={`border rounded p-2 h-30 cursor-move bg-white transition-all duration-200 ${
+      className={`border border-neutral-500 rounded p-2 h-30 cursor-move bg-white transition-all duration-200 ${
         isCurrentlyDragged ? 'bg-core/20 shadow-lg ring-2 ring-core/40 scale-105' : ''
-      } ${isOver ? 'border-core border-2 bg-core/5' : 'border-gray-200'}`}
+      } ${isOver ? 'border-core border-2 bg-core/5' : 'border border-neutral-500'}`}
     >
       <div className="flex items-center justify-between h-full gap-4">
         <div className="flex h-full items-center gap-2">
@@ -1657,7 +1600,7 @@ function DraggableCombination({ combo, index, moveCombination, draggedIndex, onD
                   <img 
                     src={imgUrl} 
                     alt="variant" 
-                    className="size-full rounded border object-cover"
+                    className="size-full rounded border border-neutral-500 object-cover"
                   />
                   <button 
                     onClick={() => handleRemoveComboImage(idx)}
@@ -1701,7 +1644,7 @@ function DraggableCombination({ combo, index, moveCombination, draggedIndex, onD
                   {selectedImages.map((img) => (
                     <div 
                       key={img.id}
-                      className="relative cursor-pointer group border rounded hover:border-core transition-colors"
+                      className="relative cursor-pointer group border border-neutral-500 rounded hover:border-core transition-colors"
                       onClick={() => {
                         handleAddImage(img.id);
                         setImageSheetOpen(false);
@@ -1850,7 +1793,7 @@ function CategorySheet({ branch, open, onOpenChange, onConfirm, initialSelected 
     
             <SheetFooter>
               <div className="flex w-full mb-4 justify-start gap-2">
-                <Button className="h-7 bg-core hover:bg-core/80 text-xs" onClick={() => { const selNode = list.find(x=>x.id===selected); onConfirm(selected, selNode?.name || ''); onOpenChange(false) }}>Confirm</Button>
+                <Button className="h-7 bg-core hover:bg-core/80 text-xs" onClick={() => { const selNode = list.find(x => String(x.id) === String(selected)); onConfirm(selected, selNode?.name || ''); onOpenChange(false) }}>Confirm</Button>
                 <SheetClose asChild>
                   <Button variant="outline" className="h-7 text-xs">Cancel</Button>
                 </SheetClose>
@@ -1876,10 +1819,15 @@ function CategorySheet({ branch, open, onOpenChange, onConfirm, initialSelected 
             const { data, error } = await supabase.from('collections').select('*').eq('branch', branch)
             if (error || !data || data.length === 0) {
               toast.error('No collections found')
+              setList([])
               return
-            } else setList(data)
-          } catch (err) { console.error(err) }
-          setLoading(false)
+            }
+            setList(data)
+          } catch (err) {
+            console.error(err)
+          } finally {
+            setLoading(false)
+          }
         }
         fetch()
       }, [open])
@@ -1912,7 +1860,11 @@ function CategorySheet({ branch, open, onOpenChange, onConfirm, initialSelected 
                   }}>Create</Button>
                 </div>
               </div>
-              {loading ? <div className="text-sm">Loading...</div> : (
+              {loading ? (
+                <div className="text-sm">Loading...</div>
+              ) : list.length === 0 ? (
+                <div className="text-sm text-gray-500">No collections found</div>
+              ) : (
                 <div className="space-y-2">
                   {list.map(n => (
                     <div key={n.id} className="py-1">
@@ -1926,11 +1878,11 @@ function CategorySheet({ branch, open, onOpenChange, onConfirm, initialSelected 
               )}
             </div>
             <SheetFooter>
-              <div className="flex w-full justify-end gap-2">
+              <div className="flex w-full justify-start gap-2">
                 <SheetClose asChild>
                   <Button variant="outline" className="h-8 text-xs">Cancel</Button>
                 </SheetClose>
-                <Button className="h-8 text-xs" onClick={() => { const sel = list.find(x=>x.id===selected); onConfirm(selected, sel?.name || ''); onOpenChange(false) }}>Confirm</Button>
+                <Button className="h-8 text-xs" onClick={() => { const sel = list.find(x => String(x.id) === String(selected)); onConfirm(selected, sel?.name || ''); onOpenChange(false) }}>Confirm</Button>
               </div>
             </SheetFooter>
           </SheetContent>
@@ -1981,7 +1933,7 @@ function CategorySheet({ branch, open, onOpenChange, onConfirm, initialSelected 
                   {list.map(n => (
                     <div key={n.id} className="py-1">
                       <label className="inline-flex items-center gap-2">
-                        <Checkbox checked={(selected||[]).includes(n.id)} onCheckedChange={(v)=>toggle(n.id, v)} className="w-4 h-4" />
+                        <Checkbox checked={(selected||[]).some(id => String(id) === String(n.id))} onCheckedChange={(v)=>toggle(n.id, v)} className="w-4 h-4" />
                         <span className="text-sm">{n.name}</span>
                       </label>
                     </div>
@@ -1994,7 +1946,11 @@ function CategorySheet({ branch, open, onOpenChange, onConfirm, initialSelected 
                 <SheetClose asChild>
                   <Button variant="outline" className="h-8 text-xs">Cancel</Button>
                 </SheetClose>
-                <Button className="h-8 text-xs" onClick={() => { onConfirm(selected); onOpenChange(false) }}>Confirm</Button>
+                <Button className="h-8 text-xs" onClick={() => {
+                  const selectedNames = list.filter(item => (selected||[]).some(id => String(id) === String(item.id))).map(item => item.name)
+                  onConfirm(selected, selectedNames)
+                  onOpenChange(false)
+                }}>Confirm</Button>
               </div>
             </SheetFooter>
           </SheetContent>
