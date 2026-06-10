@@ -130,7 +130,7 @@ const CreateProductPage = () => {
     const [selectedMeasurementType, setSelectedMeasurementType] = useState('count');
     const [totalProductUnits, setTotalProductUnits] = useState('1');
     const [totalProductUnitsType, setTotalProductUnitsType] = useState('count');
-    const [minimumProductUnits, setMinimumProductUnits] = useState('1');
+    const [minimumOrderQuantity, setMinimumOrderQuantity] = useState('1');
     const [bulkQuantity, setBulkQuantity] = useState('');
     
     // Inventory & Policy state
@@ -333,7 +333,7 @@ const CreateProductPage = () => {
         setSelectedTags([]);
         setHasVariants(false);
         setReorderLevel('');
-        setMinimumProductUnits('1');
+        setMinimumOrderQuantity('1');
         setTotalProductUnits('1');
         setTotalProductUnitsType('count');
         setBulkQuantity('');
@@ -610,6 +610,10 @@ const CreateProductPage = () => {
     }
 
     try {
+        // Get current user ID (you should already have this in most cases)
+        const { data: { user } } = await supabase.auth.getUser();
+        const currentUserId = user?.id;
+
         const baseProductData = {
             branch: currentBranch?.id,
             title,
@@ -638,7 +642,6 @@ const CreateProductPage = () => {
             is_active: true,
             reserve: 0,
             reorder_level: reorderLevel || 0,
-            // Add mpn, upc, ean, etc. if available in variant
         }));
 
         const selectedImagesPayload = selectedImages?.map((img, index) => ({
@@ -668,10 +671,11 @@ const CreateProductPage = () => {
             p_type: baseProductData.type,
             p_minimum_order_quantity: baseProductData.minimum_order_quantity,
             p_selected_images: selectedImagesPayload,
+            p_created_by: currentUserId,           // ← This is now properly passed
         });
 
         if (error) throw error;
-        if (!data.success) throw new Error(data.error || 'Failed to create product');
+        if (!data?.success) throw new Error(data?.error || 'Failed to create product');
 
         toast.success('🎉 Product created successfully!');
         router.push(`/users/${u}/company/${companySlug}/branches/${branch}/modules/products`);
@@ -681,7 +685,6 @@ const CreateProductPage = () => {
         toast.error(err.message || 'Failed to create product');
     }
 };
-
     // (removed external 'new' navigation — creation happens inside sheets)
     function capitalize(input) {
       let newValue= input.toString().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1))
@@ -1356,8 +1359,8 @@ const CreateProductPage = () => {
                         setTotalProductUnits={setTotalProductUnits}
                         totalProductUnitsType={totalProductUnitsType}
                         setTotalProductUnitsType={setTotalProductUnitsType}
-                        minimumProductUnits={minimumProductUnits}
-                        setMinimumProductUnits={setMinimumProductUnits}
+                        minimumOrderQuantity={minimumOrderQuantity}
+                        setMinimumOrderQuantity={setMinimumOrderQuantity}
                         bulkQuantity={bulkQuantity}
                         setBulkQuantity={setBulkQuantity}
                         variants={variantCombinations}

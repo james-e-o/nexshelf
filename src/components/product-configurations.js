@@ -54,8 +54,8 @@ export const ProductConfigurations = forwardRef(({
   setTotalProductUnits,
   totalProductUnitsType,
   setTotalProductUnitsType,
-  minimumProductUnits,
-  setMinimumProductUnits,
+  minimumOrderQuantity,
+  setMinimumOrderQuantity,
   bulkQuantity,
   setBulkQuantity,
   variants = [],
@@ -833,10 +833,10 @@ export const ProductConfigurations = forwardRef(({
                     </div>
                   </div>
 
-                  {/* Minimum Product Units */}
+                  {/* Minimum Order Quantity */}
                   <div>
                     <div className="flex items-center gap-1 mb-2">
-                      <label className="text-gray-600 text-xs font-medium block">Minimum product unit(s)</label>
+                      <label className="text-gray-600 text-xs font-medium block">Minimum order quantity</label>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Info className="h-4 w-4 text-cyan-600 cursor-help" />
@@ -851,8 +851,8 @@ export const ProductConfigurations = forwardRef(({
                         <Input
                           type="number"
                           placeholder="0"
-                          value={minimumProductUnits}
-                          onChange={(e) => setMinimumProductUnits(e.target.value)}
+                          value={minimumOrderQuantity}
+                          onChange={(e) => setMinimumOrderQuantity(e.target.value)}
                           className="h-8 border border-neutral-500"
                         />
                       </div>
@@ -1131,7 +1131,7 @@ export const ProductConfigurations = forwardRef(({
 
                   {/* Bulk Pricing - Dual Inputs (Percentage & Value) */}
                   <div>
-                    <Label className="text-xs font-medium mb-2 block">Bulk Pricing (Optional)</Label>
+                    <Label className="text-xs font-medium mb-2 block">Bulk Pricing Reduction (Optional)</Label>
                     <div className="flex mt-3 gap-3 items-center">
                       <div className="grow">
                         <Label className='ml-0.5 text-[10px]'>Bulk Price %</Label>
@@ -1420,6 +1420,7 @@ export const ProductConfigurations = forwardRef(({
 
         {/* Shipping Profile */}
         {productType === 'physical' && (
+         <div className="space-y-3 p-4">
         <div className="rounded-sm bg-white p-4 border border-neutral-500">
           <div className="flex items-center justify-between mb-3">
             <label className="text-gray-700 text-xs font-semibold">Shipping Profile</label>
@@ -1448,6 +1449,7 @@ export const ProductConfigurations = forwardRef(({
               No shipping profile selected
             </p>
           )}
+        </div>
         </div>
         )}
 

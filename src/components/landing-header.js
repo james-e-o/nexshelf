@@ -44,7 +44,7 @@ const LandingHeader = () => {
           <Link href="/accounts/login">
             <Button
               size="sm"
-              className="rounded-lg px-6 py-2 font-Montserrat bg-core hover:bg-core/65 text-white"
+              className="rounded-lg px-6 py-2 bg-core hover:bg-core/65 text-white"
             >
               Log in
             </Button>
@@ -80,7 +80,7 @@ const LandingHeader = () => {
           menuOpen ? "opacity-100 translate-y-0 z-30" : "opacity-0 -translate-y-full -z-10"
         }`}
       >
-        <div className="flex flex-col items-center font-Inter font-medium text-lg p-8">
+        <div className="flex flex-col items-center font-medium text-lg p-8">
           <button
             onClick={() => setMenuOpen(false)}
             className="absolute top-5 right-5 p-2 rounded-full hover:bg-gray-100"
@@ -102,7 +102,7 @@ const LandingHeader = () => {
             <Link href="/accounts/login" onClick={() => setMenuOpen(false)}>
               <Button
                 size="sm"
-                className="rounded-lg px-8 font-Montserrat mt-5 py-3 text-base bg-core hover:bg-core/65 text-white"
+                className="rounded-lg px-8 mt-5 py-3 text-base bg-core hover:bg-core/65 text-white"
               >
                 Log in
               </Button>
