@@ -22,10 +22,10 @@ export default async function ProductsLayout({ params, children }) {
     .eq('id', branchId)
     .maybeSingle();
 
-  console.log('✅ [SSR TEST] Supabase Client Working:', {
-    branchId,
-    testBranch,
-  });
+  // console.log('✅ [SSR TEST] Supabase Client Working:', {
+  //   branchId,
+  //   testBranch,
+  // });
 
 
   const isProductsEnabled = await isModuleEnabledServer(companyId, 'products_enabled');

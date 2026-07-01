@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { CompanyInfoContext, ReusableCompanySidebar } from '../layout';
 import { StaffProvider } from '@/components/contexts/staff-context';
 import { Button } from '@/components/ui/button';
-import { Plus, List, ChevronLeft, ChartBar } from 'lucide-react';
+import { Plus, List, ChevronLeft, ChartBar, Network } from 'lucide-react';
 
 function StaffLayoutContent({ children }) {
   const { info, user } = useContext(CompanyInfoContext);
@@ -55,6 +55,21 @@ function StaffLayoutContent({ children }) {
                 >
                   <List className="size-4" />
                   <span className={isCollapsed ? 'hidden' : ''}>Directory</span>
+                </Button>
+              </Link>
+
+              <Link href={`/users/${user.handle}/company/${info.id}/staff/hierarchy`}>
+                <Button 
+                  variant="ghost"
+                  size="sm"
+                  className={`px-3 py-1.5 rounded-full font-medium text-sm gap-1.5 border ${
+                    isActive('/hierarchy')
+                      ? 'bg-slate-100 text-core border-slate-200'
+                      : 'text-gray-600 border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  <Network className="size-4" />
+                  <span className={isCollapsed ? 'hidden' : ''}>Hierarchy</span>
                 </Button>
               </Link>
 

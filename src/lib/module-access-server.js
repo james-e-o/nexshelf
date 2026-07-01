@@ -31,12 +31,12 @@ export async function isModuleEnabledServer(companyId, moduleName) {
       .eq('module', normalizedModuleName)
       .maybeSingle();
 
-    console.log('🔎 [SERVER] Plan module enabled lookup:', {
-      plan: subscription.plan_key,
-      module: normalizedModuleName,
-      enabledEntry,
-      enabledError,
-    });
+    // console.log('🔎 [SERVER] Plan module enabled lookup:', {
+    //   plan: subscription.plan_key,
+    //   module: normalizedModuleName,
+    //   enabledEntry,
+    //   enabledError,
+    // });
 
     if (enabledError) {
       console.error(`[SERVER] Module enabled lookup error:`, enabledError);
@@ -44,7 +44,7 @@ export async function isModuleEnabledServer(companyId, moduleName) {
     }
 
     const result = enabledEntry?.enabled === true;
-    console.log('✅ [SERVER] Result:', result);
+    // console.log('✅ [SERVER] Result:', result);
     return result;
 
   } catch (err) {

@@ -602,7 +602,6 @@ const CreateProductPage = () => {
         }
     };
 
-
     const handleSubmit = async () => {
     if (!validateForm()) {
         toast.error('Please fill in all required fields');
@@ -610,81 +609,90 @@ const CreateProductPage = () => {
     }
 
     try {
-        // Get current user ID (you should already have this in most cases)
         const { data: { user } } = await supabase.auth.getUser();
         const currentUserId = user?.id;
 
-        const baseProductData = {
-            branch: currentBranch?.id,
-            title,
-            sub_title: subtitle,
-            handle: convertToSlug(handle),
-            description,
-            brand: brand || null,
-            category: selectedCategoryId || null,
-            collection: selectedCollectionId || null,
-            tags: selectedTags || null,
-            length: dimensions?.length || null,
-            width: dimensions?.width || null,
-            height: dimensions?.height || null,
-            weight: weight || null,
-            weight_unit: weightUnit,
-            dimension_unit: dimensionUnit,
-            type: productType,
-            minimum_order_quantity: minimumOrderQuantity || 1,
-        };
-
-        const variantsPayload = variantCombinations.map((variant) => ({
-            sku: variant.sku || `${convertToSlug(handle)}-${Date.now()}`,
-            cost: variant.costPrice || costPrice,
-            cost_currency: 'USD',
-            is_variant: variant.combination?.length > 0,
-            is_active: true,
-            reserve: 0,
-            reorder_level: reorderLevel || 0,
-        }));
-
-        const selectedImagesPayload = selectedImages?.map((img, index) => ({
+        // All images formatted for base_products.images (jsonb array)
+        const baseImages = selectedImages?.map((img, index) => ({
             url: img.url || img.src,
             alt: img.alt || title,
             display_order: index,
             is_primary: index === 0,
-        })) || null;
+        })) || [];
+
+        // Build variant SKUs first so we can key variantImagesMap correctly
+        const variantsPayload = variantCombinations.map((variant, index) => {
+            const sku = variant.sku || `${convertToSlug(handle)}-${Date.now()}-${index}`;
+            return {
+                sku,
+                cost: parseFloat(variant.costPrice || costPrice) || 0,
+                cost_currency: 'USD',
+                is_variant: variant.combination?.length > 0,
+                is_active: true,
+                reserve: 0,
+                reorder_level: parseFloat(reorderLevel) || 0,
+                mpn: variant.mpn || null,
+                upc: variant.upc || null,
+                ean: variant.ean || null,
+                isbn: variant.isbn || null,
+            };
+        });
+
+        // Build variant images map: { sku: [{ url, alt, display_order, is_primary }] }
+        // Uses the images mapped per variant in the DraggableCombination component (combo.images)
+        const variantImagesMap = {};
+        variantCombinations.forEach((variant, index) => {
+            const sku = variantsPayload[index].sku;
+            if (variant.images && variant.images.length > 0) {
+                variantImagesMap[sku] = variant.images.map((url, i) => ({
+                    url,
+                    alt: title,
+                    display_order: i,
+                    is_primary: i === 0,
+                }));
+            }
+        });
 
         const { data, error } = await supabase.rpc('create_product_with_variants', {
-            p_branch: baseProductData.branch,
-            p_title: baseProductData.title,
-            p_handle: baseProductData.handle,
+            p_branch: currentBranch?.id,
+            p_title: title,
+            p_handle: convertToSlug(handle),
             p_variants: variantsPayload,
-            p_sub_title: baseProductData.sub_title,
-            p_description: baseProductData.description,
-            p_brand: baseProductData.brand,
-            p_category: baseProductData.category,
-            p_collection: baseProductData.collection,
-            p_tags: baseProductData.tags,
-            p_length: baseProductData.length,
-            p_width: baseProductData.width,
-            p_height: baseProductData.height,
-            p_weight: baseProductData.weight,
-            p_weight_unit: baseProductData.weight_unit,
-            p_dimension_unit: baseProductData.dimension_unit,
-            p_type: baseProductData.type,
-            p_minimum_order_quantity: baseProductData.minimum_order_quantity,
-            p_selected_images: selectedImagesPayload,
-            p_created_by: currentUserId,           // ← This is now properly passed
+
+            p_sub_title: subtitle || null,
+            p_description: description || null,
+            p_brand: brand || null,
+            p_category: selectedCategoryId || null,
+            p_collection: selectedCollectionId || null,
+            p_tags: selectedTags?.length > 0 ? selectedTags : null,
+            p_length: dimensions?.length ? parseFloat(dimensions.length) : null,
+            p_width: dimensions?.width ? parseFloat(dimensions.width) : null,
+            p_height: dimensions?.height ? parseFloat(dimensions.height) : null,
+            p_weight: weight ? parseFloat(weight) : null,
+            p_weight_unit: weightUnit || null,
+            p_dimension_unit: dimensionUnit || 'cm',
+            p_type: productType,
+            p_minimum_order_quantity: parseFloat(minimumOrderQuantity) || 1,
+            p_created_by: currentUserId,
+
+            // Images — both are plain jsonb, no casting issues
+            p_base_images: baseImages.length > 0 ? baseImages : null,
+            p_variant_images: Object.keys(variantImagesMap).length > 0 ? variantImagesMap : null,
         });
 
         if (error) throw error;
         if (!data?.success) throw new Error(data?.error || 'Failed to create product');
 
         toast.success('🎉 Product created successfully!');
-        router.push(`/users/${u}/company/${companySlug}/branches/${branch}/modules/products`);
+        router.push(`/users/${u}/company/${companyId}/branches/${branchId}/modules/products`);
 
     } catch (err) {
         console.error(err);
         toast.error(err.message || 'Failed to create product');
     }
 };
+
+
     // (removed external 'new' navigation — creation happens inside sheets)
     function capitalize(input) {
       let newValue= input.toString().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1))

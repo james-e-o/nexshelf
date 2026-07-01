@@ -258,6 +258,21 @@ export default function StaffDashboard() {
         </Card>
       </div>
 
+      {/* Access Levels CTA */}
+      <Card className="border-gray-200 shadow-sm p-6">
+        <Link
+          href={`/users/${user.handle}/company/${info.slug}/staff/hierarchy`}
+          className="flex py-6 flex-col items-start justify-center rounded-xl border border-core/20 bg-core/10 px-8 text-center transition-all hover:shadow-md hover:bg-core/15"
+        >
+          
+          <h3 className="text-base font-medium text-gray-900">View Access Levels</h3>
+       
+          <span className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-core">
+            Open hierarchy <ArrowRight className="size-4" />
+          </span>
+        </Link>
+      </Card>
+
       {/* Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Hires */}

@@ -6,9 +6,9 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { RefreshCw, ArrowLeft } from 'lucide-react';
-import supabase from '../../../../../../../../../config/supabaseClient';
+import supabase from '@/config/supabaseClient';
 
-export default function AccessLevelDetailPage() {
+export default function StaffHierarchyDetailPage() {
   const params = useParams();
   const { level } = params;
 
@@ -21,30 +21,18 @@ export default function AccessLevelDetailPage() {
     if (!str) return '';
     return str
       .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
   };
 
   const getStatusBadge = (status) => {
     if (status === true) {
-      return (
-        <span className="px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
-          Allowed
-        </span>
-      );
-    } else if (status === false) {
-      return (
-        <span className="px-3 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">
-          Not Allowed
-        </span>
-      );
-    } else {
-      return (
-        <span className="px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
-          Not Defined
-        </span>
-      );
+      return <span className="px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">Allowed</span>;
     }
+    if (status === false) {
+      return <span className="px-3 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700">Not Allowed</span>;
+    }
+    return <span className="px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-500">Not Defined</span>;
   };
 
   const fetchPermissionsData = async () => {
@@ -52,7 +40,6 @@ export default function AccessLevelDetailPage() {
       setLoading(true);
       setError(null);
 
-      // 1. Get all permission keys
       const { data: allPermissions, error: permError } = await supabase
         .from('permission_keys')
         .select('*')
@@ -60,7 +47,6 @@ export default function AccessLevelDetailPage() {
 
       if (permError) throw permError;
 
-      // Group permissions by permission_group
       const groupedPerms = {};
       (allPermissions || []).forEach((perm) => {
         const group = perm.permission_group || 'ungrouped';
@@ -80,7 +66,6 @@ export default function AccessLevelDetailPage() {
         });
       });
 
-      // 2. Get permissions assigned to this specific access level
       const { data: levelPermissions, error: levelError } = await supabase
         .from('access_level_permissions')
         .select('permission_key, allowed')
@@ -88,23 +73,16 @@ export default function AccessLevelDetailPage() {
 
       if (levelError) throw levelError;
 
-      console.log(level)
-      console.log(levelPermissions)
-
-      // Create lookup map for quick status check
       const statusMap = {};
       (levelPermissions || []).forEach((item) => {
         statusMap[item.permission_key] = item.allowed;
       });
 
-      // Merge status into grouped permissions
       Object.keys(groupedPerms).forEach((groupKey) => {
-        groupedPerms[groupKey].permissions = groupedPerms[groupKey].permissions.map(
-          (perm) => ({
-            ...perm,
-            status: statusMap[perm.key] !== undefined ? statusMap[perm.key] : null,
-          })
-        );
+        groupedPerms[groupKey].permissions = groupedPerms[groupKey].permissions.map((perm) => ({
+          ...perm,
+          status: statusMap[perm.key] !== undefined ? statusMap[perm.key] : null,
+        }));
       });
 
       setPermissions(groupedPerms);
@@ -132,10 +110,10 @@ export default function AccessLevelDetailPage() {
     return (
       <div className="p-6">
         <div className="flex items-center gap-3 mb-6">
-          <Link href="../access-levels">
+          <Link href="../hierarchy">
             <Button variant="outline" size="sm">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Access Levels
+              Back to Staff Hierarchy
             </Button>
           </Link>
           <h1 className="text-2xl font-semibold">{capitalizeLevel(level)} Access Level</h1>
@@ -149,13 +127,13 @@ export default function AccessLevelDetailPage() {
     return (
       <div className="p-6">
         <div className="flex items-center gap-3 mb-6">
-          <Link href="../access-levels">
+          <Link href="../hierarchy">
             <Button variant="outline" size="sm">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Access Levels
+              Back to Staff Hierarchy
             </Button>
           </Link>
-          <h1 className="text-lg  text-core font-semibold">{capitalizeLevel(level)} Access Level</h1>
+          <h1 className="text-lg text-core font-semibold">{capitalizeLevel(level)} Access Level</h1>
         </div>
         <div className="text-red-600">Error: {error}</div>
       </div>
@@ -163,37 +141,27 @@ export default function AccessLevelDetailPage() {
   }
 
   return (
-    <div className="p-6   h-full flex flex-col overflow-y-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8 flex-shrink-0">
+    <div className="p-6 h-full flex flex-col overflow-y-auto">
+      <div className="flex items-center justify-between mb-8 shrink-0">
         <div className="flex items-center gap-3">
-          <Link href="../access-levels">
+          <Link href="../hierarchy">
             <Button variant="outline" size="sm">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Access Levels
+              Back to Staff Hierarchy
             </Button>
           </Link>
-          <h4 className="text-lg font-semibold text-core">
-            {capitalizeLevel(level)} Access Level
-          </h4>
+          <h4 className="text-lg font-semibold text-core">{capitalizeLevel(level)} Access Level</h4>
         </div>
 
-        <Button
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          variant="outline"
-        >
+        <Button onClick={handleRefresh} disabled={isRefreshing} variant="outline">
           <RefreshCw className={`mr-2 text-army h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
       </div>
 
-      {/* Permissions Display */}
       <div className="flex-1 overflow-y-auto">
         {Object.keys(permissions).length === 0 ? (
-          <Card className="p-8 text-center text-gray-500">
-            No permissions available
-          </Card>
+          <Card className="p-8 text-center text-gray-500">No permissions available</Card>
         ) : (
           Object.entries(permissions).map(([groupKey, groupData]) => (
             <Card key={groupKey} className="mb-8 overflow-hidden">
@@ -209,18 +177,12 @@ export default function AccessLevelDetailPage() {
                   >
                     <div className="md:col-span-5">
                       <div className="font-medium">{perm.label}</div>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        {perm.description}
-                      </div>
+                      <div className="text-sm text-muted-foreground mt-1">{perm.description}</div>
                     </div>
 
-                    <div className="md:col-span-4 text-sm text-muted-foreground font-mono break-all">
-                      {perm.key}
-                    </div>
+                    <div className="md:col-span-4 text-sm text-muted-foreground font-mono break-all">{perm.key}</div>
 
-                    <div className="md:col-span-3 flex justify-end">
-                      {getStatusBadge(perm.status)}
-                    </div>
+                    <div className="md:col-span-3 flex justify-end">{getStatusBadge(perm.status)}</div>
                   </div>
                 ))}
               </div>
@@ -231,4 +193,3 @@ export default function AccessLevelDetailPage() {
     </div>
   );
 }
-

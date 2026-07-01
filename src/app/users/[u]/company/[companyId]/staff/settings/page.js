@@ -16,12 +16,6 @@ export default function StaffSettingsPage() {
       icon: Users,
     },
     {
-      title: 'Access Levels',
-      description: 'Define authority hierarchy and permissions',
-      href: 'access-levels',
-      icon: Lock,
-    },
-    {
       title: 'Invitations',
       description: 'Control staff onboarding behavior',
       href: 'invitations',
@@ -34,7 +28,7 @@ export default function StaffSettingsPage() {
       <div>
         <h2 className="text-base font-medium tracking-tight">Staff Settings</h2>
         <p className="text-gray-600 text-sm mt-2">
-          Configure roles, access levels, and staff administration settings
+          Configure roles, invitations, and staff administration settings
         </p>
       </div>
 

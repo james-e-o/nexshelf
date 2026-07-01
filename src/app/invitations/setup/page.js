@@ -2,7 +2,7 @@
 
 import { Suspense } from 'react'
 import { useEffect, useState, useRef } from 'react'
-import { useSearchParams,useParams, useRouter } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { cn } from "@/lib/utils"
 import { TriangleAlert, Eye, EyeOff } from 'lucide-react'
 import { Button } from "@/components/ui/button"
@@ -10,7 +10,7 @@ import { Field, FieldDescription, FieldGroup, FieldLabel, FieldSeparator } from 
 import { Input } from "@/components/ui/input"
 import Image from "next/image"
 import { isEmpty, isLength, contains } from "validator"
-import  supabase  from '../../../config/supabaseClient'
+import supabase from '../../../config/supabaseClient'
 
 export default function SignupPage() {
   return (
@@ -34,11 +34,11 @@ function SignupPageFallback() {
       <div className="flex flex-col gap-4 p-6 md:p-10 overflow-y-auto max-h-svh">
         <div className="flex justify-center gap-2 md:justify-start">
           <a href="/" className="flex items-center gap-2 font-medium">
-            <Image 
-              className="dark:invert w-8 h-8" 
-              src="/logo.png" 
-              alt="Nexshelf" 
-              width={32} 
+            <Image
+              className="dark:invert w-8 h-8"
+              src="/logo.png"
+              alt="Nexshelf"
+              width={32}
               height={32}
             />
           </a>
@@ -57,78 +57,65 @@ function SignupPageFallback() {
 
 function SignupPageContent() {
   const searchParams = useSearchParams()
-  const router = useRouter()
   const [companyData, setCompanyData] = useState(null)
   const [userEmail, setUserEmail] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [caseType, setCaseType] = useState(null) // 'no-invite', 'confirm-failed', 'success'
+  const [caseType, setCaseType] = useState(null) // 'no-invite' | 'continue-onboarding' | 'success' | 'already-signed-up' | 'error'
   const [hasValidated, setHasValidated] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
-  // console.log(window.location.origin)
-
   useEffect(() => {
-    if (hasValidated) return // Prevent multiple runs
+    if (hasValidated) return
 
-    const validateUser = async () => {
+    let isMounted = true
+
+    const runValidation = async (session) => {
+      if (!isMounted) return
+
       try {
         const emailParam = searchParams.get('email')
         const errorParam = searchParams.get('error')
         const errorCode = searchParams.get('error_code')
-        
-        // Parse hash fragment for error parameters (from Supabase redirects)
+
         const hashParams = new URLSearchParams(window.location.hash.substring(1))
         const hashError = hashParams.get('error')
         const hashErrorCode = hashParams.get('error_code')
         const hasError = errorParam || hashError
 
-        console.log('Validation parameters:', { emailParam, errorParam, errorCode, hashError, hashErrorCode })
+        const hasSession = !!session?.user
 
-        // STEP 1: Get the current session first
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
-        const hasSession = !sessionError && sessionData?.session?.user
-        
+        console.log('Validation parameters:', { emailParam, errorParam, errorCode, hashError, hashErrorCode, hasSession })
+
         if (!hasSession) {
-          // NO SESSION CASES
-          
-          // Case A: No session, no error, no email → "Not invited"
-          if (!hasError && !emailParam) {
-            setError('You have not been invited by any company.')
-            setCaseType('no-invite')
+          if (hasError && emailParam && (errorCode === 'otp_expired' || hashErrorCode === 'otp_expired')) {
+            setUserEmail(emailParam)
+            setCaseType('continue-onboarding')
             setLoading(false)
             setHasValidated(true)
             return
           }
-          
-          // Case B: No session, no error but email exists → "Not invited"
-          if (emailParam && !hasError) {
-            setError('You have not been invited by any company.')
-            setCaseType('no-invite')
+
+          if (hasError) {
+            setError('System failure, contact your inviting company.')
+            setCaseType('error')
             setLoading(false)
             setHasValidated(true)
             return
           }
-          
-          // Case C: No session but error and error code exists → Show email input form
-        if (hasError && emailParam && (errorCode === 'otp_expired' || hashErrorCode === 'otp_expired')) {
-          setUserEmail(emailParam)
-          setCaseType('continue-onboarding')
-          setLoading(false)
-          setHasValidated(true)
-          return
-        } else if (hasError) {
-          setError('System failure, contact your inviting company.')
-          setCaseType('error')
+
+          // No session, no error — covers both "no email param" and
+          // "email param but no error" cases from the original logic.
+          setError('You have not been invited by any company.')
+          setCaseType('no-invite')
           setLoading(false)
           setHasValidated(true)
           return
         }
-      }
 
-        // STEP 2: User HAS SESSION -  Check if user exists in public.users table
-        const user = sessionData&& sessionData.session.user
+        // STEP 2: We have a confirmed session — check public.users
+        const user = session.user
         setUserEmail(user.email)
 
         const { data: publicUserData, error: userError } = await supabase
@@ -146,18 +133,16 @@ function SignupPageContent() {
           return
         }
 
-        // Case: User not in public.users table → Show signup form
         if (!publicUserData) {
           const metadata = user.user_metadata
           if (metadata?.company_id && metadata?.company_name) {
-            const companyInfo = {
+            setCompanyData({
               id: metadata.company_id,
               name: metadata.company_name,
               logo_url: metadata.logo_url,
               invited_by: metadata.invited_by,
               invite_id: metadata.invite_id
-            }
-            setCompanyData(companyInfo)
+            })
             setUserEmail(user.email)
             setCaseType('success')
             setLoading(false)
@@ -172,8 +157,7 @@ function SignupPageContent() {
           }
         }
 
-        // User already signed up - direct to login
-        setError('You\'ve been successfully signed up. Log in to check your invite status.')
+        setError("You've been successfully signed up. Log in to check your invite status.")
         setCaseType('already-signed-up')
         setLoading(false)
         setHasValidated(true)
@@ -187,18 +171,49 @@ function SignupPageContent() {
       }
     }
 
-    validateUser()
+    const hashHasAuthTokens = window.location.hash.includes('access_token')
+
+    if (hashHasAuthTokens) {
+      // Confirmation link just landed — wait for Supabase to finish
+      // exchanging the hash for a session instead of racing getSession()
+      // against it. This is what was causing confirmed users with clean
+      // URLs to incorrectly land on "not invited."
+      const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          listener.subscription.unsubscribe()
+          runValidation(session)
+        }
+      })
+
+      const timeout = setTimeout(async () => {
+        listener.subscription.unsubscribe()
+        const { data } = await supabase.auth.getSession()
+        runValidation(data?.session)
+      }, 4000)
+
+      return () => {
+        isMounted = false
+        clearTimeout(timeout)
+        listener.subscription.unsubscribe()
+      }
+    } else {
+      supabase.auth.getSession().then(({ data }) => runValidation(data?.session))
+    }
+
+    return () => {
+      isMounted = false
+    }
   }, [hasValidated])
 
   return (
     <>
       <div className="flex justify-center gap-2 md:justify-start">
         <a href="/" className="flex items-center gap-2 font-medium">
-          <Image 
-            className="dark:invert w-8 h-8" 
-            src="/logo.png" 
-            alt="Nexshelf" 
-            width={32} 
+          <Image
+            className="dark:invert w-8 h-8"
+            src="/logo.png"
+            alt="Nexshelf"
+            width={32}
             height={32}
           />
         </a>
@@ -210,8 +225,8 @@ function SignupPageContent() {
               <div className="animate-spin h-8 w-8 border-2 border-core border-t-transparent rounded-full"></div>
             </div>
           )}
-          
-          {!loading && error && (
+
+          {!loading && (caseType === 'no-invite' || caseType === 'error') && (
             <div className="flex flex-col items-center justify-center gap-4 py-12">
               <div className="text-army mb-2">
                 <TriangleAlert className="size-20" />
@@ -225,30 +240,22 @@ function SignupPageContent() {
               </a>
             </div>
           )}
-          
-          {!loading && !error && caseType === 'success' && (
-            <SignupForm 
-              companyData={companyData} 
-              userEmail={userEmail} 
+
+          {!loading && caseType === 'success' && (
+            <SignupForm
+              companyData={companyData}
+              userEmail={userEmail}
               showPassword={showPassword}
               setShowPassword={setShowPassword}
               showConfirmPassword={showConfirmPassword}
               setShowConfirmPassword={setShowConfirmPassword}
             />
           )}
-          
+
           {!loading && caseType === 'continue-onboarding' && (
             <ContinueOnboardingForm userEmail={userEmail} />
           )}
 
-          {!loading && caseType === 'reset-password' && (
-            <ResetPasswordForm userEmail={userEmail} />
-          )}
-          
-          {!loading && caseType === 'reset-password-input' && (
-            <EmailResetForm />
-          )}
-          
           {!loading && caseType === 'already-signed-up' && (
             <div className="flex flex-col items-center justify-center gap-4 py-12">
               <div className="text-army mb-2">
@@ -269,15 +276,9 @@ function SignupPageContent() {
   )
 }
 
-
-
-
-
-//SIGNUP FORM COMPONENT
-//=====================
-
-
-
+// ==========================
+// SIGNUP FORM COMPONENT
+// ==========================
 
 export function SignupForm({
   className,
@@ -292,7 +293,6 @@ export function SignupForm({
   const router = useRouter()
   const [formData, setFormData] = useState({
     username: '@',
-    handle: '',
     password: '',
     confirmPassword: ''
   })
@@ -302,6 +302,7 @@ export function SignupForm({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [signupSuccess, setSignupSuccess] = useState(false)
   const debounceTimer = useRef(null)
+  const usernameCheckId = useRef(0)
 
   const message = {
     usernameError: 'username is required',
@@ -312,14 +313,13 @@ export function SignupForm({
 
   const rules = {
     length: isLength(formData.password, { min: 8 }),
-    number: contains(formData.password, '0') || contains(formData.password, '1') || contains(formData.password, '2') || contains(formData.password, '3') || contains(formData.password, '4') || contains(formData.password, '5') || contains(formData.password, '6') || contains(formData.password, '7') || contains(formData.password, '8') || contains(formData.password, '9'),
+    number: /[0-9]/.test(formData.password),
     uppercase: /[A-Z]/.test(formData.password),
     special: /[!@#$%^&*(),.?":{}|<>]/.test(formData.password),
   }
 
   const allValid = Object.values(rules).every(Boolean)
 
-  // Cleanup timer on unmount
   useEffect(() => {
     return () => {
       if (debounceTimer.current) {
@@ -341,14 +341,18 @@ export function SignupForm({
       return
     }
 
+    const requestId = ++usernameCheckId.current
     setCheckingUsername(true)
-    
+
     try {
       const { data: existing, error } = await supabase
         .from("users")
         .select("id")
         .eq("username", usernameToCheck.toLowerCase())
         .maybeSingle()
+
+      // Ignore stale responses if the user kept typing
+      if (requestId !== usernameCheckId.current) return
 
       if (error) {
         console.error("Error checking username:", error)
@@ -357,10 +361,13 @@ export function SignupForm({
         setUsernameExists(existing ? true : false)
       }
     } catch (err) {
+      if (requestId !== usernameCheckId.current) return
       console.error("Unexpected error checking username:", err)
       setUsernameExists(null)
     } finally {
-      setCheckingUsername(false)
+      if (requestId === usernameCheckId.current) {
+        setCheckingUsername(false)
+      }
     }
   }
 
@@ -386,38 +393,10 @@ export function SignupForm({
     }, 500)
   }
 
-  // Helper function: Verify staff record was created by backend trigger
-  const verifyStaffRecord = async (userId, maxAttempts = 10, delayMs = 2000) => {
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        const { data: staff, error } = await supabase
-          .from('staff_lite')
-          .select('company')
-          .eq('staff_id', userId)
-          .single()
-
-        if (!error && staff) {
-          console.log(`✓ Staff record verified on attempt ${attempt}:`, staff)
-          return staff
-        }
-
-        // Wait before retrying (except on last attempt)
-        if (attempt < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, delayMs))
-        }
-      } catch (err) {
-        console.error(`Attempt ${attempt}: Error verifying staff record:`, err)
-      }
-    }
-
-    throw new Error('Staff record verification timeout: Backend trigger did not complete in time')
-  }
-
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
 
-    // Full validation
     if (isEmpty(formData.username) || formData.username === '@') {
       setError(message.usernameError)
       return
@@ -442,8 +421,7 @@ export function SignupForm({
 
     try {
       const handle = formData.username.substring(1)
-      
-      // Get current user and session
+
       const { data: { user }, error: userError } = await supabase.auth.getUser()
       if (userError || !user) {
         setError('Failed to get user information')
@@ -451,14 +429,12 @@ export function SignupForm({
         return
       }
 
-      // Get session with access token
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
       if (sessionError || !session?.access_token) {
         throw new Error("No active session. Please log in again.")
       }
 
-      // Invoke edge function to complete user profile
-      const { data, error: rpcError } = await supabase.functions.invoke(
+      const { error: rpcError } = await supabase.functions.invoke(
         'complete-user-profile',
         {
           body: {
@@ -484,7 +460,6 @@ export function SignupForm({
         return
       }
 
-      // Success - show success message
       setSignupSuccess(true)
 
     } catch (err) {
@@ -497,7 +472,6 @@ export function SignupForm({
   return (
     <form className={cn("flex flex-col pb-3 gap-6", className)} onSubmit={handleSubmit} {...props}>
       <FieldGroup>
-        {/* Success Message */}
         {signupSuccess && (
           <div className="flex flex-col items-center justify-center gap-4 py-12">
             <div className="text-army mb-2">
@@ -515,14 +489,13 @@ export function SignupForm({
               type="button"
               onClick={async () => {
                 await supabase.auth.signOut()
-                // Build URL with company parameters
                 const params = new URLSearchParams()
                 if (companyData?.id) params.append('company_id', companyData.id)
                 if (companyData?.name) params.append('company_name', companyData.name)
                 if (companyData?.logo_url) params.append('logo_url', companyData.logo_url)
                 if (companyData?.invited_by) params.append('invited_by', companyData.invited_by)
                 if (companyData?.invite_id) params.append('invite_id', companyData.invite_id)
-                
+
                 const loginUrl = `/invitations/login${params.toString() ? '?' + params.toString() : ''}`
                 router.push(loginUrl)
               }}
@@ -533,49 +506,45 @@ export function SignupForm({
           </div>
         )}
 
-        {/* Form Content - Hidden when signup is successful */}
         {!signupSuccess && (
           <>
-        {/* Company Acceptance Header */}
-        <div className="flex flex-col items-center gap-4 text-center mb-2">
-          {companyData?.logo_url && (
-            <img
-              src={companyData.logo_url}
-              alt={companyData.name}
-              className="w-16 h-16 object-contain lg:hidden"
-            />
-          )}
-          <div className="space-y-1 w-full">
-            <div className="text-lg font-semibold text-muted-foreground">
-              Sign up and Accept Invitation <br /> from
-              <span className="text-lg ml-2 font-semibold text-army">
-                {companyData?.name}
-              </span>
+            <div className="flex flex-col items-center gap-4 text-center mb-2">
+              {companyData?.logo_url && (
+                <img
+                  src={companyData.logo_url}
+                  alt={companyData.name}
+                  className="w-16 h-16 object-contain lg:hidden"
+                />
+              )}
+              <div className="space-y-1 w-full">
+                <div className="text-lg font-semibold text-muted-foreground">
+                  Sign up and Accept Invitation <br /> from
+                  <span className="text-lg ml-2 font-semibold text-army">
+                    {companyData?.name}
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Setup your credentials to complete your sign up on Nexshelf Pro
+                </p>
+              </div>
             </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              Setup your credentials to complete your sign up on Nexshelf Pro
-            </p>
-          </div>
-        </div>
 
-        {/* User Email Display */}
-        <div className="bg-muted px-3 py-3 rounded text-sm mb-1">
-          <p className="text-muted-foreground text-xs mb-1">Email</p>
-          <p className="font-medium">{userEmail}</p>
-        </div>
+            <div className="bg-muted px-3 py-3 rounded text-sm mb-1">
+              <p className="text-muted-foreground text-xs mb-1">Email</p>
+              <p className="font-medium">{userEmail}</p>
+            </div>
 
-        {/* Username Input */}
-        <Field>
-          <FieldLabel htmlFor="username">Username</FieldLabel>
-          <div className="relative">
+            <Field>
+              <FieldLabel htmlFor="username">Username</FieldLabel>
+              <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 font-medium">@ </span>
-                <Input 
-                  id="username" 
+                <Input
+                  id="username"
                   name="username"
-                  className="pl-6" 
+                  className="pl-6"
                   value={formData.username.replace('@', '')}
                   onChange={handleUsernameChange}
-                  type="text" 
+                  type="text"
                   placeholder="your_username"
                   autoComplete="username"
                 />
@@ -604,18 +573,17 @@ export function SignupForm({
               </FieldDescription>
             </Field>
 
-            {/* Password */}
             <Field>
               <FieldLabel htmlFor="password">Password</FieldLabel>
               <div className="relative">
-                <Input 
-                  id="password" 
+                <Input
+                  id="password"
                   name="password"
                   type={showPassword ? 'text' : 'password'}
                   placeholder="•••••••••"
                   value={formData.password}
                   onChange={handleChange}
-                  required 
+                  required
                 />
                 <button
                   type="button"
@@ -641,18 +609,17 @@ export function SignupForm({
               </div>
             </Field>
 
-            {/* Confirm Password */}
             <Field>
               <FieldLabel htmlFor="confirm-password">Confirm Password</FieldLabel>
               <div className="relative">
-                <Input 
-                  id="confirm-password" 
+                <Input
+                  id="confirm-password"
                   name="confirmPassword"
                   type={showConfirmPassword ? 'text' : 'password'}
                   placeholder=""
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  required 
+                  required
                 />
                 <button
                   type="button"
@@ -664,7 +631,6 @@ export function SignupForm({
               </div>
             </Field>
 
-            {/* Error Message */}
             {error && (
               <div className="bg-core/10 border-2 border-core/30 rounded-lg p-4 flex gap-3 items-start">
                 <TriangleAlert className="w-5 h-5 text-army shrink-0 mt-0.5" />
@@ -672,9 +638,8 @@ export function SignupForm({
               </div>
             )}
 
-            {/* Submit Button */}
             <Field>
-              <Button 
+              <Button
                 type="submit"
                 disabled={isSubmitting || usernameExists === true || !allValid || formData.confirmPassword !== formData.password}
                 className="bg-core hover:bg-core/90 text-white font-normal w-full disabled:opacity-50 disabled:cursor-not-allowed"
@@ -685,7 +650,6 @@ export function SignupForm({
 
             <FieldSeparator>or</FieldSeparator>
 
-            {/* Alternative SignIn Link */}
             <FieldDescription className="px-6 text-center">
               Already have an account? <a href="/accounts/login" className="text-core hover:underline font-semibold">Sign in</a>
             </FieldDescription>
@@ -696,16 +660,9 @@ export function SignupForm({
   )
 }
 
-
-
-
-
-
-
-
-
-
-
+// ==========================
+// CONTINUE ONBOARDING FORM
+// ==========================
 
 export function ContinueOnboardingForm({ userEmail }) {
   const [isSending, setIsSending] = useState(false)
@@ -723,7 +680,7 @@ export function ContinueOnboardingForm({ userEmail }) {
           emailRedirectTo: `${window.location.origin}/invitations/setup?email=${encodeURIComponent(userEmail)}`
         }
       })
-      
+
       if (otpError) throw otpError
       setSentSuccessfully(true)
     } catch (err) {
@@ -757,7 +714,6 @@ export function ContinueOnboardingForm({ userEmail }) {
           <p className="text-gray-600 text-sm">Your invitation has expired. Click the button below to generate a new verification code and continue onboarding.</p>
         </div>
 
-        {/* Expired Warning */}
         <div className="bg-amber-50 border-2 border-amber-200 rounded-lg p-4 flex gap-3 items-start">
           <TriangleAlert className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
           <div>
@@ -766,10 +722,9 @@ export function ContinueOnboardingForm({ userEmail }) {
           </div>
         </div>
 
-        {/* Email Display */}
         <Field>
           <FieldLabel>Email Address</FieldLabel>
-          <Input 
+          <Input
             type="email"
             value={userEmail}
             className="bg-gray-50"
@@ -777,7 +732,6 @@ export function ContinueOnboardingForm({ userEmail }) {
           />
         </Field>
 
-        {/* Error Message */}
         {error && (
           <div className="bg-core/10 border-2 border-core/30 rounded-lg p-4 flex gap-3 items-start">
             <TriangleAlert className="w-5 h-5 text-army shrink-0 mt-0.5" />
@@ -785,9 +739,8 @@ export function ContinueOnboardingForm({ userEmail }) {
           </div>
         )}
 
-        {/* Send OTP Button */}
         <Field>
-          <Button 
+          <Button
             type="button"
             onClick={handleSendOTP}
             disabled={isSending}
@@ -797,227 +750,6 @@ export function ContinueOnboardingForm({ userEmail }) {
           </Button>
         </Field>
 
-        {/* Alternative SignIn Link */}
-        <FieldDescription className="px-6 text-center">
-          Already have an account? <a href="/accounts/login" className="text-core hover:underline font-semibold">Sign in</a>
-        </FieldDescription>
-      </FieldGroup>
-    </form>
-  )
-}
-
-export function ResetPasswordForm({ userEmail }) {
-  const [isSending, setIsSending] = useState(false)
-  const [sentSuccessfully, setSentSuccessfully] = useState(false)
-  const [error, setError] = useState('')
-
-  const handleSendResetEmail = async () => {
-    setIsSending(true)
-    setError('')
-
-    try {
-      await supabase.auth.resetPasswordForEmail(userEmail, {
-        redirectTo: `${window.location.origin}/invitations/setup?email=${encodeURIComponent(userEmail)}`
-      })
-      setSentSuccessfully(true)
-    } catch (err) {
-      console.error('Error sending reset email:', err)
-      setError('Failed to send reset email. Please try again.')
-    } finally {
-      setIsSending(false)
-    }
-  }
-
-  if (sentSuccessfully) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-4 py-12">
-        <div className="text-army mb-2">
-          <TriangleAlert className="size-20" />
-        </div>
-        <div className="bg-core/10 border-2 border-core/30 rounded-lg p-6 text-center">
-          <p className="text-core font-semibold mb-2">Reset Email Sent</p>
-          <p className="text-core/80 text-sm">We've sent a password reset link to {userEmail}</p>
-          <p className="text-core/80 text-sm mt-3">Please check your email to continue with your account setup.</p>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <form className="space-y-6">
-      <FieldGroup>
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Complete Your Setup</h2>
-          <p className="text-gray-600 text-sm">Enter your email to receive a password reset link.</p>
-        </div>
-
-        {/* Email Display */}
-        <Field>
-          <FieldLabel>Email Address</FieldLabel>
-          <Input 
-            type="email"
-            value={userEmail}
-            className="bg-gray-50"
-          />
-        </Field>
-
-        {/* Error Message */}
-        {error && (
-          <div className="bg-core/10 border-2 border-core/30 rounded-lg p-4 flex gap-3 items-start">
-            <TriangleAlert className="w-5 h-5 text-army shrink-0 mt-0.5" />
-            <p className="text-core text-sm">{error}</p>
-          </div>
-        )}
-
-        {/* Send Reset Email Button */}
-        <Field>
-          <Button 
-            type="button"
-            onClick={handleSendResetEmail}
-            disabled={isSending}
-            className="bg-core hover:bg-core/90 text-white font-semibold w-full disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSending ? 'Sending...' : 'Send Password Reset Email'}
-          </Button>
-        </Field>
-
-        {/* Alternative SignIn Link */}
-        <FieldDescription className="px-6 text-center">
-          Already have an account? <a href="/accounts/login" className="text-core hover:underline font-semibold">Sign in</a>
-        </FieldDescription>
-      </FieldGroup>
-    </form>
-  )
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-async function sendResetEmailToAddress(email) {
-  try {
-    const response = await fetch('/api/reset-password', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email,
-        redirectUrl: `${window.location.origin}/invitations/setup?email=${encodeURIComponent(email)}`,
-      }),
-    })
-
-    const data = await response.json()
-
-    if (!response.ok) {
-      console.error('Error from API:', data.error)
-      return { success: false, error: data.error }
-    }
-
-    console.log('Success:', data)
-    return { success: true }
-  } catch (err) {
-    console.error('Error sending reset email:', err)
-    return { success: false, error: err.message }
-  }
-}
-
-export function EmailResetForm() {
-  const [email, setEmail] = useState('')
-  const [isSending, setIsSending] = useState(false)
-  const [sentSuccessfully, setSentSuccessfully] = useState(false)
-  const [error, setError] = useState('')
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    
-    if (!email || isEmpty(email)) {
-      setError('Please enter your email address.')
-      return
-    }
-
-    setIsSending(true)
-    setError('')
-
-    const result = await sendResetEmailToAddress(email)
-    
-    if (result.success) {
-      setSentSuccessfully(true)
-    } else {
-      setError(result.error || 'Failed to send reset email. Please try again.')
-    }
-    
-    setIsSending(false)
-  }
-
-  if (sentSuccessfully) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-4 py-12">
-        <div className="text-army mb-2">
-          <TriangleAlert className="size-20" />
-        </div>
-        <div className="bg-core/10 border-2 border-core/30 rounded-lg p-6 text-center">
-          <p className="text-core font-semibold mb-2">Reset Email Sent</p>
-          <p className="text-core/80 text-sm">We've sent a password reset link to {email}</p>
-          <p className="text-core/80 text-sm mt-3">Please check your email to continue with your account setup.</p>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <FieldGroup>
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-army text-center mb-2">Reset Your Password</h2>
-          <p className="text-gray-600 text-sm">Input email and submit to reset email and continue setup.</p>
-        </div>
-
-        {/* Email Input */}
-        <Field>
-          <FieldLabel htmlFor="email">Email Address</FieldLabel>
-          <Input 
-            id="email"
-            type="email"
-            placeholder="Enter your email"
-            value={email}
-            onChange={(e) => {
-              setEmail(e.target.value)
-              setError('')
-            }}
-            disabled={isSending}
-          />
-        </Field>
-
-        {/* Error Message */}
-        {error && (
-          <div className="bg-core/10 border-2 border-core/30 rounded-lg p-4 flex gap-3 items-start">
-            <TriangleAlert className="w-5 h-5 text-army shrink-0 mt-0.5" />
-            <p className="text-core text-sm">{error}</p>
-          </div>
-        )}
-
-        {/* Submit Button */}
-        <Field>
-          <Button 
-            type="submit"
-            disabled={isSending || isEmpty(email)}
-            className="bg-core hover:bg-core/90 text-white font-semibold w-full disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSending ? 'Sending...' : 'Submit'}
-          </Button>
-        </Field>
-
-        {/* Alternative SignIn Link */}
         <FieldDescription className="px-6 text-center">
           Already have an account? <a href="/accounts/login" className="text-core hover:underline font-semibold">Sign in</a>
         </FieldDescription>

@@ -106,6 +106,7 @@ export default function CategoryTable() {
                 console.error(categoriesError)
                 toast.error('Failed to load categories')
               } else {
+                console.log('Fetched categories:', categoriesRes)
                 setFlatCategories(categoriesRes || [])
               }
 
