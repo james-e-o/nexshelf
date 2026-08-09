@@ -27,15 +27,20 @@ export function StaffProvider({ children, companyId }) {
         
         const { data: staff, error: fetchError } = await supabase
           .from('staff')
-          .select('*')
+          .select('*, staff_info(date_hired)')
           .eq('company', companyId)
-          .order('date_hired', { ascending: false });
+          .order('created_at', { ascending: false });
 
         if (fetchError) {
           console.error('Error fetching staff data:', fetchError);
           setError(fetchError.message);
         } else {
-          setStaffData(staff || []);
+          setStaffData(
+            (staff || []).map((item) => ({
+              ...item,
+              date_hired: item.staff_info?.[0]?.date_hired || null,
+            }))
+          );
         }
       } catch (error) {
         console.error('Error fetching staff data:', error);
@@ -145,15 +150,20 @@ export function StaffProvider({ children, companyId }) {
       
       const { data: staff, error: fetchError } = await supabase
         .from('staff')
-        .select('*')
+        .select('*, staff_info(date_hired)')
         .eq('company', companyId)
-        .order('date_hired', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (fetchError) {
         console.error('Error refetching staff data:', fetchError);
         setError(fetchError.message);
       } else {
-        setStaffData(staff || []);
+        setStaffData(
+          (staff || []).map((item) => ({
+            ...item,
+            date_hired: item.staff_info?.[0]?.date_hired || null,
+          }))
+        );
       }
     } catch (error) {
       console.error('Error refetching staff data:', error);

@@ -120,7 +120,7 @@ export default function ResetPasswordPage() {
                                             </div>
                                         </div>
                                     </a>
-                                    <h1 className="text-xl text-army font-bold">Set Your New Password</h1>
+                                    <h1 className="text-xl text-alt font-bold">Set Your New Password</h1>
                                     <FieldDescription>
                                         Create a strong password to secure your account
                                     </FieldDescription>

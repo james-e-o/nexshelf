@@ -3,7 +3,7 @@ import { useState, useContext, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CompanyInfoContext } from "../../layout";
+import { CompanyInfoContext } from "../../companyInfoProvider";
 import { toast } from "sonner";
 import Image from "next/image";
 import supabase from "@/config/supabaseClient";

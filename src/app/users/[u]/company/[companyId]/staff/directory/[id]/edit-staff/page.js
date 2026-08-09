@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {  Select,  SelectContent,  SelectItem,  SelectTrigger,  SelectValue,} from '@/components/ui/select'
 import supabase from '@/config/supabaseClient'
-import { CompanyInfoContext } from '../../../../layout'
+import { CompanyInfoContext } from '../../../../companyInfoProvider'
 import { StaffContext } from '@/components/contexts/staff-context'
 import { Check, X, Edit2 } from 'lucide-react'
 

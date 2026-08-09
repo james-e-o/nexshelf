@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { toast } from 'sonner';
-import { CompanyInfoContext } from '../../../../layout';
+import { CompanyInfoContext } from '../../../../companyInfoProvider';
 
 export default function RoleDetailPage() {
   const params = useParams();

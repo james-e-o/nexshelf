@@ -1,11 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-     images: {
-    domains: [
-      "gzqaoupdixaqsdjgzlid.supabase.co"
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'gzqaoupdixaqsdjgzlid.supabase.co',
+      },
     ],
   },
-    allowedDevOrigins: [
+  allowedDevOrigins: [
     '192.168.1.204',
     '192.168.43.202',
     '192.168.142.204',

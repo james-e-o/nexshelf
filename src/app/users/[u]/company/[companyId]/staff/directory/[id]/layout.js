@@ -1,7 +1,7 @@
 'use client'
 
 import { useContext, useState, useEffect } from 'react'
-import { CompanyInfoContext } from '../../../layout'
+import { CompanyInfoContext } from '../../../companyInfoProvider'
 import supabase from '@/config/supabaseClient'
 import { useParams, useRouter } from 'next/navigation'
 import { Card } from '@/components/ui/card'
@@ -28,7 +28,7 @@ export default function StaffDetailLayout() {
       try {        
         const { data, error } = await supabase
           .from('staff')
-          .select('*')
+          .select('*, staff_info(date_hired)')
           .eq('id', params.id)
           .eq('company', info.id)
           .single()
@@ -38,8 +38,10 @@ export default function StaffDetailLayout() {
           throw error
         }
 
-       toast('Staff data fetched')
-        setStaffData(data)
+        setStaffData({
+          ...data,
+          date_hired: data.staff_info?.[0]?.date_hired || null,
+        })
       } catch (err) {
         console.error('Error fetching staff:', err)
         setStaffData(null)

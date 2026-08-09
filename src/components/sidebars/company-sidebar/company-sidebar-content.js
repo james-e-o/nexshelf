@@ -23,7 +23,7 @@ export default function CompanySidebarContent({modules, branches, company, acces
                         
                         //  ...branches.filter(branch => branch.company === company?.company_id).map((branch) => ({ title: branch.name, url: `/users/${params.u}/company/${params.companyId}/branches/${branch.branch_id}`}))
                         ...branches.map((branch) => ({ title: branch.name, url: `/users/${params.u}/company/${params.companyId}/branches/${branch.id}`})),
-                        { title: 'All Branches', url: `/users/${params.u}/company/${params.companyId}/branches`},
+                        // { title: 'All Branches', url: `/users/${params.u}/company/${params.companyId}/branches`},
                     ]}
                     sidebarCollapse={false}
                     />

@@ -1,17 +1,17 @@
 'use client'
 
 import { useContext, useState, useEffect } from 'react'
-import { CompanyInfoContext } from '../../../layout'
+import { CompanyInfoContext } from '../../../companyInfoProvider'
 import supabase from '@/config/supabaseClient'
 import { Card } from '@/components/ui/card'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 
 export default function StaffOverview({ staffData, setStaffData }) {
   const { info } = useContext(CompanyInfoContext)
   const [branchName, setBranchName] = useState(null)
-  const [isBranchLoading, setIsBranchLoading] = useState(true)
+  const [isBranchLoading, setIsBranchLoading] = useState(false)
   const [roleName, setRoleName] = useState(null)
-  const [isRoleLoading, setIsRoleLoading] = useState(true)
+  const [isRoleLoading, setIsRoleLoading] = useState(false)
 
   if (!staffData) {
     return <p className="text-gray-600">Staff member not found</p>
@@ -108,9 +108,13 @@ export default function StaffOverview({ staffData, setStaffData }) {
         <Card className="border-gray-200 shadow-sm p-6 lg:col-span-1">
           <div className="text-center space-y-4">
             <Avatar className="w-32 h-32 mx-auto">
-              <AvatarFallback className="text-3xl bg-linear-to-br from-core to-army text-white">
-                {getInitials(staffData.name)}
-              </AvatarFallback>
+              {staffData.photo ? (
+                <AvatarImage src={staffData.photo} alt={staffData.name} />
+              ) : (
+                <AvatarFallback className="text-3xl bg-linear-to-br from-core to-army text-white">
+                  {getInitials(staffData.name)}
+                </AvatarFallback>
+              )}
             </Avatar>
             <div>
               <h2 className="text-xl font-bold text-gray-900">{staffData.name}</h2>

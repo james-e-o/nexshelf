@@ -21,10 +21,10 @@ export function NavUser({user}){
             >
               <Avatar className='items-center border inline-flex rounded-full size-7 justify-center'>
                 <AvatarImage src={user&&user.avatar} width={60} height={60} className=" w-full" alt="@storeprobuilder"/>
-                <AvatarFallback className="rounded-lg bg-white uppercase font-bold text-xl text-army">{user&&user.username.charAt(1)}</AvatarFallback>
+                <AvatarFallback className="rounded-lg bg-white uppercase font-bold text-xl text-alt">{user&&user.username.charAt(1)}</AvatarFallback>
               </Avatar>
-              <div className="grid flex-1 text-left text-xs leading-tight">
-                <span className="truncate font-semibold">{user&&user.username}</span>
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-semibold text-sm">{user&&user.username}</span>
               </div>
               <ChevronsUpDown className="ml-auto size-4" />
             </SidebarMenuButton>
@@ -42,8 +42,8 @@ export function NavUser({user}){
                   <AvatarFallback className="rounded-lg">{user&&user.username.charAt(1)}</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{user&&user.username}</span>
-                  <span className="truncate text-xs">{user&&user.email}</span>
+                  <span className="truncate font-medium text-sm">{user&&user.username}</span>
+                  <span className="truncate text-xs text-sm">{user&&user.email}</span>
                 </div>
               </div>
             </DropdownMenuLabel>

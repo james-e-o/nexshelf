@@ -2,7 +2,7 @@
 
 import { useState, useContext } from "react"
 import { useRouter, useParams } from "next/navigation"
-import { CompanyInfoContext } from "../../layout"
+import { CompanyInfoContext } from "../../companyInfoProvider"
 import { Button } from "@/components/ui/button"
 import { Toast } from "sonner"
 import { Spinner } from "@/components/ui/spinner"

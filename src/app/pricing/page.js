@@ -31,7 +31,7 @@ const Pricing = () => {
 
         // Fetch all plans except trial
         const { data: plansData, error: plansError } = await supabase
-          .from("core_plans")
+          .from("plans")
           .select("*")
           .neq("key", "trial")
           .order("created_at", { ascending: true });

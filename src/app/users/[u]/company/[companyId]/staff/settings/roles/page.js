@@ -9,7 +9,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
 import { toast } from 'sonner';
-import { CompanyInfoContext } from '../../../layout';
+import { CompanyInfoContext } from '../../../companyInfoProvider';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus, RefreshCw } from 'lucide-react';

@@ -1,7 +1,7 @@
 "use client"
 
 import { useContext, useState } from "react"
-import { CompanyInfoContext } from "../layout"
+import { CompanyInfoContext } from "../companyInfoProvider"
 import { Button } from "@/components/ui/button"
 import { useRouter, useParams } from "next/navigation"
 import { Spinner } from "@/components/ui/spinner"

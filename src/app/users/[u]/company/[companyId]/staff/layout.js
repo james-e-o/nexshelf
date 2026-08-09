@@ -1,132 +1,74 @@
 'use client';
 
-import { useContext, useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { useContext } from 'react';
+import { usePathname, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { CompanyInfoContext, ReusableCompanySidebar } from '../layout';
+import { CompanyInfoContext } from '../companyInfoProvider';
+import { ReusableCompanySidebar } from '../companyLayoutClient';
 import { StaffProvider } from '@/components/contexts/staff-context';
-import { Button } from '@/components/ui/button';
-import { Plus, List, ChevronLeft, ChartBar, Network } from 'lucide-react';
+import { Plus, List, ChartBar, Network, Settings, UserPlus } from 'lucide-react';
+
+const TABS = [
+  { key: 'overview', label: 'Overview', icon: ChartBar, path: '' },
+  { key: 'directory', label: 'Directory', icon: List, path: '/directory' },
+  { key: 'hierarchy', label: 'Hierarchy', icon: Network, path: '/hierarchy' },
+  { key: 'onboarding', label: 'Onboarding', icon: Plus, path: '/onboarding' },
+  { key: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
+];
 
 function StaffLayoutContent({ children }) {
-  const { info, user } = useContext(CompanyInfoContext);
+  const { info } = useContext(CompanyInfoContext);
   const pathname = usePathname();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const { u } = useParams();
 
-  // Determine active tab
-  const isActive = (path) => pathname.includes(path);
-  const isDashboard = pathname.endsWith('/staff');
+  const isActive = (path) => {
+    if (path === '') return pathname.endsWith('/staff');
+    return pathname.includes(path);
+  };
 
   return (
     <ReusableCompanySidebar>
-      <div className="space-y-4 mx-3 h-full flex-col flex overflow-hidden font-WixMade">
-        {/* Header Section with Title and Navigation Buttons */}
-        <div className="flex items-center justify-between gap-6">
-          {/* Left: Title + Navigation Buttons + Collapse */}
-          <div className="flex items-center gap-3">
-            <h1 className="text-lg mr-4 font-bold text-slate-700 whitespace-nowrap">Staff Management</h1>
-            
-            {/* Navigation Buttons */}
-            <div className="flex items-center gap-2">
-              <Link href={`/users/${user.handle}/company/${info.id}/staff`}>
-                <Button 
-                  variant="ghost"
-                  size="sm"
-                  className={`px-3 py-1.5 rounded-full font-medium text-sm gap-1.5 border ${
-                    isDashboard
-                      ? 'bg-slate-100 text-core border-slate-200'
-                      : 'text-gray-600 border-gray-200 hover:bg-gray-50'
-                  }`}
-                >
-                  <ChartBar className="size-4" />
-                  <span className={isCollapsed ? 'hidden' : ''}>Overview</span>
-                </Button>
-              </Link>
-
-              <Link href={`/users/${user.handle}/company/${info.id}/staff/directory`}>
-                <Button 
-                  variant="ghost"
-                  size="sm"
-                  className={`px-3 py-1.5 rounded-full font-medium text-sm gap-1.5 border ${
-                    isActive('/directory')
-                      ? 'bg-slate-100 text-core border-slate-200'
-                      : 'text-gray-600 border-gray-200 hover:bg-gray-50'
-                  }`}
-                >
-                  <List className="size-4" />
-                  <span className={isCollapsed ? 'hidden' : ''}>Directory</span>
-                </Button>
-              </Link>
-
-              <Link href={`/users/${user.handle}/company/${info.id}/staff/hierarchy`}>
-                <Button 
-                  variant="ghost"
-                  size="sm"
-                  className={`px-3 py-1.5 rounded-full font-medium text-sm gap-1.5 border ${
-                    isActive('/hierarchy')
-                      ? 'bg-slate-100 text-core border-slate-200'
-                      : 'text-gray-600 border-gray-200 hover:bg-gray-50'
-                  }`}
-                >
-                  <Network className="size-4" />
-                  <span className={isCollapsed ? 'hidden' : ''}>Hierarchy</span>
-                </Button>
-              </Link>
-
-              <Link href={`/users/${user.handle}/company/${info.id}/staff/onboarding`}>
-                <Button 
-                  variant="ghost"
-                  size="sm"
-                  className={`px-3 py-1.5 rounded-full font-medium text-sm gap-1.5 border ${
-                    isActive('/onboarding')
-                      ? 'bg-slate-100 text-core border-slate-200'
-                      : 'text-gray-600 border-gray-200 hover:bg-gray-50'
-                  }`}
-                >
-                  <Plus className="size-4" />
-                  <span className={isCollapsed ? 'hidden' : ''}>Onboarding</span>
-                </Button>
-              </Link>
-
-              <Link href={`/users/${user.handle}/company/${info.id}/staff/settings`}>
-                <Button 
-                  variant="ghost"
-                  size="sm"
-                  className={`px-3 py-1.5 rounded-full font-medium text-sm gap-1.5 border ${
-                    isActive('/settings')
-                      ? 'bg-slate-100 text-core border-slate-200'
-                      : 'text-gray-600 border-gray-200 hover:bg-gray-50'
-                  }`}
-                >
-                  ⚙️
-                  <span className={isCollapsed ? 'hidden' : ''}>Settings</span>
-                </Button>
-              </Link>
-
-              {/* Collapse Button for Navigation Items */}
-              <button 
-                onClick={() => setIsCollapsed(!isCollapsed)}
-                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <ChevronLeft className={`size-5 text-gray-600 transition-transform ${isCollapsed ? 'rotate-180' : ''}`} />
-              </button>
-            </div>
+      <div className="space-y-4 px-4 h-full flex-col flex overflow-hidden">
+        {/* Header — title + primary action, stacks on mobile */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h1 className="text-lg font-semibold text-foreground">Staff management</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Manage and view all company staff members
+            </p>
           </div>
-
-          {/* Right: Invite Button */}
-          <Link href={`/users/${user.handle}/company/${info.id}/staff/new`}>
-            <Button variant="ghost" size="sm" className="bg-army hover:bg-army/90 text-white border-0 rounded-md px-5 gap-1.5">
-              <Plus className="size-4" />
-              <span>Invite</span>
-            </Button>
+          <Link href={`/users/${u}/company/${info.id}/staff/new`} className="shrink-0">
+            <button className="flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-lg bg-core text-white hover:bg-core/90 transition-colors">
+              <UserPlus className="size-4" />
+              Invite staff
+            </button>
           </Link>
         </div>
 
-        {/* Description Text */}
-        <p className="text-gray-600 text-sm">Manage and view all company staff members</p>
+        {/* Tab strip — horizontally scrollable, no manual collapse needed */}
+        <div className="flex items-center gap-2 overflow-x-auto no_scroll -mx-1 px-1 pb-1">
+          {TABS.map((tab) => {
+            const active = isActive(tab.path);
+            const href = `/users/${u}/company/${info.id}/staff${tab.path}`;
+            return (
+              <Link key={tab.key} href={href} className="shrink-0">
+                <button
+                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium border transition-colors whitespace-nowrap ${
+                    active
+                      ? 'bg-core_light text-core border-core/20'
+                      : 'text-muted-foreground border-border hover:bg-muted'
+                  }`}
+                >
+                  <tab.icon className="size-4" />
+                  {tab.label}
+                </button>
+              </Link>
+            );
+          })}
+        </div>
 
-        {/* Page Content */}
-        {children}
+        {/* Page content */}
+        <div className="grow overflow-y-auto ">{children}</div>
       </div>
     </ReusableCompanySidebar>
   );

@@ -3,7 +3,7 @@
 import {useContext} from "react"
 import { ArrowBigDownDash, ChevronRight, AudioWaveform, BookOpen, Bot, Calculator, ChartCandlestick,Files, Command, Factory, FileChartLine, Frame, GalleryVerticalEnd, LayoutDashboard, Map, PieChart, Plus, Settings, Settings2, SquareTerminal,} from "lucide-react"
 import { Button,buttonVariants } from "@/components/ui/button";
-import { DataContext } from "@/app/users/[u]/layout";
+import { DataContext } from "@/app/users/[u]/pageLayoutProvider"
 import Link from "next/link";
 import {  Sidebar,  SidebarContent,  SidebarFooter,  SidebarHeader,SidebarTrigger,  SidebarRail,} from "@/components/ui/sidebar"
 import {  Collapsible,  CollapsibleContent,  CollapsibleTrigger,} from "@/components/ui/collapsible"
@@ -38,9 +38,9 @@ export const CollapsibleButton = ({title,icon,items,sidebarCollapse,sidebarOpen,
     <Collapsible key={title} asChild defaultOpen={true} className="group/collapsible my-0.5" >
         <SidebarMenuItem onRequestOpen={sidebarOpen} onRequestCollapse={sidebarCollapse} >
             <CollapsibleTrigger asChild>
-            <SidebarMenuButton  tooltip={title} className={'text-black font-Poppins'}>
+            <SidebarMenuButton  tooltip={title} className={'text-black text-sm'}>
                  {item.icon && <item.icon className='font-bold' />}
-                <span className="font-medium text-xs ml-1">{title}</span>
+                <span className="font-medium text-sm ml-1">{title}</span>
                 <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
             </SidebarMenuButton>
             </CollapsibleTrigger>
@@ -48,9 +48,9 @@ export const CollapsibleButton = ({title,icon,items,sidebarCollapse,sidebarOpen,
             <SidebarMenuSub>
                 {items?.map((subItem) => (
                 <SidebarMenuSubItem key={subItem.title}>
-                    <SidebarMenuSubButton className={`text-black text-xs relative`} asChild>
+                    <SidebarMenuSubButton className={`text-black text-sm relative`} asChild>
                     <Link href={subItem.url} className="relative w-full flex items-center">
-                        <span data-caps={caps} className="font-medium data-[caps=capitalize]:capitalize data-[caps=lowercase]:lowercase data-[caps=uppercase]:uppercase tracking-tighter font-Poppins text-xs ml-1">{subItem.title}</span>
+                        <span data-caps={caps} className="font-medium data-[caps=capitalize]:capitalize data-[caps=lowercase]:lowercase data-[caps=uppercase]:uppercase tracking-tighter text-sm ml-1">{subItem.title}</span>
                         
                         {/* Badge for company type */}
                         {subItem.badge && (
@@ -75,14 +75,19 @@ export const CollapsibleButton = ({title,icon,items,sidebarCollapse,sidebarOpen,
   )
 }
 
-export const NoCollapsibleButton = ({name,active,url,icon }) => {
+export const NoCollapsibleButton = ({name,active,url,icon,badge }) => {
     const item ={icon}
   return (
     <SidebarMenuItem mobileCollapse={true}  key={name} className={'my-0.5'}>
-        <SidebarMenuButton asChild isActive={active} className={'text-black border-2 border-transparent hover:border-zinc-100 bg-transparent'} >
-            <Link href={url}>
+        <SidebarMenuButton asChild isActive={active} className={'relative text-black border-2 border-transparent hover:border-zinc-100 bg-transparent'} >
+            <Link href={url} className="relative flex  items-center">
                 {item.icon && <item.icon className='font-bold' />}
-                <span className="font-medium font-Poppins text-xs ml-1">{name}</span>
+                <span className="font-medium text-sm ml-1">{name}</span>
+                {badge && (
+                  <span className="absolute right-0 min-w-max h-4 px-1.5 rounded-full bg-red-600 font-semibold text-white text-[10px] flex items-center justify-center leading-none shadow-sm">
+                    <span className="relative">{badge}</span>
+                  </span>
+                )}
             </Link>
         </SidebarMenuButton>
     </SidebarMenuItem>

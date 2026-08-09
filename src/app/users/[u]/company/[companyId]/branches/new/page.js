@@ -66,35 +66,28 @@ export default function NewBranchPage() {
       }
 
       // Create the branch
-      const { data: insertedBranch, error: branchError } = await supabase
-        .from('branches')
-        .insert([
-          {
-            company: info?.id,
-            name: formData.name,
-            address: formData.address || null,
-            city: formData.city || null,
-            country: formData.country || null,
-            phone: formData.phone || null,
-            email: formData.email || null,
-            base_currency: formData.base_currency,
-            currencies: currenciesObj,
-            isheadoffice: formData.isheadoffice,
-            status: 'active',
-          },
-        ])
-        .select()
-        .single()
+     const { data: newBranch, error: branchError } = await supabase.rpc('create_branch_with_info', {
+        p_company: info?.id,
+        p_name: formData.name,
+        p_base_currency: formData.base_currency,
+        p_currencies: currenciesObj,
+        p_isheadoffice: formData.isheadoffice,
+        p_address: formData.address || null,
+        p_city: formData.city || null,
+        p_country: formData.country || null,
+        p_phone: formData.phone || null,
+        p_email: formData.email || null,
+      });
 
       if (branchError) {
-        toast.error('Failed to create branch')
-        console.error('Error inserting branch:', branchError)
-        setIsLoading(false)
-        return
+        toast.error('Failed to create branch');
+        console.error('Error creating branch:', branchError);
+        setIsLoading(false);
+        return;
       }
 
-      toast.success('✨ Branch created successfully!')
-      router.push(`/users/${params.u}/company/${params.companySlug}/branches`)
+      toast.success('✨ Branch created successfully!');
+      router.push(`/users/${params.u}/company/${params.companySlug}/branches`);
     } catch (err) {
       toast.error('An error occurred while creating the branch')
       console.error('Error:', err)

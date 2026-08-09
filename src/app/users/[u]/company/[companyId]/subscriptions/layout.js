@@ -7,7 +7,8 @@ import supabase from "@/config/supabaseClient"
 import { toast } from "sonner"
 import { Spinner } from "@/components/ui/spinner"
 import { Button } from "@/components/ui/button"
-import { CompanyInfoContext, ReusableCompanySidebar } from "../layout"
+import { CompanyInfoContext } from "../companyInfoProvider"
+import { ReusableCompanySidebar } from "../companyLayoutClient"
 
 export default function SubscriptionsLayout({ children }) {
   const router = useRouter()
@@ -38,7 +39,7 @@ export default function SubscriptionsLayout({ children }) {
         // Fetch current active or trialing subscription
         const { data: subscriptionData, error: subscriptionError } = await supabase
           .from("company_subscriptions")
-          .select("*, plan:core_plans(*)")
+          .select("*, plan:plans(*)")
           .eq("company", info.company_id)
           .in("status", ["active", "trialing"])
           .single()
@@ -50,7 +51,7 @@ export default function SubscriptionsLayout({ children }) {
         // Fetch previous subscriptions (expired, paused, etc.)
         const { data: previousData, error: previousError } = await supabase
           .from("company_subscriptions")
-          .select("*, plan:core_plans(*)")
+          .select("*, plan:plans(*)")
           .eq("company", info.company_id)
           .in("status", ["expired", "paused", "past_due", "canceled"])
           .order("end_date", { ascending: false })
@@ -61,7 +62,7 @@ export default function SubscriptionsLayout({ children }) {
 
         // Fetch all plans except trial
         const { data: plansData, error: plansError } = await supabase
-          .from("core_plans")
+          .from("plans")
           .select("*")
           .neq("key", "trial")
           .order("created_at", { ascending: true })

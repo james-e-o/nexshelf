@@ -1,14 +1,17 @@
 'use client'
 
 import { useContext } from 'react'
-import { CompanyInfoContext } from '../../layout'
+import { CompanyInfoContext } from '../../companyInfoProvider'
 import { StaffContext } from '@/components/contexts/staff-context'
 import { StaffTable } from '@/components/staff-table'
 import { Spinner } from '@/components/ui/spinner'
+import  { useParams } from 'next/navigation'
 
 export default function StaffDirectory() {
   const { info, user } = useContext(CompanyInfoContext)
   const { staffData, isLoadingStaff } = useContext(StaffContext)
+  const { companyId } = useParams()
+
 
   if (isLoadingStaff) {
     return (
@@ -23,6 +26,7 @@ export default function StaffDirectory() {
       staffList={staffData}
       userId={user?.handle}
       companySlug={info?.slug}
+      companyId={companyId}
     />
   )
 }

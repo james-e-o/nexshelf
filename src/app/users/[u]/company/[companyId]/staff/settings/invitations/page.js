@@ -17,7 +17,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { RefreshCw } from 'lucide-react';
 import  supabase  from '../../../../../../../../config/supabaseClient';
-import { CompanyInfoContext } from '../../../layout';
+import { CompanyInfoContext } from '../../../companyInfoProvider';
 
 export default function InvitationsPage() {
   const params = useParams();

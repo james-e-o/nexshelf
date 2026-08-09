@@ -426,7 +426,7 @@ export function VariantTable({ combinations = [], costPrice, pricingContexts, up
               variant={openContextId === context.id ? "default" : "outline"}
               size="sm"
               onClick={() => handleContextSwitch(context.id)}
-              className={openContextId === context.id ? "bg-army h-7 text-xs ml-1.5 text-white hover:bg-armylight" : ""}
+              className={openContextId === context.id ? "bg-army h-7 text-xs ml-1.5 text-white hover:bg-core_light" : ""}
             >
               {context.name}
             </Button>

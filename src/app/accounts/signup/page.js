@@ -141,7 +141,8 @@ export default function SignupPage() {
                   email: email,
                   password: password,
                   options:{
-                    emailRedirectTo:`https://nexshelf-pro.vercel.app//accounts/login?confirmed=${email}`,
+                    // emailRedirectTo:`https://nexshelf-pro.vercel.app//accounts/login?confirmed=${email}`,
+                    emailRedirectTo:`http://localhost:3000/accounts/login?confirmed=${email}`,
                     data:{
                       username:username,
                       handle:handle,
@@ -194,7 +195,7 @@ export default function SignupPage() {
                       </div>
                       
                     </a>
-                    <h1 className="text-xl text-army font-bold">Get Started @ Nexshelf Pro.</h1>
+                    <h1 className="text-xl text-alt font-bold">Get Started @ Nexshelf Pro.</h1>
                     <FieldDescription>
                       Already have an account? <Link href="/accounts/login">Login</Link>
                     </FieldDescription>

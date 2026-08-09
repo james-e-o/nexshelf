@@ -5,7 +5,7 @@ import supabase from '@/config/supabaseClient'
 import { Spinner } from '@/components/ui/spinner'
 import { ArrowLeft, ArrowRight, Check, X } from 'lucide-react'
 import Link from 'next/link'
-import { DataContext } from '../layout'
+import { DataContext } from '@/app/users/[u]/pageLayoutProvider'
 import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Field, FieldLabel } from '@/components/ui/field'
@@ -63,51 +63,45 @@ export default function NewCompanyPage() {
             setIsLoading(true);
 
             // 1️⃣ Create the company
-            const { data: insertedCompany, error: companyError } = await supabase
-                .from("companies")
-                .insert([
-                {
-                    name: formData.name,
-                    owner: data.profile.id,
-                    type: formData.type,
-                    email: formData.email,
-                    phone: formData.phone,
-                    country: formData.country,
-                    industry: formData.industry,
-                    currencies: formData.currencies,
-                    taxId: formData.taxId,
-                },
-                ])
-                .select()
-                .single();
+           const { data: newCompany, error: companyError } = await supabase.rpc('create_company_with_info', {
+                p_name: formData.name,
+                p_type: formData.type,
+                p_email: formData.email,
+                p_phone: formData.phone,
+                p_country: formData.country,
+                p_industry: formData.industry,
+                p_currencies: formData.currencies,
+                p_tax_id: formData.taxId || null,
+                p_head_office_address: formData.branchAddress || null,
+                p_head_office_city: formData.branchCity || null,
+                });
 
-            if (companyError) {
+                if (companyError) {
                 toast.error("Failed to create company");
-                console.log("Error inserting company:", companyError);
+                console.log("Error creating company:", companyError);
                 setIsLoading(false);
                 return;
-            } else {
-                    toast.success("✨ Company created successfully!");
-                    console.log(insertedCompany);
-
-                    const companyId = insertedCompany.id;
-
-                    const { data: companies, error: reloadError } = await supabase
-                        .from("companies")
-                        .select("id, name, slug")
-                        .eq("owner", data.profile.id);
-
-                    if (reloadError) {
-                        toast.error("Unable to refresh data");
-                    } else {
-                        setData((prev) => ({ ...prev, companies }));
-                    }
                 }
 
-            // setIsLoading(false);
-            router.push(`/users/${params.u}`);
-            };
+                toast.success("✨ Company created successfully!");
 
+                // 2️⃣ Refresh owned companies and re-attach badges,
+                //    preserving any staff-badged companies already in context
+                const { data: owned, error: reloadError } = await supabase
+                .from("companies")
+                .select("id, name, slug")
+                .eq("owner", data.profile.id);
+
+                if (reloadError) {
+                toast.error("Unable to refresh data");
+                } else {
+                const ownedWithBadge = (owned || []).map(c => ({ ...c, badge: 'owner' }))
+                const existingStaffCompanies = (data.companies || []).filter(c => c.badge === 'staff')
+                setData((prev) => ({ ...prev, companies: [...ownedWithBadge, ...existingStaffCompanies] }));
+                }
+
+                router.push(`/users/${params.u}`);
+            };
 
             useEffect(() => {
                 if (!formData.name.trim()) {
@@ -137,7 +131,7 @@ export default function NewCompanyPage() {
 
             useEffect(() => {
                 const fetchCompanies = async () => {
-                    const { data: companies, error } = await supabase
+                    const { data: owned, error } = await supabase
                         .from("companies")
                         .select("id, name, slug")
                         .eq("owner", data.profile.id);
@@ -146,7 +140,11 @@ export default function NewCompanyPage() {
                         console.error("Error fetching companies:", error);
                         setData(prev => ({ ...prev, companies: [] }));
                     } else {
-                        setData(prev => ({ ...prev, companies }));
+                        const ownedWithBadge = (owned || []).map(c => ({ ...c, badge: 'owner' }))
+                        setData(prev => {
+                            const existingStaffCompanies = (prev.companies || []).filter(c => c.badge === 'staff')
+                            return { ...prev, companies: [...ownedWithBadge, ...existingStaffCompanies] }
+                        });
                     }
                 };
 

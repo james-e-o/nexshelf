@@ -1,105 +1,90 @@
-'use client'
-import { useEffect, useState, createContext } from "react"
-import { Spinner } from '@/components/ui/spinner'
-import { useParams, useRouter } from 'next/navigation'
-import supabase from "../../../config/supabaseClient"
-import { toast } from "sonner"
+// app/users/[u]/PageLayout.jsx
+import { redirect } from 'next/navigation'
+import PageLayoutProvider from './pageLayoutProvider'
+import { createSupabaseServerClient } from '@/config/supabaseServer'
 
-export const DataContext = createContext()
-export const RefreshContext = createContext()
+const PageLayout = async ({ children, params }) => {
+  const { u } = await params
+  const supabase = await createSupabaseServerClient()
 
-const PageLayout = ({ children }) => {
-  const params = useParams()
-  const router = useRouter()
-  const [isLoading, setIsLoading] = useState(true)
-  const [data, setData] = useState({ profile: null, companies: null, companiesLoading: false })
-  const [refreshKey, setRefreshKey] = useState(0);
+  // Get authenticated user (server-side session check replaces the old
+  // localStorage login_timestamp check, which can't run on the server anyway)
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-  useEffect(() => {
-    const loginTime = Number(localStorage.getItem("login_timestamp"));
-
-    const now = Date.now();
-    const ONE_DAY = 24 * 60 * 60 * 1000;
-
-    // Rule 1: 24 hours passed → logout
-    if (loginTime && now - loginTime > ONE_DAY) {
-      supabase.auth.signOut();
-      localStorage.setItem("login_timestamp", '');
-      router.push("/accounts/login");
-      return;
-    }
-  }, [router]);
-
-
-  useEffect(() => {
-    async function ValidateUser() {
-      try {
-        // Give cookies a moment to sync after server-side login
-        await new Promise(resolve => setTimeout(resolve, 100))
-        
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) {
-          console.log('No user found, redirecting to login')
-          setIsLoading(false)
-          router.push('/accounts/login')
-          return
-        }
-
-        const userID = user.id
-        const { data: profile, error: profileError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', userID)
-          .single()
-
-        if (!profile || profileError) {
-          setData(prev => ({ ...prev, profile: null }))
-          alert('No profile found for this user, try reloading this page.')
-          setIsLoading(false)
-          router.push('/accounts/login')
-          return
-        }
-
-        // Compare the logged-in user's handle to the route param
-        if (params.u !== profile.handle) {
-          console.warn(`Unauthorized access attempt by ${profile.handle}`)
-          setIsLoading(false)
-          router.push(`/users/${profile.handle}`)
-          return
-        }
-
-        // ✅ Set profile first
-        setData(prev => ({ ...prev, profile }))
-
-        } catch (err) {
-            console.error('Unexpected error:', err)
-            setIsLoading(false)
-            router.push('/accounts/login')
-            return
-        } finally {
-            setIsLoading(false)
-        }
-    }
-
-    ValidateUser()
-  }, [params.u, router])
-
-  // Prevent showing dashboard if either profile or companies not ready
-  if (isLoading || !data.profile ) {
-    return (
-      <div className='overflow-hidden flex justify-center items-center h-full'>
-        <Spinner className='size-8 text-core' spinning={true} />
-      </div>
-    )
+  if (!user || authError) {
+    redirect('/accounts/login')
   }
 
-  // ✅ Fully authorized and data loaded
+  // Fetch user profile — sourced from `users`, see note above re: `profile` table
+  const { data: profile, error: profileError } = await supabase
+    .from('users')
+    .select('*')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile || profileError) {
+    redirect('/accounts/login')
+  }
+
+  // Validate route param matches the user's handle
+  if (u !== profile.handle) {
+    redirect(`/users/${profile.handle}`)
+  }
+
+  // --- Single source of truth for companies: owned + staff, fetched once, here. ---
+
+  // Companies the user owns
+  const { data: owned, error: ownedError } = await supabase
+    .from('companies')
+    .select('id, name, slug, logo, created_at')
+    .eq('owner', user.id)
+
+  if (ownedError) console.error('PageLayout: owned companies fetch failed', ownedError)
+
+  // Companies where the user is staff (role/access_level carried through for the sidebar badge)
+  const { data: staffRows, error: staffError } = await supabase
+    .from('staff')
+    .select('company, status, role, access_level')
+    .eq('user', user.id)
+
+  if (staffError) console.error('PageLayout: staff rows fetch failed', staffError)
+
+  const activeStaffRows = (staffRows || []).filter(r => r.status !== 'suspended')
+  const staffCompanyIds = activeStaffRows.map(r => r.company)
+
+  let staffCompanies = []
+  if (staffCompanyIds.length > 0) {
+    const { data: staffCompaniesData, error: staffCompaniesError } = await supabase
+      .from('companies')
+      .select('id, name, slug, logo, created_at')
+      .in('id', staffCompanyIds)
+
+    if (staffCompaniesError) {
+      console.error('PageLayout: staff companies fetch failed', staffCompaniesError)
+    } else {
+      const rowByCompanyId = Object.fromEntries(
+        activeStaffRows.map(r => [r.company, r])
+      )
+      staffCompanies = (staffCompaniesData || []).map(c => ({
+        ...c,
+        badge: 'staff',
+        role: rowByCompanyId[c.id]?.role ?? null,
+        accessLevel: rowByCompanyId[c.id]?.access_level ?? null,
+      }))
+    }
+  }
+
+  const ownedCompanies = (owned || []).map(c => ({ ...c, badge: 'owner' }))
+
+  const data = {
+    profile,
+    companies: [...ownedCompanies, ...staffCompanies],
+  }
+
   return (
-    <RefreshContext.Provider value={{ refreshKey, setRefreshKey }}>
-      <DataContext.Provider value={{ data, setData }}>
-        {children}
-      </DataContext.Provider>
-    </RefreshContext.Provider>
+    <PageLayoutProvider data={data}>
+      {children}
+    </PageLayoutProvider>
   )
 }
 

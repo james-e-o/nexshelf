@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CompanyInfoContext } from '../../layout';
+import { CompanyInfoContext } from '../../companyInfoProvider';
 import supabase from '@/config/supabaseClient';
 
 export default function StaffHierarchyPage() {
